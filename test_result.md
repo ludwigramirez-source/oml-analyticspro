@@ -235,6 +235,42 @@ frontend:
         agent: "main"
         comment: "Added React key prop to all ApexChart components using JSON.stringify of data to force re-render when data changes. This should fix the issue where Evolución and Nivel de Servicio charts were not updating."
 
+  - task: "Remove Manuales vs Dialer section from Salientes tab"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/analytics/reportes/LlamadasSalientes.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Removed manualesVsDialer state and related UI components. Simplified component to only fetch dashboard data. Removed getManualesVsDiater API call from loadData function."
+
+  - task: "Update Salientes KPIs with new categories"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/analytics/reportes/LlamadasSalientes.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Updated KPIs grid to show 5 metrics: Total Marcadas, Contestadas (with tasa %), No Contestadas, Ocupadas, and Fallos Técnicos. Changed from 4 to 5 columns grid layout."
+
+  - task: "Change Salientes chart from pie to bar"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/analytics/reportes/LlamadasSalientes.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Changed ApexChart type from 'pie' to 'bar' for better visualization of outbound call distribution. Removed the two-column grid layout as there's only one chart now."
+
 metadata:
   created_by: "main_agent"
   version: "1.0"

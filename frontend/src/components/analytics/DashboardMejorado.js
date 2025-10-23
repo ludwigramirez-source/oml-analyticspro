@@ -95,10 +95,15 @@ const DashboardMejorado = () => {
       console.log('✅ Campañas con alertas:', campanasRes);
       setCampanasConAlerta(campanasRes);
 
-      // Cargar llamadas detalladas
-      const llamadasRes = await analyticsApi.getLlamadasDetalladas(1, 50, filters);
-      console.log('✅ Llamadas detalladas:', llamadasRes);
+      // Cargar llamadas atendidas
+      const llamadasRes = await analyticsApi.getLlamadasAtendidas(1, 50, filters);
+      console.log('✅ Llamadas atendidas recibidas:', llamadasRes);
       setLlamadasDetalladas(llamadasRes.data || []);
+
+      // Cargar llamadas abandonadas
+      const abandonadasRes = await analyticsApi.getLlamadasAbandonadas(1, 50, filters);
+      console.log('✅ Llamadas abandonadas recibidas:', abandonadasRes);
+      setLlamadasAbandonadas(abandonadasRes.data || []);
 
       // Cargar agentes
       const agentesRes = await analyticsApi.getRendimientoAgentes(filters);

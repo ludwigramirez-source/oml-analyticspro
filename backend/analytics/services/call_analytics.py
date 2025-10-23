@@ -99,14 +99,21 @@ class CallAnalyticsService:
         
         espera_promedio = int(espera_result.espera_promedio) if espera_result.espera_promedio else 0
         
-        # Service Level (llamadas atendidas en menos de 20 segundos)
-        sla_threshold = 20
-        llamadas_en_sla = query.filter(
+        # Service Level < 60 segundos (estándar industria)
+        llamadas_en_sla_60 = query.filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
-            LlamadaLog.bridge_wait_time <= sla_threshold
+            LlamadaLog.bridge_wait_time <= self.SLA_THRESHOLD_60
         ).count()
         
-        service_level = round((llamadas_en_sla / llamadas_atendidas * 100), 2) if llamadas_atendidas > 0 else 0
+        service_level_60 = round((llamadas_en_sla_60 / llamadas_atendidas * 100), 2) if llamadas_atendidas > 0 else 0
+        
+        # Service Level < 20 segundos (alto rendimiento)
+        llamadas_en_sla_20 = query.filter(
+            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
+            LlamadaLog.bridge_wait_time <= self.SLA_THRESHOLD_20
+        ).count()
+        
+        service_level_20 = round((llamadas_en_sla_20 / llamadas_atendidas * 100), 2) if llamadas_atendidas > 0 else 0
         
         # Agentes activos (únicos con llamadas en el período)
         agentes_activos = query.filter(

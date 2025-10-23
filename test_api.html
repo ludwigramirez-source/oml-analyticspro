@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Analytics API</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 10px 0; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Test Analytics API</h1>
+    <button onclick="testAPI()">Test KPIs API</button>
+    <div id="result"></div>
+
+    <script>
+        async function testAPI() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>Loading...</p>';
+            
+            try {
+                const response = await fetch('https://callcenter-metrics.preview.emergentagent.com/api/analytics/kpis');
+                const data = await response.json();
+                resultDiv.innerHTML = '<h2>Success!</h2><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+                resultDiv.innerHTML = '<h2 style="color: red;">Error</h2><p>' + error.message + '</p>';
+            }
+        }
+    </script>
+</body>
+</html>

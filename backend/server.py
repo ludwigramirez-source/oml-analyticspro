@@ -101,6 +101,14 @@ try:
 except Exception as e:
     logger.warning(f"Config module not loaded: {e}")
 
+# Include Debug router (temporal)
+try:
+    from analytics.routes.debug_routes import router as debug_router
+    app.include_router(debug_router)
+    logger.info("Debug module loaded successfully")
+except Exception as e:
+    logger.warning(f"Debug module not loaded: {e}")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()

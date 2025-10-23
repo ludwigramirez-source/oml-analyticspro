@@ -338,7 +338,7 @@ const DashboardMejorado = () => {
             {/* Tab: Distribución Horaria */}
             {activeTab === 'horaria' && (
               <div>
-                <SimpleChart
+                <ApexChart
                   type="multiline"
                   data={horariaData}
                   title="Distribución Horaria: Entrantes, Salientes y Abandonadas"

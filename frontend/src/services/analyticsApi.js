@@ -305,3 +305,11 @@ class AnalyticsAPI {
 }
 
 export default new AnalyticsAPI();
+
+  /**
+   * Tabla de distribución horaria con métricas detalladas
+   */
+  async getTablaDistribucionHoraria(filters = {}, agruparPor = 'hora') {
+    return this.fetchData(`tabla-distribucion-horaria?agrupar_por=${agruparPor}`, filters);
+  }
+

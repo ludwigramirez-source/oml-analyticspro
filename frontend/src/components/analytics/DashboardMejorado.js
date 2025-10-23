@@ -8,6 +8,7 @@ import EntradasSalidas from './EntradasSalidas';
 import TablaLlamadas from './TablaLlamadas';
 import TablaAgentes from './TablaAgentes';
 import TablaAbandonadas from './TablaAbandonadas';
+import ConfiguracionDB from './ConfiguracionDB';
 
 const DashboardMejorado = () => {
   // Estados

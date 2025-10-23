@@ -446,14 +446,7 @@ const DashboardMejorado = () => {
 
             {/* Tab: Distribución Horaria */}
             {activeTab === 'horaria' && (
-              <div>
-                <ApexChart
-                  type="multiline"
-                  data={horariaData}
-                  title="Distribución Horaria: Entrantes, Salientes y Abandonadas"
-                  key={`horaria-${JSON.stringify(horariaData)}`}
-                />
-              </div>
+              <TablaDistribucionHoraria filters={filters} />
             )}
 
             {/* Tab: Campañas con Alertas */}

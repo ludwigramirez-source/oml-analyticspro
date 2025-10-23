@@ -23,14 +23,14 @@ const ApexChart = ({ type, data, title }) => {
   let series = [];
 
   if (type === 'pie') {
-    series = data.map(d => d.value);
+    series = data.map(d => Number(d.value || 0));
     options = {
       chart: {
         type: 'pie',
         toolbar: { show: false }
       },
-      labels: data.map(d => d.name),
-      colors: ['#34a853', '#ea8600', '#ea4335'],
+      labels: data.map(d => String(d.label || d.name || 'N/A')),
+      colors: ['#34a853', '#ea8600', '#ea4335', '#4285f4', '#9c27b0', '#ff9800'],
       legend: {
         position: 'bottom',
         fontSize: '12px'

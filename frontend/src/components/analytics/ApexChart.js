@@ -43,10 +43,15 @@ const ApexChart = ({ type, data, title }) => {
       }
     };
   } else if (type === 'line') {
-    series = [{
-      name: 'Llamadas',
-      data: data.map(d => d.value)
-    }];
+    // Soportar formato simple o formato con series
+    if (Array.isArray(data) && data[0] && data[0].name) {
+      series = data;
+    } else {
+      series = [{
+        name: 'Llamadas',
+        data: data.map(d => Number(d.value || d.y || 0))
+      }];
+    }
     options = {
       chart: {
         type: 'line',
@@ -54,7 +59,7 @@ const ApexChart = ({ type, data, title }) => {
         zoom: { enabled: false }
       },
       xaxis: {
-        categories: data.map(d => d.name),
+        categories: data.map(d => String(d.name || d.x || d.label || 'N/A')),
         labels: { style: { fontSize: '11px' } }
       },
       stroke: {
@@ -67,10 +72,15 @@ const ApexChart = ({ type, data, title }) => {
       }
     };
   } else if (type === 'bar') {
-    series = [{
-      name: 'Llamadas',
-      data: data.map(d => d.value)
-    }];
+    // Soportar formato simple o formato con series
+    if (Array.isArray(data) && data[0] && data[0].name) {
+      series = data;
+    } else {
+      series = [{
+        name: 'Llamadas',
+        data: data.map(d => Number(d.value || d.y || 0))
+      }];
+    }
     options = {
       chart: {
         type: 'bar',
@@ -83,7 +93,7 @@ const ApexChart = ({ type, data, title }) => {
         }
       },
       xaxis: {
-        categories: data.map(d => d.name),
+        categories: data.map(d => String(d.name || d.x || d.label || 'N/A')),
         labels: { style: { fontSize: '11px' } }
       },
       colors: ['#1a73e8'],

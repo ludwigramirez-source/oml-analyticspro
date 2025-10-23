@@ -14,7 +14,10 @@ const SimpleChart = ({ type, data, title }) => {
     '#00acc1'  // Cyan
   ];
 
+  console.log(`📊 SimpleChart [${title}] recibió:`, data);
+
   if (!data || data.length === 0) {
+    console.warn(`⚠️ SimpleChart [${title}] sin datos:`, data);
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
         <h3 className="text-base font-semibold text-gray-800 mb-4">{title}</h3>
@@ -24,6 +27,8 @@ const SimpleChart = ({ type, data, title }) => {
       </div>
     );
   }
+
+  console.log(`✅ SimpleChart [${title}] renderizando gráfico tipo: ${type}`);
 
   const renderChart = () => {
     switch (type) {

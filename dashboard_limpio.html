@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniLeads Analytics - Reportes</title>
+    
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        /* Header */
+        .main-header {
+            background: #fff;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 16px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a73e8;
+            margin: 0;
+        }
+        
+        .header-subtitle {
+            font-size: 12px;
+            color: #666;
+            margin-top: 2px;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        /* Container */
+        .container-fluid {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        
+        /* Filter Section */
+        .filter-section {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .filter-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .filter-title i {
+            color: #1a73e8;
+        }
+        
+        .form-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 6px;
+        }
+        
+        .form-control, .form-select {
+            font-size: 13px;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            padding: 8px 12px;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+        }
+        
+        .btn-primary {
+            background-color: #1a73e8;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 20px;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-primary:hover {
+            background-color: #1557b0;
+        }
+        
+        .btn-outline-secondary {
+            border: 1px solid #dadce0;
+            color: #555;
+            border-radius: 4px;
+            padding: 8px 20px;
+            font-size: 13px;
+            font-weight: 500;
+            background: #fff;
+        }
+        
+        .btn-outline-secondary:hover {
+            background-color: #f8f9fa;
+            border-color: #dadce0;
+            color: #555;
+        }
+        
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .kpi-card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            transition: box-shadow 0.2s;
+        }
+        
+        .kpi-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .kpi-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .kpi-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .kpi-icon.primary {
+            background: rgba(26, 115, 232, 0.1);
+            color: #1a73e8;
+        }
+        
+        .kpi-icon.success {
+            background: rgba(52, 168, 83, 0.1);
+            color: #34a853;
+        }
+        
+        .kpi-icon.warning {
+            background: rgba(251, 188, 5, 0.1);
+            color: #fbbc05;
+        }
+        
+        .kpi-icon.danger {
+            background: rgba(234, 67, 53, 0.1);
+            color: #ea4335;
+        }
+        
+        .kpi-value {
+            font-size: 32px;
+            font-weight: 600;
+            color: #202124;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+        
+        .kpi-change {
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .kpi-change.positive {
+            color: #34a853;
+        }
+        
+        .kpi-change.negative {
+            color: #ea4335;
+        }
+        
+        .kpi-change.neutral {
+            color: #666;
+        }
+        
+        /* Chart Container */
+        .chart-card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #202124;
+        }
+        
+        .chart-options {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .chart-option-btn {
+            padding: 6px 12px;
+            font-size: 12px;
+            border: 1px solid #dadce0;
+            background: #fff;
+            border-radius: 4px;
+            color: #555;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .chart-option-btn:hover {
+            background: #f8f9fa;
+        }
+        
+        .chart-option-btn.active {
+            background: #e8f0fe;
+            color: #1a73e8;
+            border-color: #1a73e8;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 350px;
+        }
+        
+        /* Tabs */
+        .nav-tabs {
+            border-bottom: 1px solid #e0e0e0;
+            margin-bottom: 24px;
+        }
+        
+        .nav-tabs .nav-link {
+            border: none;
+            color: #666;
+            font-size: 13px;
+            font-weight: 500;
+            padding: 12px 20px;
+            margin-bottom: -1px;
+            transition: color 0.2s;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            color: #1a73e8;
+            border-color: transparent;
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: #1a73e8;
+            border-bottom: 2px solid #1a73e8;
+            background: transparent;
+        }
+        
+        /* Tables */
+        .table-card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .table-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #202124;
+        }
+        
+        .table {
+            font-size: 13px;
+            margin-bottom: 0;
+        }
+        
+        .table thead th {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            border-top: none;
+            color: #555;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            padding: 12px;
+        }
+        
+        .table tbody td {
+            padding: 12px;
+            vertical-align: middle;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .table tbody tr:hover {
+            background-color: #fafafa;
+        }
+        
+        .table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        
+        /* Badges */
+        .badge {
+            font-size: 11px;
+            font-weight: 500;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        
+        .badge-success {
+            background-color: rgba(52, 168, 83, 0.1);
+            color: #137333;
+        }
+        
+        .badge-warning {
+            background-color: rgba(251, 188, 5, 0.1);
+            color: #b06000;
+        }
+        
+        .badge-danger {
+            background-color: rgba(234, 67, 53, 0.1);
+            color: #c5221f;
+        }
+        
+        .badge-info {
+            background-color: rgba(26, 115, 232, 0.1);
+            color: #1967d2;
+        }
+        
+        .badge-secondary {
+            background-color: rgba(128, 134, 139, 0.1);
+            color: #5f6368;
+        }
+        
+        /* Status Indicators */
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+        
+        .status-dot.online {
+            background-color: #34a853;
+        }
+        
+        .status-dot.offline {
+            background-color: #9aa0a6;
+        }
+        
+        .status-dot.pause {
+            background-color: #fbbc05;
+        }
+        
+        /* Action Buttons */
+        .btn-action {
+            padding: 6px 10px;
+            font-size: 12px;
+            border-radius: 4px;
+            border: 1px solid #dadce0;
+            background: #fff;
+            color: #555;
+            transition: all 0.2s;
+        }
+        
+        .btn-action:hover {
+            background: #f8f9fa;
+            color: #202124;
+        }
+        
+        .btn-action i {
+            font-size: 13px;
+        }
+        
+        /* DataTables Custom Styling */
+        .dataTables_wrapper .dataTables_filter input {
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+        
+        .dataTables_wrapper .dataTables_length select {
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+        
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            padding: 6px 12px;
+            border-radius: 4px;
+            margin: 0 2px;
+        }
+        
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+            background: #e8f0fe;
+            color: #1a73e8 !important;
+            border: 1px solid #1a73e8;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+            
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-container {
+                height: 250px;
+            }
+            
+            .table-responsive {
+                font-size: 12px;
+            }
+        }
+        
+        /* Loading State */
+        .loading {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(26, 115, 232, 0.3);
+            border-radius: 50%;
+            border-top-color: #1a73e8;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+        
+        .empty-state i {
+            font-size: 48px;
+            color: #dadce0;
+            margin-bottom: 16px;
+        }
+        
+        .empty-state h4 {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .empty-state p {
+            font-size: 13px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="main-header">
+        <div class="header-content">
+            <div>
+                <h1 class="header-title">OmniLeads Analytics</h1>
+                <p class="header-subtitle">Última actualización: <span id="lastUpdate">15:45:32</span></p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-outline-secondary">
+                    <i class="fas fa-download"></i> Exportar
+                </button>
+                <button class="btn btn-primary">
+                    <i class="fas fa-sync-alt"></i> Actualizar
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container-fluid">
+        <!-- Filters Section -->
+        <div class="filter-section">
+            <div class="filter-title">
+                <i class="fas fa-filter"></i>
+                <span>Filtros de Búsqueda</span>
+            </div>
+            
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Tipo de Campaña</label>
+                    <select class="form-select">
+                        <option>Todas</option>
+                        <option>Entrante</option>
+                        <option>Saliente Manual</option>
+                        <option>Saliente Dialer</option>
+                        <option>Saliente Preview</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Campaña</label>
+                    <select class="form-select">
+                        <option>Todas las campañas</option>
+                        <option>Ventas</option>
+                        <option>Soporte Técnico</option>
+                        <option>Cobranzas</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Fecha Inicio</label>
+                    <input type="date" class="form-control" value="2024-01-01">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Fecha Fin</label>
+                    <input type="date" class="form-control" value="2024-01-31">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <button class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span class="kpi-label">Llamadas Totales</span>
+                    <div class="kpi-icon primary">
+                        <i class="fas fa-phone"></i>
+                    </div>
+                </div>
+                <div class="kpi-value">2,547</div>
+                <div class="kpi-change positive">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>12.5% vs período anterior</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span class="kpi-label">Llamadas Atendidas</span>
+                    <div class="kpi-icon success">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                </div>
+                <div class="kpi-value">2,143</div>
+                <div class="kpi-change positive">
+                    <i class="fas fa-check"></i>
+                    <span>84.14% de atención</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span class="kpi-label">Llamadas Perdidas</span>
+                    <div class="kpi-icon danger">
+                        <i class="fas fa-phone-slash"></i>
+                    </div>
+                </div>
+                <div class="kpi-value">404</div>
+                <div class="kpi-change negative">
+                    <i class="fas fa-arrow-down"></i>
+                    <span>15.86% del total</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span class="kpi-label">TMO Promedio</span>
+                    <div class="kpi-icon warning">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                </div>
+                <div class="kpi-value">00:42</div>
+                <div class="kpi-change positive">
+                    <i class="fas fa-check"></i>
+                    <span>Dentro del objetivo</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span class="kpi-label">Tiempo de Espera</span>
+                    <div class="kpi-icon warning">
+                        <i class="fas fa-hourglass-half"></i>
+                    </div>
+                </div>
+                <div class="kpi-value">00:18</div>
+                <div class="kpi-change neutral">
+                    <i class="fas fa-minus"></i>
+                    <span>Promedio del mes</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span class="kpi-label">Service Level</span>
+                    <div class="kpi-icon success">
+                        <i class="fas fa-stopwatch"></i>
+                    </div>
+                </div>
+                <div class="kpi-value">92.3%</div>
+                <div class="kpi-change positive">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>+3.2% vs mes anterior</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span class="kpi-label">Agentes Activos</span>
+                    <div class="kpi-icon primary">
+                        <i class="fas fa-users"></i>
+                    </div>
+                </div>
+                <div class="kpi-value">48</div>
+                <div class="kpi-change neutral">
+                    <i class="fas fa-circle"></i>
+                    <span>45 en línea ahora</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span class="kpi-label">Ocupación</span>
+                    <div class="kpi-icon success">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                </div>
+                <div class="kpi-value">78.5%</div>
+                <div class="kpi-change positive">
+                    <i class="fas fa-check"></i>
+                    <span>Óptimo</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="tab" href="#distribucion">Distribución</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#atendidas">Llamadas Atendidas</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#no-atendidas">No Atendidas</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#agentes">Agentes</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#campanas">Campañas</a>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Distribución Tab -->
+            <div id="distribucion" class="tab-pane fade show active">
+                <div class="row">
+                    <!-- Distribution Chart -->
+                    <div class="col-lg-6">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div class="chart-title">Distribución de Llamadas</div>
+                                <div class="chart-options">
+                                    <button class="chart-option-btn active">Gráfico</button>
+                                    <button class="chart-option-btn">Tabla</button>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="distributionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Timeline Chart -->
+                    <div class="col-lg-6">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div class="chart-title">Evolución por Hora</div>
+                                <div class="chart-options">
+                                    <button class="chart-option-btn active">Hoy</button>
+                                    <button class="chart-option-btn">Semana</button>
+                                    <button class="chart-option-btn">Mes</button>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="timelineChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Distribution Table -->
+                <div class="table-card">
+                    <div class="table-header">
+                        <div class="table-title">Distribución por Campaña</div>
+                        <button class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-download"></i> Exportar CSV
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table" id="distributionTable">
+                            <thead>
+                                <tr>
+                                    <th>Campaña</th>
+                                    <th>Tipo</th>
+                                    <th>Recibidas</th>
+                                    <th>Atendidas</th>
+                                    <th>No Atendidas</th>
+                                    <th>Abandonadas</th>
+                                    <th>% Atención</th>
+                                    <th>Espera Media</th>
+                                    <th>Duración Media</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Ventas</strong></td>
+                                    <td><span class="badge badge-info">Entrante</span></td>
+                                    <td>854</td>
+                                    <td>742</td>
+                                    <td>112</td>
+                                    <td>98</td>
+                                    <td><span class="badge badge-success">86.9%</span></td>
+                                    <td>00:15</td>
+                                    <td>03:45</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Soporte Técnico</strong></td>
+                                    <td><span class="badge badge-info">Entrante</span></td>
+                                    <td>632</td>
+                                    <td>548</td>
+                                    <td>84</td>
+                                    <td>72</td>
+                                    <td><span class="badge badge-success">86.7%</span></td>
+                                    <td>00:18</td>
+                                    <td>05:12</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Cobranzas</strong></td>
+                                    <td><span class="badge badge-secondary">Saliente</span></td>
+                                    <td>521</td>
+                                    <td>456</td>
+                                    <td>65</td>
+                                    <td>58</td>
+                                    <td><span class="badge badge-success">87.5%</span></td>
+                                    <td>00:12</td>
+                                    <td>02:34</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Retención</strong></td>
+                                    <td><span class="badge badge-info">Entrante</span></td>
+                                    <td>540</td>
+                                    <td>397</td>
+                                    <td>143</td>
+                                    <td>130</td>
+                                    <td><span class="badge badge-warning">73.5%</span></td>
+                                    <td>00:25</td>
+                                    <td>06:28</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Llamadas Atendidas Tab -->
+            <div id="atendidas" class="tab-pane fade">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">Nivel de Servicio</div>
+                        <div class="chart-options">
+                            <button class="chart-option-btn active">5s</button>
+                            <button class="chart-option-btn">10s</button>
+                            <button class="chart-option-btn">20s</button>
+                            <button class="chart-option-btn">30s</button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="serviceLevelChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="table-card">
+                    <div class="table-header">
+                        <div class="table-title">Detalle de Llamadas Atendidas</div>
+                        <button class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-download"></i> Exportar
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table" id="attendedCallsTable">
+                            <thead>
+                                <tr>
+                                    <th>Fecha/Hora</th>
+                                    <th>Teléfono</th>
+                                    <th>Campaña</th>
+                                    <th>Agente</th>
+                                    <th>Espera</th>
+                                    <th>Duración</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>2024-01-15 09:23:45</td>
+                                    <td>+57 300 123 4567</td>
+                                    <td>Ventas</td>
+                                    <td>Juan Pérez</td>
+                                    <td>00:12</td>
+                                    <td>03:45</td>
+                                    <td><span class="badge badge-success">Atendida</span></td>
+                                    <td>
+                                        <button class="btn-action" title="Reproducir">
+                                            <i class="fas fa-play"></i>
+                                        </button>
+                                        <button class="btn-action" title="Descargar">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>2024-01-15 09:28:12</td>
+                                    <td>+57 310 987 6543</td>
+                                    <td>Soporte</td>
+                                    <td>María García</td>
+                                    <td>00:08</td>
+                                    <td>05:12</td>
+                                    <td><span class="badge badge-success">Atendida</span></td>
+                                    <td>
+                                        <button class="btn-action" title="Reproducir">
+                                            <i class="fas fa-play"></i>
+                                        </button>
+                                        <button class="btn-action" title="Descargar">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>2024-01-15 09:35:22</td>
+                                    <td>+57 315 234 5678</td>
+                                    <td>Cobranzas</td>
+                                    <td>Carlos López</td>
+                                    <td>00:15</td>
+                                    <td>02:34</td>
+                                    <td><span class="badge badge-success">Atendida</span></td>
+                                    <td>
+                                        <button class="btn-action" title="Reproducir">
+                                            <i class="fas fa-play"></i>
+                                        </button>
+                                        <button class="btn-action" title="Descargar">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- No Atendidas Tab -->
+            <div id="no-atendidas" class="tab-pane fade">
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div class="chart-title">Causas de No Atención</div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="missedCausesChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div class="chart-title">No Atendidas por Hora</div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="missedByHourChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-card">
+                    <div class="table-header">
+                        <div class="table-title">Detalle de Llamadas No Atendidas</div>
+                        <button class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-download"></i> Exportar
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table" id="missedCallsTable">
+                            <thead>
+                                <tr>
+                                    <th>Fecha/Hora</th>
+                                    <th>Teléfono</th>
+                                    <th>Campaña</th>
+                                    <th>Tiempo Espera</th>
+                                    <th>Motivo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>2024-01-15 09:32:01</td>
+                                    <td>+57 320 456 7890</td>
+                                    <td>Ventas</td>
+                                    <td>01:45</td>
+                                    <td><span class="badge badge-warning">Abandonada</span></td>
+                                </tr>
+                                <tr>
+                                    <td>2024-01-15 09:40:18</td>
+                                    <td>+57 318 765 4321</td>
+                                    <td>Retención</td>
+                                    <td>02:30</td>
+                                    <td><span class="badge badge-danger">Timeout</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agentes Tab -->
+            <div id="agentes" class="tab-pane fade">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">Ocupación de Agentes</div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="agentOccupancyChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="table-card">
+                    <div class="table-header">
+                        <div class="table-title">Rendimiento de Agentes</div>
+                        <button class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-download"></i> Exportar
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table" id="agentsTable">
+                            <thead>
+                                <tr>
+                                    <th>Agente</th>
+                                    <th>Estado</th>
+                                    <th>Atendidas</th>
+                                    <th>TMO</th>
+                                    <th>Pausas</th>
+                                    <th>Ocupación</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Juan Pérez</strong></td>
+                                    <td>
+                                        <span class="status-dot online"></span>
+                                        <span class="badge badge-success">En línea</span>
+                                    </td>
+                                    <td>87</td>
+                                    <td>04:18</td>
+                                    <td>00:45</td>
+                                    <td><span class="badge badge-success">82.5%</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>María García</strong></td>
+                                    <td>
+                                        <span class="status-dot online"></span>
+                                        <span class="badge badge-success">En línea</span>
+                                    </td>
+                                    <td>92</td>
+                                    <td>04:22</td>
+                                    <td>00:38</td>
+                                    <td><span class="badge badge-success">85.3%</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Carlos López</strong></td>
+                                    <td>
+                                        <span class="status-dot pause"></span>
+                                        <span class="badge badge-warning">En pausa</span>
+                                    </td>
+                                    <td>78</td>
+                                    <td>04:32</td>
+                                    <td>01:12</td>
+                                    <td><span class="badge badge-warning">76.8%</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Ana Martínez</strong></td>
+                                    <td>
+                                        <span class="status-dot offline"></span>
+                                        <span class="badge badge-secondary">Desconectado</span>
+                                    </td>
+                                    <td>65</td>
+                                    <td>04:08</td>
+                                    <td>00:52</td>
+                                    <td><span class="badge badge-info">79.2%</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Campañas Tab -->
+            <div id="campanas" class="tab-pane fade">
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div class="chart-title">Comparativa de Atención</div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="campaignComparisonChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <div class="chart-title">TMO por Campaña</div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="campaignTMOChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    
+    <!-- Bootstrap Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- DataTables -->
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <script>
+        // Initialize DataTables
+        $(document).ready(function() {
+            const tableConfig = {
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json'
+                },
+                pageLength: 10,
+                dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>rtip'
+            };
+            
+            $('#distributionTable').DataTable(tableConfig);
+            $('#attendedCallsTable').DataTable({...tableConfig, order: [[0, 'desc']]});
+            $('#missedCallsTable').DataTable({...tableConfig, order: [[0, 'desc']]});
+            $('#agentsTable').DataTable(tableConfig);
+        });
+
+        // Update time
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = now.toLocaleTimeString();
+        }, 1000);
+
+        // Chart Colors
+        const colors = {
+            primary: '#1a73e8',
+            success: '#34a853',
+            warning: '#fbbc05',
+            danger: '#ea4335',
+            info: '#4285f4',
+            gray: '#9aa0a6'
+        };
+
+        // Distribution Chart
+        const ctxDist = document.getElementById('distributionChart').getContext('2d');
+        new Chart(ctxDist, {
+            type: 'doughnut',
+            data: {
+                labels: ['Atendidas', 'Abandonadas', 'No Atendidas'],
+                datasets: [{
+                    data: [2143, 234, 170],
+                    backgroundColor: [colors.success, colors.warning, colors.danger],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { padding: 15, font: { size: 12 } }
+                    }
+                },
+                cutout: '70%'
+            }
+        });
+
+        // Timeline Chart
+        const ctxTimeline = document.getElementById('timelineChart').getContext('2d');
+        new Chart(ctxTimeline, {
+            type: 'line',
+            data: {
+                labels: ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'],
+                datasets: [{
+                    label: 'Atendidas',
+                    data: [45, 89, 112, 134, 98, 76, 123, 145, 132, 98],
+                    borderColor: colors.success,
+                    backgroundColor: 'transparent',
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointRadius: 4,
+                    pointBackgroundColor: colors.success
+                }, {
+                    label: 'No Atendidas',
+                    data: [12, 18, 15, 22, 19, 14, 20, 16, 18, 15],
+                    borderColor: colors.danger,
+                    backgroundColor: 'transparent',
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointRadius: 4,
+                    pointBackgroundColor: colors.danger
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', labels: { font: { size: 12 } } }
+                },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f0f0f0' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // Service Level Chart
+        const ctxSL = document.getElementById('serviceLevelChart').getContext('2d');
+        new Chart(ctxSL, {
+            type: 'bar',
+            data: {
+                labels: ['0-5s', '6-10s', '11-15s', '16-20s', '21-30s', '31-60s', '>60s'],
+                datasets: [{
+                    label: 'Llamadas',
+                    data: [847, 456, 312, 245, 187, 96, 34],
+                    backgroundColor: colors.primary,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f0f0f0' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // Missed Causes Chart
+        const ctxMissed = document.getElementById('missedCausesChart').getContext('2d');
+        new Chart(ctxMissed, {
+            type: 'pie',
+            data: {
+                labels: ['Abandonadas', 'Timeout', 'Sin Conexión'],
+                datasets: [{
+                    data: [234, 120, 50],
+                    backgroundColor: [colors.warning, colors.danger, colors.gray],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { padding: 15, font: { size: 12 } } }
+                }
+            }
+        });
+
+        // Missed By Hour Chart
+        const ctxMissedHour = document.getElementById('missedByHourChart').getContext('2d');
+        new Chart(ctxMissedHour, {
+            type: 'bar',
+            data: {
+                labels: ['08h', '09h', '10h', '11h', '12h', '13h', '14h', '15h', '16h', '17h'],
+                datasets: [{
+                    label: 'No Atendidas',
+                    data: [12, 18, 15, 22, 19, 14, 20, 16, 18, 15],
+                    backgroundColor: colors.danger,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f0f0f0' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // Agent Occupancy Chart
+        const ctxOcc = document.getElementById('agentOccupancyChart').getContext('2d');
+        new Chart(ctxOcc, {
+            type: 'bar',
+            data: {
+                labels: ['Juan Pérez', 'María García', 'Carlos López', 'Ana Martínez', 'Pedro Rodríguez'],
+                datasets: [{
+                    label: 'Al Habla',
+                    data: [5.2, 5.6, 4.8, 3.9, 5.1],
+                    backgroundColor: colors.success
+                }, {
+                    label: 'En Pausa',
+                    data: [0.8, 0.6, 1.2, 0.9, 0.7],
+                    backgroundColor: colors.warning
+                }, {
+                    label: 'Disponible',
+                    data: [0.4, 0.3, 0.5, 0.4, 0.3],
+                    backgroundColor: colors.info
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true, grid: { color: '#f0f0f0' } },
+                    y: { stacked: true, grid: { display: false } }
+                },
+                plugins: {
+                    legend: { position: 'top', labels: { font: { size: 12 } } }
+                }
+            }
+        });
+
+        // Campaign Comparison Chart
+        const ctxComp = document.getElementById('campaignComparisonChart').getContext('2d');
+        new Chart(ctxComp, {
+            type: 'bar',
+            data: {
+                labels: ['Ventas', 'Soporte', 'Cobranzas', 'Retención'],
+                datasets: [{
+                    label: 'Atendidas',
+                    data: [742, 548, 456, 397],
+                    backgroundColor: colors.success
+                }, {
+                    label: 'No Atendidas',
+                    data: [112, 84, 65, 143],
+                    backgroundColor: colors.danger
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'top', labels: { font: { size: 12 } } } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f0f0f0' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // Campaign TMO Chart
+        const ctxTMO = document.getElementById('campaignTMOChart').getContext('2d');
+        new Chart(ctxTMO, {
+            type: 'line',
+            data: {
+                labels: ['Ventas', 'Soporte', 'Cobranzas', 'Retención'],
+                datasets: [{
+                    label: 'TMO (minutos)',
+                    data: [3.75, 5.2, 2.57, 6.47],
+                    borderColor: colors.primary,
+                    backgroundColor: 'transparent',
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointRadius: 6,
+                    pointBackgroundColor: colors.primary
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f0f0f0' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

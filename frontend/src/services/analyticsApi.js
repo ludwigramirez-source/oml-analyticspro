@@ -68,10 +68,31 @@ class AnalyticsAPI {
   }
 
   /**
+   * Obtiene llamadas separadas por tipo (ENTRANTES vs SALIENTES)
+   */
+  async getLlamadasPorTipo(filters = {}) {
+    return this.fetchData('llamadas-por-tipo', filters);
+  }
+
+  /**
    * Obtiene distribución de llamadas
    */
   async getDistribucionLlamadas(filters = {}) {
     return this.fetchData('distribucion-llamadas', filters);
+  }
+  
+  /**
+   * Obtiene nivel de atención por campaña con alertas
+   */
+  async getNivelAtencionCampanas(filters = {}) {
+    return this.fetchData('nivel-atencion-campanas', filters);
+  }
+  
+  /**
+   * Obtiene distribución horaria detallada
+   */
+  async getDistribucionHorariaDetallada(filters = {}) {
+    return this.fetchData('distribucion-horaria-detallada', filters);
   }
 
   /**

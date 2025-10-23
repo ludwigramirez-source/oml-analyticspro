@@ -43,64 +43,107 @@ const ApexChart = ({ type, data, title }) => {
       }
     };
   } else if (type === 'line') {
-    // Soportar formato simple o formato con series
-    if (Array.isArray(data) && data[0] && data[0].name) {
+    // Verificar si es formato de series múltiples (con propiedad 'data' en cada elemento)
+    if (Array.isArray(data) && data[0] && Array.isArray(data[0].data)) {
+      // Formato: [{name: 'Serie 1', data: [1,2,3]}, ...]
       series = data;
-    } else {
-      series = [{
-        name: 'Llamadas',
-        data: data.map(d => Number(d.value || d.y || 0))
-      }];
-    }
-    options = {
-      chart: {
-        type: 'line',
-        toolbar: { show: false },
-        zoom: { enabled: false }
-      },
-      xaxis: {
-        categories: data.map(d => String(d.name || d.x || d.label || 'N/A')),
-        labels: { style: { fontSize: '11px' } }
-      },
-      stroke: {
-        curve: 'smooth',
-        width: 2
-      },
-      colors: ['#1a73e8'],
-      dataLabels: {
-        enabled: false
-      }
-    };
-  } else if (type === 'bar') {
-    // Soportar formato simple o formato con series
-    if (Array.isArray(data) && data[0] && data[0].name) {
-      series = data;
-    } else {
-      series = [{
-        name: 'Llamadas',
-        data: data.map(d => Number(d.value || d.y || 0))
-      }];
-    }
-    options = {
-      chart: {
-        type: 'bar',
-        toolbar: { show: false }
-      },
-      plotOptions: {
-        bar: {
-          borderRadius: 4,
-          horizontal: false,
+      options = {
+        chart: {
+          type: 'line',
+          toolbar: { show: false },
+          zoom: { enabled: false }
+        },
+        xaxis: {
+          categories: data[0].data.map((_, idx) => idx), // Usar índices si no hay categorías específicas
+          labels: { style: { fontSize: '11px' } }
+        },
+        stroke: {
+          curve: 'smooth',
+          width: 2
+        },
+        colors: ['#1a73e8', '#34a853', '#ea8600'],
+        dataLabels: {
+          enabled: false
         }
-      },
-      xaxis: {
-        categories: data.map(d => String(d.name || d.x || d.label || 'N/A')),
-        labels: { style: { fontSize: '11px' } }
-      },
-      colors: ['#1a73e8'],
-      dataLabels: {
-        enabled: false
-      }
-    };
+      };
+    } else {
+      // Formato simple: [{name: '00:00', value: 10}, ...]
+      series = [{
+        name: 'Llamadas',
+        data: data.map(d => Number(d.value || d.y || 0))
+      }];
+      options = {
+        chart: {
+          type: 'line',
+          toolbar: { show: false },
+          zoom: { enabled: false }
+        },
+        xaxis: {
+          categories: data.map(d => String(d.name || d.x || d.label || 'N/A')),
+          labels: { style: { fontSize: '11px' } }
+        },
+        stroke: {
+          curve: 'smooth',
+          width: 2
+        },
+        colors: ['#1a73e8'],
+        dataLabels: {
+          enabled: false
+        }
+      };
+    }
+  } else if (type === 'bar') {
+    // Verificar si es formato de series múltiples (con propiedad 'data' en cada elemento)
+    if (Array.isArray(data) && data[0] && Array.isArray(data[0].data)) {
+      // Formato: [{name: 'Serie 1', data: [1,2,3]}, ...]
+      series = data;
+      options = {
+        chart: {
+          type: 'bar',
+          toolbar: { show: false }
+        },
+        plotOptions: {
+          bar: {
+            borderRadius: 4,
+            horizontal: false,
+          }
+        },
+        xaxis: {
+          categories: data[0].data.map((_, idx) => idx), // Usar índices si no hay categorías específicas
+          labels: { style: { fontSize: '11px' } }
+        },
+        colors: ['#1a73e8', '#34a853', '#ea8600'],
+        dataLabels: {
+          enabled: false
+        }
+      };
+    } else {
+      // Formato simple: [{name: '0-20s', value: 100}, ...]
+      series = [{
+        name: 'Llamadas',
+        data: data.map(d => Number(d.value || d.y || 0))
+      }];
+      options = {
+        chart: {
+          type: 'bar',
+          toolbar: { show: false }
+        },
+        plotOptions: {
+          bar: {
+            borderRadius: 4,
+            horizontal: false,
+          }
+        },
+        xaxis: {
+          categories: data.map(d => String(d.name || d.x || d.label || 'N/A')),
+          labels: { style: { fontSize: '11px' } }
+        },
+        colors: ['#1a73e8'],
+        dataLabels: {
+          enabled: false
+        }
+      };
+    }
   } else if (type === 'multiline') {
     // Obtener todas las keys excepto 'name'
     const keys = Object.keys(data[0] || {}).filter(k => k !== 'name');

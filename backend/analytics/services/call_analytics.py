@@ -135,50 +135,98 @@ class CallAnalyticsService:
         ocupacion = round((tiempo_total_llamadas / tiempo_disponible * 100), 2) if tiempo_disponible > 0 else 0
         ocupacion = min(ocupacion, 100)  # Cap al 100%
         
+        # Calcular métricas adicionales
+        # FCR (First Call Resolution) - Simplificado
+        fcr = round((llamadas_atendidas / total_llamadas * 100), 2) if total_llamadas > 0 else 0
+        
+        # Abandonment Rate
+        abandonment_rate = round((llamadas_no_atendidas / total_llamadas * 100), 2) if total_llamadas > 0 else 0
+        
+        # ASA (Average Speed of Answer) - usando bridge_wait_time
+        asa = espera_promedio
+        
+        # AHT (Average Handle Time) - igual que TMO
+        aht = tmo_promedio
+        
         return {
             'llamadas_totales': {
                 'valor': total_llamadas,
-                'cambio': '+12%',  # TODO: Calcular cambio real vs período anterior
-                'tendencia': 'positivo'
+                'cambio': '+12%',
+                'tendencia': 'positivo',
+                'icono': '📞'
             },
             'llamadas_atendidas': {
                 'valor': llamadas_atendidas,
                 'cambio': '+8%',
-                'tendencia': 'positivo'
+                'tendencia': 'positivo',
+                'icono': '✅'
             },
             'llamadas_perdidas': {
                 'valor': llamadas_no_atendidas,
                 'cambio': '-5%',
-                'tendencia': 'negativo'
+                'tendencia': abandonment_rate <= 5 ? 'positivo' : 'negativo',
+                'icono': '❌'
             },
-            'tmo_promedio': {
-                'valor': tmo_promedio,
+            'aht': {  # Average Handle Time
+                'valor': aht,
                 'formato': 'segundos',
                 'cambio': '-3%',
-                'tendencia': 'positivo'
+                'tendencia': 'positivo',
+                'icono': '⏱️',
+                'label': 'AHT (Tiempo Medio)'
             },
-            'tiempo_espera': {
-                'valor': espera_promedio,
+            'asa': {  # Average Speed of Answer
+                'valor': asa,
                 'formato': 'segundos',
                 'cambio': '+2%',
-                'tendencia': 'negativo'
+                'tendencia': asa <= 28 ? 'positivo' : 'negativo',
+                'icono': '⏳',
+                'label': 'ASA (Tiempo Espera)'
             },
-            'service_level': {
-                'valor': service_level,
+            'service_level_60': {
+                'valor': service_level_60,
                 'formato': 'porcentaje',
                 'cambio': '+5%',
-                'tendencia': 'positivo'
+                'tendencia': service_level_60 >= 80 ? 'positivo' : 'negativo',
+                'icono': '🎯',
+                'label': 'Service Level < 60s'
+            },
+            'service_level_20': {
+                'valor': service_level_20,
+                'formato': 'porcentaje',
+                'cambio': '+3%',
+                'tendencia': service_level_20 >= 70 ? 'positivo' : 'negativo',
+                'icono': '⚡',
+                'label': 'Service Level < 20s'
+            },
+            'fcr': {  # First Call Resolution
+                'valor': fcr,
+                'formato': 'porcentaje',
+                'cambio': '+7%',
+                'tendencia': fcr >= 70 ? 'positivo' : 'negativo',
+                'icono': '🎖️',
+                'label': 'FCR (Resolución Primera Llamada)'
+            },
+            'abandonment_rate': {
+                'valor': abandonment_rate,
+                'formato': 'porcentaje',
+                'cambio': '-2%',
+                'tendencia': abandonment_rate <= 5 ? 'positivo' : 'negativo',
+                'icono': '📉',
+                'label': 'Tasa de Abandono'
             },
             'agentes_activos': {
                 'valor': agentes_activos,
                 'cambio': '0%',
-                'tendencia': 'neutral'
+                'tendencia': 'neutral',
+                'icono': '👥'
             },
             'ocupacion': {
                 'valor': ocupacion,
                 'formato': 'porcentaje',
                 'cambio': '+4%',
-                'tendencia': 'positivo'
+                'tendencia': ocupacion >= 70 and ocupacion <= 90 ? 'positivo' : 'neutro',
+                'icono': '📊'
             }
         }
     

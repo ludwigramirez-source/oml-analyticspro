@@ -104,6 +104,16 @@ async def get_distribucion_llamadas(
     return service.get_distribucion_llamadas(filters)
 
 
+@router.get("/distribucion-por-tipo")
+async def get_distribucion_por_tipo(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Obtiene la distribución de llamadas separada por tipo (entrantes vs salientes)"""
+    service = CallAnalyticsService(db)
+    return service.get_distribucion_por_tipo(filters)
+
+
 @router.get("/evolucion-hora")
 async def get_evolucion_hora(
     filters: dict = Depends(parse_filters),

@@ -234,11 +234,12 @@ class CallAnalyticsExtended:
     def get_llamadas_manuales_vs_dialer(self, filters: Dict = None) -> Dict:
         """
         Comparativa de llamadas manuales vs dialer
+        Basado en tipo_campana: 1 = Manual, 3 = Dialer (según ejemplos)
         """
         filters = filters or {}
         
         query = self.db.query(LlamadaLog)
-        query = query.filter(LlamadaLog.tipo_llamada == 2)  # Salientes
+        query = query.filter(LlamadaLog.tipo_llamada == 1)  # Salientes = 1
         query = self._apply_filters(query, filters)
         
         # Obtener todas las llamadas con información de campaña

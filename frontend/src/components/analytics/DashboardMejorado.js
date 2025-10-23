@@ -436,6 +436,31 @@ const DashboardMejorado = () => {
             {activeTab === 'agentes' && (
               <TablaAgentes agentes={agentesData} />
             )}
+
+            {/* Tab: Distribución Avanzada */}
+            {activeTab === 'distribucion' && (
+              <DistribucionAvanzada filters={filters} />
+            )}
+
+            {/* Tab: Llamadas Salientes */}
+            {activeTab === 'salientes' && (
+              <LlamadasSalientes filters={filters} />
+            )}
+
+            {/* Tab: Causas Detalladas */}
+            {activeTab === 'causas' && (
+              <CausasDetalladas filters={filters} />
+            )}
+
+            {/* Tab: Agentes Avanzado */}
+            {activeTab === 'agentes-avanzado' && (
+              <AgentesAvanzado filters={filters} />
+            )}
+
+            {/* Tab: Transferencias */}
+            {activeTab === 'transferencias' && (
+              <Transferencias filters={filters} />
+            )}
           </div>
         </div>
       </div>

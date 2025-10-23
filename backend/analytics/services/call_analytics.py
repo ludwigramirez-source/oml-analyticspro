@@ -230,6 +230,54 @@ class CallAnalyticsService:
             }
         }
     
+    def get_llamadas_por_tipo(self, filters: Dict = None) -> Dict:
+        """
+        Obtiene distribución separando ENTRANTES vs SALIENTES
+        Crítico para replicar Power BI
+        """
+        filters = filters or {}
+        query = self.db.query(LlamadaLog)
+        query = self._apply_filters(query, filters)
+        
+        # LLAMADAS ENTRANTES
+        entrantes_total = query.filter(LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE).count()
+        entrantes_atendidas = query.filter(
+            LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE,
+            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
+        ).count()
+        entrantes_abandonadas = query.filter(
+            LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE,
+            LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS)
+        ).count()
+        
+        # LLAMADAS SALIENTES
+        salientes_total = query.filter(LlamadaLog.tipo_llamada == self.TIPO_SALIENTE).count()
+        salientes_atendidas = query.filter(
+            LlamadaLog.tipo_llamada == self.TIPO_SALIENTE,
+            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
+        ).count()
+        salientes_no_atendidas = query.filter(
+            LlamadaLog.tipo_llamada == self.TIPO_SALIENTE,
+            LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS)
+        ).count()
+        
+        return {
+            'entrantes': {
+                'total': entrantes_total,
+                'atendidas': entrantes_atendidas,
+                'abandonadas': entrantes_abandonadas,
+                'nivel_atencion': round((entrantes_atendidas / entrantes_total * 100), 2) if entrantes_total > 0 else 0,
+                'tasa_abandono': round((entrantes_abandonadas / entrantes_total * 100), 2) if entrantes_total > 0 else 0
+            },
+            'salientes': {
+                'total': salientes_total,
+                'atendidas': salientes_atendidas,
+                'no_atendidas': salientes_no_atendidas,
+                'nivel_atencion': round((salientes_atendidas / salientes_total * 100), 2) if salientes_total > 0 else 0,
+                'tasa_no_atencion': round((salientes_no_atendidas / salientes_total * 100), 2) if salientes_total > 0 else 0
+            }
+        }
+    
     def get_distribucion_llamadas(self, filters: Dict = None) -> Dict:
         """
         Obtiene la distribución de llamadas por estado

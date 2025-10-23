@@ -148,6 +148,26 @@ async def get_llamadas_detalladas(
     return service.get_llamadas_detalladas(filters, page, per_page)
 
 
+@router.get("/nivel-atencion-campanas")
+async def get_nivel_atencion_campanas(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Nivel de atención por campaña con alertas (Power BI)"""
+    service = CallAnalyticsService(db)
+    return service.get_nivel_atencion_por_campana(filters)
+
+
+@router.get("/distribucion-horaria-detallada")
+async def get_dist_horaria_detallada(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Distribución horaria: entrantes, salientes, abandonadas"""
+    service = CallAnalyticsService(db)
+    return service.get_distribucion_horaria_detallada(filters)
+
+
 @router.get("/distribucion-campanas")
 async def get_distribucion_campanas(
     filters: dict = Depends(parse_filters),

@@ -1,7 +1,7 @@
 """
 Servicio de análisis de llamadas y métricas
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_, case, extract

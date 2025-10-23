@@ -7,6 +7,7 @@ import ApexChart from './ApexChart';
 import EntradasSalidas from './EntradasSalidas';
 import TablaLlamadas from './TablaLlamadas';
 import TablaAgentes from './TablaAgentes';
+import TablaAbandonadas from './TablaAbandonadas';
 
 const DashboardMejorado = () => {
   // Estados

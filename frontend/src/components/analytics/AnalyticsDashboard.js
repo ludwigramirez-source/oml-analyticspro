@@ -126,18 +126,24 @@ const AnalyticsDashboard = () => {
   };
 
   // Preparar datos para gráficos
-  const prepareDistribucionChart = (data) => ({
-    labels: data.labels,
-    datasets: [{
-      data: data.data,
-      backgroundColor: [
-        'rgba(52, 168, 83, 0.8)',
-        'rgba(234, 134, 0, 0.8)',
-        'rgba(234, 67, 53, 0.8)'
-      ],
-      borderWidth: 0
-    }]
-  });
+  const prepareDistribucionChart = (data) => {
+    if (!data || !data.labels || !data.data) {
+      console.warn('⚠️ Datos de distribución inválidos:', data);
+      return null;
+    }
+    return {
+      labels: data.labels,
+      datasets: [{
+        data: data.data,
+        backgroundColor: [
+          'rgba(52, 168, 83, 0.8)',
+          'rgba(234, 134, 0, 0.8)',
+          'rgba(234, 67, 53, 0.8)'
+        ],
+        borderWidth: 0
+      }]
+    };
+  };
 
   const prepareEvolucionChart = (data) => ({
     labels: data.labels,

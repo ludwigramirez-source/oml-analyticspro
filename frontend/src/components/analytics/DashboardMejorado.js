@@ -317,17 +317,17 @@ const DashboardMejorado = () => {
             {/* Tab: Resumen */}
             {activeTab === 'resumen' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <SimpleChart
+                <ApexChart
                   type="pie"
                   data={distribucionData}
                   title="Distribución de Llamadas"
                 />
-                <SimpleChart
+                <ApexChart
                   type="line"
                   data={evolucionData}
                   title="Evolución por Hora"
                 />
-                <SimpleChart
+                <ApexChart
                   type="bar"
                   data={nivelServicioData}
                   title="Nivel de Servicio (Tiempo de Espera)"

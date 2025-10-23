@@ -101,3 +101,102 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  User reported that:
+  1. "Evolución por hora" and "Nivel de servicio" graphs in the "Resumen" tab are not updating
+  2. "Distribución de llamadas" needs improvement - user requests two separate pie charts for entrantes and salientes
+  3. Continue implementing remaining reports and metrics
+  
+backend:
+  - task: "Fix database lazy loading"
+    implemented: true
+    working: true
+    file: "/app/backend/analytics/database.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Modified database.py to initialize engine lazily instead of at import time. This prevents backend from crashing when PostgreSQL is not configured yet."
+  
+  - task: "Add distribucion-por-tipo endpoint"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/analytics/routes/analytics_routes.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added new endpoint /api/analytics/distribucion-por-tipo that returns separate distribution data for entrantes and salientes calls"
+  
+  - task: "Add get_distribucion_por_tipo service method"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/analytics/services/call_analytics.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added service method that calculates distribution separately for entrantes (Atendidas/Abandonadas) and salientes (Conectadas/No Conectadas)"
+
+frontend:
+  - task: "Split distribution chart into two pie charts"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/analytics/DashboardMejorado.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Modified Resumen tab to display two separate pie charts - one for llamadas entrantes and one for llamadas salientes. Added key prop to force re-render when data changes."
+  
+  - task: "Add API method for distribucion-por-tipo"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/services/analyticsApi.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added getDistribucionPorTipo method to fetch the new distribution data from backend"
+  
+  - task: "Fix chart re-rendering issues"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/analytics/DashboardMejorado.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added React key prop to all ApexChart components using JSON.stringify of data to force re-render when data changes. This should fix the issue where Evolución and Nivel de Servicio charts were not updating."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Database lazy loading"
+    - "Two separate pie charts for distribution"
+    - "Chart re-rendering with filters"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "Implemented fixes for database connection and chart rendering issues. Backend now uses lazy loading for PostgreSQL connection. Split distribution chart into two separate pie charts for entrantes and salientes. Added React key props to force chart re-render when data changes. Ready for backend testing."

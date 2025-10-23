@@ -719,3 +719,158 @@ class CallAnalyticsExtended:
             })
         
         return resultado
+
+    # ==================== DISTRIBUCIÓN HORARIA DETALLADA ====================
+    
+    def get_distribucion_horaria_detallada(self, filters: Dict = None, agrupar_por: str = 'hora') -> List[Dict]:
+        """
+        Distribución horaria detallada con múltiples métricas
+        
+        Args:
+            filters: Filtros estándar (fecha_inicio, fecha_fin, campana_ids, agente_ids)
+            agrupar_por: 'hora', 'mes', 'dia_semana', 'campana'
+        
+        Returns:
+            Lista de diccionarios con métricas detalladas por grupo
+        """
+        filters = filters or {}
+        
+        # Definir eventos
+        eventos_atendidas = ['COMPLETEAGENT', 'COMPLETEOUTNUM']
+        eventos_abandonadas = ['ABANDON', 'ABANDONWEL', 'EXITWITHTIMEOUT']
+        eventos_transferencias = ['COMPLETE-CTOUT', 'COMPLETE-BTOUT', 'CT-ANSWER', 'BTOUT-ANSWER']
+        
+        # Base query con subquery para obtener última ocurrencia de cada llamada
+        subquery = self.db.query(
+            LlamadaLog.callid,
+            func.max(LlamadaLog.time).label('ultimo_tiempo')
+        ).filter(
+            LlamadaLog.tipo_llamada == 0  # Solo entrantes
+        )
+        
+        if filters.get('fecha_inicio'):
+            subquery = subquery.filter(LlamadaLog.time >= filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            subquery = subquery.filter(LlamadaLog.time <= filters['fecha_fin'])
+        if filters.get('campana_ids'):
+            subquery = subquery.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
+        if filters.get('agente_ids'):
+            subquery = subquery.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
+        
+        subquery = subquery.group_by(LlamadaLog.callid).subquery()
+        
+        # Query principal uniendo con última ocurrencia
+        base_query = self.db.query(LlamadaLog).join(
+            subquery,
+            and_(
+                LlamadaLog.callid == subquery.c.callid,
+                LlamadaLog.time == subquery.c.ultimo_tiempo
+            )
+        )
+        
+        # Determinar campo de agrupación
+        if agrupar_por == 'hora':
+            group_field = extract('hour', LlamadaLog.time)
+            group_label = 'hora'
+        elif agrupar_por == 'mes':
+            group_field = extract('month', LlamadaLog.time)
+            group_label = 'mes'
+        elif agrupar_por == 'dia_semana':
+            group_field = extract('dow', LlamadaLog.time)
+            group_label = 'dia_semana'
+        elif agrupar_por == 'campana':
+            # Para campaña necesitamos join
+            base_query = base_query.join(Campana, LlamadaLog.campana_id == Campana.id)
+            group_field = Campana.nombre
+            group_label = 'campana'
+        else:
+            group_field = extract('hour', LlamadaLog.time)
+            group_label = 'hora'
+        
+        # Consulta agregada
+        query = self.db.query(
+            group_field.label('grupo'),
+            func.count(LlamadaLog.id).label('total_llamadas'),
+            func.sum(case((LlamadaLog.event.in_(eventos_atendidas), 1), else_=0)).label('atendidas'),
+            func.sum(case((LlamadaLog.event.in_(eventos_abandonadas), 1), else_=0)).label('abandonadas'),
+            func.sum(case((LlamadaLog.event.in_(eventos_transferencias), 1), else_=0)).label('transferidas'),
+            func.avg(case((LlamadaLog.event.in_(eventos_atendidas), LlamadaLog.bridge_wait_time), else_=None)).label('tiempo_espera_promedio'),
+            func.avg(case((LlamadaLog.event.in_(eventos_abandonadas), LlamadaLog.duracion_llamada), else_=None)).label('tiempo_abandono_promedio'),
+            func.avg(case((LlamadaLog.event.in_(eventos_atendidas), LlamadaLog.duracion_llamada), else_=None)).label('duracion_promedio')
+        ).select_from(LlamadaLog)
+        
+        # Aplicar join si es por campaña
+        if agrupar_por == 'campana':
+            query = query.join(Campana, LlamadaLog.campana_id == Campana.id)
+        
+        # Aplicar filtros adicionales
+        query = query.join(
+            subquery,
+            and_(
+                LlamadaLog.callid == subquery.c.callid,
+                LlamadaLog.time == subquery.c.ultimo_tiempo
+            )
+        ).filter(LlamadaLog.tipo_llamada == 0)
+        
+        if filters.get('fecha_inicio'):
+            query = query.filter(LlamadaLog.time >= filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            query = query.filter(LlamadaLog.time <= filters['fecha_fin'])
+        if filters.get('campana_ids'):
+            query = query.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
+        if filters.get('agente_ids'):
+            query = query.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
+        
+        query = query.group_by(group_field)
+        
+        resultados = query.all()
+        
+        # Formatear resultados
+        datos = []
+        for r in resultados:
+            grupo_valor = r.grupo
+            
+            # Formatear etiqueta según el tipo de agrupación
+            if agrupar_por == 'hora':
+                label = f"{int(grupo_valor):02d}:00 - {int(grupo_valor):02d}:59"
+            elif agrupar_por == 'mes':
+                meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+                label = meses[int(grupo_valor) - 1] if 1 <= int(grupo_valor) <= 12 else str(grupo_valor)
+            elif agrupar_por == 'dia_semana':
+                dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+                label = dias[int(grupo_valor)] if 0 <= int(grupo_valor) <= 6 else str(grupo_valor)
+            else:  # campaña
+                label = str(grupo_valor)
+            
+            total = r.total_llamadas or 0
+            atendidas = r.atendidas or 0
+            abandonadas = r.abandonadas or 0
+            transferidas = r.transferidas or 0
+            
+            datos.append({
+                'grupo': label,
+                'total_llamadas': total,
+                'atendidas': atendidas,
+                'abandonadas': abandonadas,
+                'transferidas': transferidas,
+                'porcentaje_atendidas': round((atendidas / total * 100), 2) if total > 0 else 0,
+                'porcentaje_abandonadas': round((abandonadas / total * 100), 2) if total > 0 else 0,
+                'tiempo_espera_promedio': round(r.tiempo_espera_promedio or 0, 2),
+                'tiempo_abandono_promedio': round(r.tiempo_abandono_promedio or 0, 2),
+                'duracion_promedio': round(r.duracion_promedio or 0, 2)
+            })
+        
+        # Ordenar según tipo de agrupación
+        if agrupar_por == 'hora':
+            datos.sort(key=lambda x: int(x['grupo'].split(':')[0]))
+        elif agrupar_por == 'mes':
+            meses_orden = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+            datos.sort(key=lambda x: meses_orden.index(x['grupo']) if x['grupo'] in meses_orden else 99)
+        elif agrupar_por == 'dia_semana':
+            dias_orden = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+            datos.sort(key=lambda x: dias_orden.index(x['grupo']) if x['grupo'] in dias_orden else 99)
+        else:  # campaña - ordenar por total descendente
+            datos.sort(key=lambda x: x['total_llamadas'], reverse=True)
+        
+        return datos
+

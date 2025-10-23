@@ -687,3 +687,47 @@ class CallAnalyticsService:
             'no_atendidas': r.no_atendidas or 0,
             'tasa_atencion': round((r.atendidas or 0) / r.total * 100, 2) if r.total > 0 else 0
         } for r in resultados]
+    
+    def get_llamadas_por_tipo(self, filters: Dict = None) -> Dict:
+        """
+        Distribución de llamadas separando ENTRANTES y SALIENTES
+        Mejora de Power BI
+        """
+        filters = filters or {}
+        query = self.db.query(LlamadaLog)
+        query = self._apply_filters(query, filters)
+        
+        # Llamadas ENTRANTES (tipo_llamada = 1)
+        entrantes_total = query.filter(LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE).count()
+        entrantes_atendidas = query.filter(
+            LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE,
+            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
+        ).count()
+        entrantes_abandonadas = query.filter(
+            LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE,
+            LlamadaLog.event.in_(self.EVENTOS_ABANDONADAS)
+        ).count()
+        
+        # Llamadas SALIENTES (tipo_llamada = 2)
+        salientes_total = query.filter(LlamadaLog.tipo_llamada == self.TIPO_SALIENTE).count()
+        salientes_atendidas = query.filter(
+            LlamadaLog.tipo_llamada == self.TIPO_SALIENTE,
+            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
+        ).count()
+        salientes_no_atendidas = salientes_total - salientes_atendidas
+        
+        return {
+            'entrantes': {
+                'total': entrantes_total,
+                'atendidas': entrantes_atendidas,
+                'abandonadas': entrantes_abandonadas,
+                'nivel_atencion': round(entrantes_atendidas / entrantes_total * 100, 2) if entrantes_total > 0 else 0
+            },
+            'salientes': {
+                'total': salientes_total,
+                'atendidas': salientes_atendidas,
+                'no_atendidas': salientes_no_atendidas,
+                'nivel_atencion': round(salientes_atendidas / salientes_total * 100, 2) if salientes_total > 0 else 0
+            }
+        }
+

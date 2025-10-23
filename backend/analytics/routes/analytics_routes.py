@@ -14,7 +14,7 @@ from ..models.omnileads_models import Campana, AgenteProfile, User
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
 
-def parse_filters(
+async def parse_filters(
     fecha_inicio: Optional[date] = Query(None, description="Fecha inicio (YYYY-MM-DD)"),
     fecha_fin: Optional[date] = Query(None, description="Fecha fin (YYYY-MM-DD)"),
     campana_id: Optional[int] = Query(None, description="ID de campaña"),
@@ -33,6 +33,25 @@ def parse_filters(
         filters['tipo_campana'] = tipo_campana
     if agente_id:
         filters['agente_id'] = agente_id
+    return filters
+
+
+async def parse_filters_no_agente(
+    fecha_inicio: Optional[date] = Query(None, description="Fecha inicio (YYYY-MM-DD)"),
+    fecha_fin: Optional[date] = Query(None, description="Fecha fin (YYYY-MM-DD)"),
+    campana_id: Optional[int] = Query(None, description="ID de campaña"),
+    tipo_campana: Optional[int] = Query(None, description="Tipo de campaña")
+) -> dict:
+    """Parse filtros sin agente_id (para evitar conflicto con path params)"""
+    filters = {}
+    if fecha_inicio:
+        filters['fecha_inicio'] = datetime.combine(fecha_inicio, datetime.min.time())
+    if fecha_fin:
+        filters['fecha_fin'] = datetime.combine(fecha_fin, datetime.min.time())
+    if campana_id:
+        filters['campana_id'] = campana_id
+    if tipo_campana:
+        filters['tipo_campana'] = tipo_campana
     return filters
 
 

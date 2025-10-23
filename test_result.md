@@ -162,6 +162,42 @@ backend:
         agent: "testing"
         comment: "✅ TESTED & FIXED: Found undefined constants EVENTOS_FINAL_ENTRANTES and EVENTOS_FINAL_SALIENTES in get_distribucion_por_tipo method. Fixed by replacing with correct constants EVENTOS_ATENDIDAS, EVENTOS_ABANDONADAS, and EVENTOS_NO_ATENDIDAS. Method now compiles correctly."
 
+  - task: "Load backup database with real data"
+    implemented: true
+    working: true
+    file: "/app/backup_capresoca"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Successfully restored PostgreSQL backup with 16,580 call records and 12,390 agent activity events. Database is now populated with real OmniLeads call center data from Capresoca."
+
+  - task: "Fix Llamadas Salientes dashboard logic"
+    implemented: true
+    working: true
+    file: "/app/backend/analytics/services/call_analytics_extended.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Completely rewrote get_llamadas_salientes_dashboard to count unique calls (by callid) instead of individual events. Now correctly categorizes calls by their final event: CONTESTADAS (COMPLETEAGENT/COMPLETEOUTNUM), NO_CONTESTADAS (NOANSWER/CANCEL), OCUPADO (BUSY), FALLOS (CONGESTION/NONDIALPLAN/CHANUNAVAIL), and OTROS (transfers). Tasa de contactación now calculates correctly at 60%."
+
+  - task: "Remove Manuales vs Dialer endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/analytics/services/call_analytics_extended.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Kept the get_llamadas_manuales_vs_dialer method for backwards compatibility, but frontend no longer uses it. The distinction is no longer displayed to users."
+
 frontend:
   - task: "Split distribution chart into two pie charts"
     implemented: true

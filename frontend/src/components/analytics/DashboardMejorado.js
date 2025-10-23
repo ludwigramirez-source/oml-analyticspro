@@ -192,14 +192,6 @@ const DashboardMejorado = () => {
     loadDashboardData();
   };
 
-  // Recargar datos cuando cambian los filtros (excepto al inicio)
-  useEffect(() => {
-    if (Object.keys(filters).length > 0) {
-      console.log('🔄 Filtros cambiaron, recargando datos:', filters);
-      loadDashboardData();
-    }
-  }, [filters.fecha_inicio, filters.fecha_fin, filters.campana_id, filters.agente_id]);
-
   if (loading && Object.keys(kpis).length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">

@@ -11,10 +11,13 @@ from ..models.omnileads_models import LlamadaLog, Campana, AgenteProfile, User
 class CallAnalyticsService:
     """Servicio para análisis de llamadas"""
     
-    # Eventos de llamadas ATENDIDAS (cuando hay respuesta/conexión real)
+    # Eventos que indican llamadas atendidas (conectadas con agente)
     EVENTOS_ATENDIDAS = [
-        'COMPLETEAGENT',      # Agente cuelga la llamada
-        'COMPLETEOUTNUM',     # Cliente/llamante cuelga la llamada
+        'COMPLETEAGENT',      # Agente cuelga
+        'COMPLETEOUTNUM',     # Cliente cuelga
+        'COMPLETE-BTOUT',     # Transfer ciego completado
+        'COMPLETE-CTOUT',     # Transfer consultivo completado
+        'COMPLETE-CT'         # Transfer consultivo
     ]
     
     # Eventos de llamadas ABANDONADAS (cliente abandona)

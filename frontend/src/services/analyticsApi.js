@@ -96,6 +96,13 @@ class AnalyticsAPI {
   }
 
   /**
+   * Obtiene distribución por tipo (entrantes vs salientes)
+   */
+  async getDistribucionPorTipo(filters = {}) {
+    return this.fetchData('distribucion-por-tipo', filters);
+  }
+
+  /**
    * Obtiene evolución por hora
    */
   async getEvolucionHora(filters = {}) {

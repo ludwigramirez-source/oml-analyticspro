@@ -25,6 +25,7 @@ const DashboardMejorado = () => {
   const [nivelServicioData, setNivelServicioData] = useState([]);
   const [campanasConAlerta, setCampanasConAlerta] = useState([]);
   const [llamadasDetalladas, setLlamadasDetalladas] = useState([]);
+  const [llamadasAbandonadas, setLlamadasAbandonadas] = useState([]);
   const [agentesData, setAgentesData] = useState([]);
 
   // Listas

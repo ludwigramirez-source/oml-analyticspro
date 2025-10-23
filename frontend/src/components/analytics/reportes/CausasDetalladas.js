@@ -74,9 +74,17 @@ const CausasDetalladas = ({ filters }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Sin Conexión por Agente */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">
-            Sin Conexión por Agente
-          </h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-bold text-gray-800">
+              Sin Conexión por Agente
+            </h3>
+            <ExportButton 
+              data={sinConexionAgente} 
+              filename="sin_conexion_agente"
+              label="Exportar"
+              className="text-xs px-3 py-1"
+            />
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">

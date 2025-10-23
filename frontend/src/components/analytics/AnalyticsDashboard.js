@@ -163,14 +163,20 @@ const AnalyticsDashboard = () => {
     };
   };
 
-  const prepareNivelServicioChart = (data) => ({
-    labels: data.labels,
-    datasets: [{
-      label: 'Llamadas',
-      data: data.data,
-      backgroundColor: 'rgba(26, 115, 232, 0.8)'
-    }]
-  });
+  const prepareNivelServicioChart = (data) => {
+    if (!data || !data.labels || !data.data) {
+      console.warn('⚠️ Datos de nivel servicio inválidos:', data);
+      return null;
+    }
+    return {
+      labels: data.labels,
+      datasets: [{
+        label: 'Llamadas',
+        data: data.data,
+        backgroundColor: 'rgba(26, 115, 232, 0.8)'
+      }]
+    };
+  };
 
   const prepareCausasChart = (data) => ({
     labels: data.labels,

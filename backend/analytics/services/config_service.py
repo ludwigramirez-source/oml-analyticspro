@@ -104,6 +104,16 @@ class ConfigService:
         # Guardar en MongoDB
         await self.collection.insert_one(config_dict)
         
+        # Si la conexión fue exitosa, actualizar la conexión global
+        if test_result.success:
+            try:
+                from analytics.database import update_database_connection
+                connection_string = self.get_connection_string(config)
+                update_database_connection(connection_string)
+                logger.info("✅ Conexión global actualizada")
+            except Exception as e:
+                logger.warning(f"⚠️ No se pudo actualizar conexión global: {e}")
+        
         logger.info(f"✅ Configuración guardada: {config.db_host}:{config.db_port}/{config.db_name}")
         
         return config

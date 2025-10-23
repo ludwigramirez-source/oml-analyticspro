@@ -435,13 +435,13 @@ class CallAnalyticsExtended:
     def get_total_sesiones_agentes(self, filters: Dict = None) -> Dict:
         """
         Resumen de sesiones de todos los agentes
-        Métricas globales: N° agentes, tiempo promedio, min, max, total
+        Métricas globales: N° agentes, número total de actividades
         """
         filters = filters or {}
         
         query = self.db.query(
             ActividadAgenteLog.agente_id,
-            func.sum(ActividadAgenteLog.tiempo_sesion).label('tiempo_total')
+            func.count(ActividadAgenteLog.id).label('num_actividades')
         )
         
         # Aplicar filtros de fecha si existen
@@ -455,20 +455,20 @@ class CallAnalyticsExtended:
         if not resultados:
             return {
                 'total_agentes': 0,
-                'tiempo_promedio': 0,
-                'tiempo_minimo': 0,
-                'tiempo_maximo': 0,
-                'tiempo_total': 0
+                'actividades_promedio': 0,
+                'actividades_minimas': 0,
+                'actividades_maximas': 0,
+                'actividades_total': 0
             }
         
-        tiempos = [r.tiempo_total for r in resultados if r.tiempo_total]
+        actividades = [r.num_actividades for r in resultados if r.num_actividades]
         
         return {
             'total_agentes': len(resultados),
-            'tiempo_promedio': round(sum(tiempos) / len(tiempos) if tiempos else 0, 2),
-            'tiempo_minimo': min(tiempos) if tiempos else 0,
-            'tiempo_maximo': max(tiempos) if tiempos else 0,
-            'tiempo_total': sum(tiempos) if tiempos else 0
+            'actividades_promedio': round(sum(actividades) / len(actividades) if actividades else 0, 2),
+            'actividades_minimas': min(actividades) if actividades else 0,
+            'actividades_maximas': max(actividades) if actividades else 0,
+            'actividades_total': sum(actividades) if actividades else 0
         }
     
     def get_agentes_por_dia_hora(self, filters: Dict = None) -> List[Dict]:

@@ -471,3 +471,19 @@ async def get_nivel_servicio_detallado(
     service_ext = CallAnalyticsExtended(db)
     return service_ext.get_nivel_servicio_detallado(filters)
 
+
+
+@router.get("/distribucion-horaria-detallada")
+async def get_distribucion_horaria_detallada(
+    agrupar_por: str = 'hora',
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """
+    Distribución horaria detallada con métricas completas
+    Parámetros:
+        - agrupar_por: 'hora', 'mes', 'dia_semana', 'campana'
+    """
+    service_ext = CallAnalyticsExtended(db)
+    return service_ext.get_distribucion_horaria_detallada(filters, agrupar_por)
+

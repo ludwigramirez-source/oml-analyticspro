@@ -220,6 +220,13 @@ class AnalyticsAPI {
   }
   
   /**
+   * Evolución semanal (contestadas, abandonadas, agentes activos)
+   */
+  async getEvolucionSemanal(filters = {}) {
+    return this.fetchData('evolucion-semanal', filters);
+  }
+  
+  /**
    * Dashboard de llamadas salientes
    */
   async getSalientesDashboard(filters = {}) {

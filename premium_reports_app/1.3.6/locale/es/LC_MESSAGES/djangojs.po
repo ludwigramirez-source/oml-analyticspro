@@ -1,0 +1,153 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2022-04-19 13:19-0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:7
+msgid "Distribucion llamadas por campaña"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:8
+msgid "Distribucion llamadas por horario"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:9
+msgid "Distribucion llamadas por mes"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:10
+msgid "Distribucion llamadas por semana"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:11
+msgid "Distribucion llamadas por dia"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:12
+msgid "Distribucion llamadas por hora"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:13
+msgid "Distribucion llamadas manuales por campaña"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:14
+msgid "Distribucion llamadas manuales por rango horario"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:15
+msgid "Distribucion llamadas manuales por mes"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:16
+msgid "Distribucion llamadas manuales por semana"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:17
+msgid "Distribucion llamadas manuales por dia"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:18
+msgid "Distribucion llamadas manuales por hora"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:55
+msgid "Nivel de servicio"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:58
+msgid "Llamadas atendidas por agente"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:61
+msgid "Causas de desconexión"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:66
+msgid "Causas de no conexión"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:68
+msgid "Llamadas sin conexión por agente"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:70
+msgid "Llamadas sin conexión por campaña"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:75
+msgid "Disponibilidad de agentes"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:77
+msgid "Número de agentes por día y hora"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:85
+msgid "Detalle Sesiones agente "
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:87
+msgid "Detalle Pausas agente "
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:101
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:212
+msgid "Descargar CSV"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:108
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:197
+msgid "Primero"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:109
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:198
+msgid "Anterior"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:110
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:199
+msgid "Siguiente"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:111
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:200
+msgid "Último"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:113
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:202
+msgid "Mostrar _MENU_ entradas"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:114
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:203
+msgid "Mostrando _START_ a _END_ de _TOTAL_ entradas"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:204
+msgid "Sin datos disponibles"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:229
+msgid "Escuchar"
+msgstr ""
+
+#: premium_reports_app/static/premium_reports_app/JS/configurar_datatables.js:233
+msgid "Descargar"
+msgstr ""

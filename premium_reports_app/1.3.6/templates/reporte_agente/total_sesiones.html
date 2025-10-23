@@ -1,0 +1,49 @@
+{% load i18n %}
+{% load static %}
+{% load timedelta_seconds %}
+
+<div class="container">
+  <div class="row">
+    <div class="col-md-12">
+  		<h1>{% trans 'Total Sesiones' %}</h1>
+    </div>
+    <div class="col-md-12">
+      <table class="table">
+        <tbody>
+          <tr class="green_line">
+            <td><h3>{% trans 'Nº de agentes disponibles' %}</h3></td>
+            <td>{{ reportes.agentes_actuales.datos.agentes }}</td>
+          </tr>
+          <tr>
+            <td><h3>{% trans 'Tiempo promedio agente' %} </h3></td>
+            <td>{{ reportes.agentes_actuales.datos.t_promedio|timedelta_sec }}</td>
+          </tr>
+          <tr>
+            <td><h3>{% trans 'Tiempo mínimo agente' %}</h3></td>
+            <td>{{ reportes.agentes_actuales.datos.t_minimo|timedelta_sec }}</td>
+          </tr>
+          <tr>
+            <td><h3>{% trans 'Tiempo máximo agente'%}</h3></td>
+            <td>{{ reportes.agentes_actuales.datos.t_maximo|timedelta_sec }}</td>
+          </tr>
+          <tr>
+            <td><h3>{% trans 'Tiempo total agente'%}</h3></td>
+            <td>
+              {{ reportes.agentes_actuales.datos.t_total|timedelta_sec }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if reportes.agentes_actuales.datos.agentes > 0 %}
+    <div class="col-md-12">
+      <h3>{% trans 'Duraciones de sesiones' %}</h3>
+      <div class="graficos-avances">
+        <figure>
+          {{ graficos.duraciones_de_sesiones.render_unicode|safe }}
+        </figure>
+      </div>
+    </div>
+  {% endif %}
+</div>

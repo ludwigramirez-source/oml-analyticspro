@@ -1,0 +1,70 @@
+<!--
+Copyright (C) 2018 Freetech Solutions
+-->
+
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block head_js %}
+  <script type="text/javascript" src="{% static 'premium_reports_app/JS/navegacion_resultados.js' %}"></script>
+  <script type="text/javascript" src="{% static 'premium_reports_app/JS/menu_distribucion.js' %}"></script>
+  <script type="text/javascript" src="{% static 'premium_reports_app/JS/configurar_datatables.js' %}"></script>
+
+  <script type="text/javascript" src="{% static 'JS/ext/jquery.dataTables-1.10.20.min.js' %}"></script>
+  <script type="text/javascript" src="{% static 'JS/ext/dataTables.buttons-1.6.1.min.js' %}"></script>
+  <script type="text/javascript" src="{% static 'JS/ext/buttons.html5-1.6.1.min.js' %}"></script>
+  <script type="text/javascript" src="{% static 'JS/ext/buttons.flash-1.6.1.min.js' %}"></script>
+
+  <script type="text/javascript" src="{% static 'ominicontacto/JS/pygal-tooltips.min.js' %}"></script>
+  <script type="text/javascript" src="{% static 'ominicontacto/JS/pygal-tooltips.js' %}"></script>
+  <script type="text/javascript" src="{% static 'ominicontacto/JS/csrf.js' %}"></script>
+
+  {% include "datos_llamadas.html" %}
+
+{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'CSS/ext/jquery.dataTables-1.10.20.min.css' %}">
+  <link rel="stylesheet" href="{% static 'CSS/ext/buttons.dataTables-1.6.1.min.css' %}">
+
+  <link rel="stylesheet" href="{% static 'premium_reports_app/CSS/resultados.css' %}">
+{% endblock %}
+
+{% block content %}
+    <h1>{% trans 'Resultados De Reporte' %}</h1>
+
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+      <li class="nav-item">
+        <a class="nav-link active" id="distribucion" href="javascript:void(0)" role="tab" aria-selected="true">{% trans 'Distribución' %}</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="atendidas" href="javascript:void(0)" role="tab" aria-selected="true">{% trans 'Llamadas atendidas' %}</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="noAtendidas" href="javascript:void(0)" role="tab" aria-selected="false">{% trans 'Llamadas no atendidas' %}</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="reportesAgentes" data-toggle="tab" href="javascript:void(0)" role="tab" aria-selected="false">{% trans 'Reportes agentes' %}</a>
+      </li>
+    </ul>
+    <div id="content_distribucion">
+    {% include "distribucion/distribucion.html" %}
+  	</div>
+  	<div id="content_atendidas" class="hidden">
+      {% include "llamadas_atendidas/atendidas.html" %}
+  	</div>
+    <div id="content_noAtendidas" class="hidden">
+      {% include "no_atendidas/no_atendidas.html" %}
+    </div>
+    <div id="content_reportesAgentes" class="hidden">
+      {% include "reporte_agente/reporte_agentes.html" %}
+    </div>
+
+<form name="sasasa" id="download_csv_form" method="post" action="{% url 'api_premium_call_details_csv' %}">
+  {% csrf_token %}
+  <input type="hidden" name="ids" id="csv_logs_ids">
+  <input type="hidden" name="table" id="csv_table">
+</form>
+
+{% endblock %}
+

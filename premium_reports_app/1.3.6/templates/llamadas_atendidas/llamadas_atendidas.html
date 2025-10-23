@@ -1,0 +1,86 @@
+{% load i18n %}
+
+{% load static %}
+
+<div class="container">
+  <div class="row">
+        <h1>{% trans 'LLamadas atendidas por agente ' %}</h1>
+  </div>
+  <div class="row">
+    <div class="table-responsive">
+      <table class="table table-sm" id="table_llamadas_atendidas_por_agente">
+        <thead>
+          <tr class="green_line">
+            <th></th>
+            <th scope="col"> {% trans 'ID' %}</th>
+            <th scope="col"> {% trans 'Agente' %}</th>
+            <th scope="col"> {% trans 'Username Agente' %}</th>
+            <th scope="col">{% trans 'Cantidad de atendidas'%}</th>
+            <th scope="col">{% trans 'Transferidas' %}</th>
+            <th scope="col">{% trans '% Atendidas' %}</th>
+            <th scope="col">{% trans 'Tiempo al habla' %}</th>
+            <th scope="col">{% trans 'Duración media' %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for atendida, datos_atendidas in reportes.atendidas_por_agente.datos.items%}
+          <tr>
+               <td><button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal_atendidas_{{ atendida }}" id="more_info"> + </button></td>
+               <td>{{ atendida }}</td>
+               <td>{{ datos_atendidas.nombre }}</td>
+               <td>{{ datos_atendidas.user_agente }}</td>
+               <td>{{ datos_atendidas.atendidas }}</td>
+               <td>{{ datos_atendidas.transferidas }}</td>
+               <td>{{ datos_atendidas.porcentaje_atendidas|floatformat:2 }}</td>
+               <td>{{ datos_atendidas.tiempo_al_habla }}</td>
+               <td>{{ datos_atendidas.duracion_media|floatformat:-2 }}</td>
+          </tr>
+          {% empty %}
+              <tr empty_table="empty">
+                  <td></td>
+                  <td colspan="8">{% trans 'No hay llamadas atendidas por agente' %}</td>
+              </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  {% if reportes.general_atendidas.datos.llamadas_atendidas > 0 %}
+    <div class="col-md-12">
+      <h3>{% trans 'Llamadas según agente' %}</h3>
+      <div class="graficos-avances">
+        <figure>
+          {{ graficos.atendidas_por_agente.render_unicode|safe }}
+        </figure>
+      </div>
+    </div>
+  {% endif %}
+
+</div>
+
+{% for atendida, datos_atendidas in reportes.atendidas_por_agente.datos.items%}
+<div class="modal" id="modal_atendidas_{{ atendida }}">
+    <div class="modal-dialog" role="document" id="modal_width">
+        <div class="modal-content">
+          <div class="table-responsive">
+            <table class="table table-sm" grupo="table_modal_llamadas_de_agente" identificador="{{ atendida }}">
+              <thead>
+                <tr>
+                  <th scope="col">{% trans 'Fecha y hora'%}</th>
+                  <th scope="col">{% trans 'Telefono'%}</th>
+                  <th scope="col">{% trans 'Id Campaña'%}</th>
+                  <th scope="col">{% trans 'Nombre Campaña'%}</th>
+                  <th scope="col">{% trans 'Causas Desconexión'%}</th>
+                  <th scope="col">{% trans 'Duración'%}</th>
+                  <th scope="col">{% trans 'ID Calificación' %}</th>
+                  <th scope="col">{% trans 'Nombre Calificación' %}</th>
+                  <th scope="col">{% trans 'grabación'%}</th>
+                </tr>
+              </thead>
+            </table>
+          </div>
+        </div>
+    </div>
+</div>
+{%endfor%}

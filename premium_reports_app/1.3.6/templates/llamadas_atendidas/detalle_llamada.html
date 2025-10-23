@@ -1,0 +1,32 @@
+{% load i18n %}
+
+{% load static %}
+<div class="container">
+  <div class="row">
+        <h1>{% trans 'Detalle de llamadas atendidas ' %}</h1>
+  </div>
+  <div class="row">
+    <div class="table-responsive">
+        <table class="table table-sm table_maxwidth" id="table_llamadas_atendidas">
+          <thead>
+            <tr class="green_line">
+              <th> {% trans 'Fecha' %}</th>
+              <th>{% trans 'Telefono'%}</th>
+              <th>{% trans 'ID Campaña' %}</th>
+              <th>{% trans 'Nombre Campaña' %}</th>
+              <th>{% trans 'Tipo' %}</th>
+              <th>{% trans 'ID Agente' %}</th>
+              <th>{% trans 'Nombre Agente' %}</th>
+              <th>{% trans 'Username Agente' %}</th>
+              <th>{% trans 'Tiempo Espera' %}</th>
+              <th>{% trans 'Duración' %}</th>
+              <th>{% trans 'Causas desconexión' %}</th>
+              <th>{% trans 'ID Calificación' %}</th>
+              <th>{% trans 'Nombre Calificación' %}</th>
+              <th>{% trans 'Grabación' %}</th>
+            </tr>
+          </thead>
+        </table>
+      </div>
+    </div>
+</div>

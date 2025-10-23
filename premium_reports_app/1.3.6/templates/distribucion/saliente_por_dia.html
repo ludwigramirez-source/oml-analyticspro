@@ -1,0 +1,58 @@
+{% load i18n %}
+{% load static %}
+
+<div class="table-responsive">
+    <table class="table table-sm" id="table_datos_dia">
+      <thead>
+        <tr class="green_line">
+          <th></th>
+          <th scope="col">{% trans 'Día' %}</th>
+          <th scope="col">{% trans 'Total'%}</th>
+          <th scope="col">{% trans 'Atendidas' %}</th>
+          <th scope="col">{% trans 'No Atendidas' %}</th>
+          <th scope="col">{% trans '% Atendidas' %}</th>
+          <th scope="col">{% trans '% No Atendidas' %}</th>
+          <th scope="col">{% trans 'Espera Media' %}</th>
+          <th scope="col">{% trans 'Duración Media' %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for dia, datos_dia in reportes.distribucion_llamada_saliente.datos.por_dia.items%}
+          <tr>
+            <td><button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal_saliente_por_dia{{ forloop.counter }}" id="more_info"> + </button></td>
+            <td>{{ dia }}</td>
+            <td>{{ datos_dia.total }}</td>
+            <td>{{ datos_dia.atendidas }}</td>
+            <td>{{ datos_dia.no_atendidas }}</td>
+            <td>{{ datos_dia.porcentaje_atendidas|floatformat:2 }}</td>
+            <td>{{ datos_dia.porcentaje_no_atendidas|floatformat:2 }}</td>
+            <td>{{ datos_dia.espera_media|floatformat:-2 }}</td>
+            <td>{{ datos_dia.duracion_media|floatformat:-2 }}</td>
+          </tr>
+        {% empty %}
+          <tr empty_table="empty">
+            <td></td>
+            <td colspan="9">{% trans 'No hay saliente manuales por día' %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+</div>
+
+{% if reportes.distribucion_llamada_saliente.datos.por_dia.items %}
+  <div class="col-md-12">
+    <h3>{% trans 'Llamadas según atención' %}</h3>
+    <div class="graficos-avances">
+      <figure>
+        {{ graficos.distribucion_llamada_saliente.por_dia.render_unicode|safe }}
+      </figure>
+    </div>
+  </div>
+{% endif %}
+
+
+{% for dia, datos_dia in reportes.distribucion_llamada_saliente.datos.por_dia.items %}
+<div class="modal" id="modal_saliente_por_dia{{ forloop.counter }}">
+    {% include "distribucion/modal_llamadas.html" with llamadas=datos_dia.llamadas origin="dia" identificador=dia %}
+</div>
+{%endfor%}

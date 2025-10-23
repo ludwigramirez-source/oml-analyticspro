@@ -1,0 +1,69 @@
+{% load i18n %}
+
+{% load static %}
+
+<div class="container">
+  <div class="row">
+        <h1>{% trans 'Número de agentes por día y hora' %}</h1>
+  </div>
+  <div class="row">
+      <div class="table-responsive">
+          <table class="table table-sm" id="table_agentes_por_hora_dia">
+            <thead>
+              <tr class="green_line">
+                <th>{% trans 'Día' %}</th>
+                <th>0</th>
+                <th>1</th>
+                <th>2</th>
+                <th>3</th>
+                <th>4</th>
+                <th>5</th>
+                <th>6</th>
+                <th>7</th>
+                <th>8</th>
+                <th>9</th>
+                <th>10</th>
+                <th>11</th>
+                <th>12</th>
+                <th>13</th>
+                <th>14</th>
+                <th>15</th>
+                <th>16</th>
+                <th>17</th>
+                <th>18</th>
+                <th>19</th>
+                <th>20</th>
+                <th>21</th>
+                <th>22</th>
+                <th>23</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for dia, horas in reportes.agentes_por_dia.datos.por_dia_y_hora.items %}
+              <tr>
+                
+                <td>{{ dia|date:'Y-m-d' }}</td>
+                {% for hora in horas %}
+                  <td>{{hora}}</td> 
+                {% endfor %}
+              </tr>
+              {% empty%}
+                <tr empty_table="empty">
+                  <td colspan="24">{% trans 'No agentes activos por día y hora' %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+      </div>
+  </div>
+  <div class="col-md-12">
+    <h3>{% trans 'Agentes por dia' %}</h3>
+    <div class="graficos-avances">
+      <figure>
+        {{ graficos.agentes_por_dia.render_unicode|safe }}
+      </figure>
+    </div>
+  </div>
+
+
+</div>

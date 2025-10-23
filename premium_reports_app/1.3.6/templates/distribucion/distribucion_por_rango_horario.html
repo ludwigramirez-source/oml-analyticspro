@@ -1,0 +1,62 @@
+{% load i18n %}
+{% load static %}
+
+<div class="table-responsive">
+    <table class="table table-sm" id="table_datos_por_rango_horario">
+      <thead>
+        <tr class="green_line">
+          <th></th>
+          <th scope="col">{% trans 'Rango Horario'%}</th>
+          <th scope="col">{% trans 'Recibidas' %}</th>
+          <th scope="col">{% trans 'Atendidas' %}</th>
+          <th scope="col">{% trans 'No Atendidas' %}</th>
+          <th scope="col">{% trans 'Abandonadas' %}</th>
+          <th scope="col">{% trans 'Transferidas' %}</th>
+          <th scope="col">{% trans '% Atendidas' %}</th>
+          <th scope="col">{% trans '% No Atendidas' %}</th>
+          <th scope="col">{% trans 'Espera Media' %}</th>
+          <th scope="col">{% trans 'Duración Media' %}</th>
+        </tr>
+      </thead>
+      <tbody>
+           {% for rango, datos_rango in reportes.distribuciones_generales.datos.por_rango_horario.items %}
+           <tr>
+               <td><button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal_distribucion_por_rango_horario{{ forloop.counter }}" id="more_info"> + </button> </td>
+               <td>{{ rango }}</td>
+               <td>{{ datos_rango.recibidas }}</td>
+               <td>{{ datos_rango.atendidas }}</td>
+               <td>{{ datos_rango.no_atendidas }}</td>
+               <td>{{ datos_rango.abandonadas }}</td>
+               <td>{{ datos_rango.transferidas }}</td>
+               <td>{{ datos_rango.porcentaje_atendidas|floatformat:2 }}</td>
+               <td>{{ datos_rango.porcentaje_no_atendidas|floatformat:2 }}</td>
+               <td>{{ datos_rango.espera_media|floatformat:-2 }}</td>
+               <td>{{ datos_rango.duracion_media|floatformat:-2 }}</td>         
+           </tr>
+           {% empty %}
+                <tr empty_table="empty">
+                    <td></td>
+                    <td colspan="10">{% trans 'No hay Distribucion por rango horario' %}</td>
+                </tr>
+           {% endfor %}
+      </tbody>
+  </table>
+</div>
+
+{% if reportes.general_llamadas.datos.llamadas_procesadas > 0 %}
+  <div class="col-md-12">
+    <h3>{% trans 'Llamadas según atención' %}</h3>
+    <div class="graficos-avances">
+      <figure>
+        {{ graficos.distribuciones_generales.por_rango_horario.render_unicode|safe }}
+      </figure>
+    </div>
+  </div>
+{% endif %}
+
+
+{% for rango, datos_rango in reportes.distribuciones_generales.datos.por_rango_horario.items %}
+<div class="modal" id="modal_distribucion_por_rango_horario{{ forloop.counter }}">
+    {% include "distribucion/modal_llamadas.html" with llamadas=datos_rango.llamadas origin="por_rango_horario" identificador=rango %}
+</div>
+{%endfor%}

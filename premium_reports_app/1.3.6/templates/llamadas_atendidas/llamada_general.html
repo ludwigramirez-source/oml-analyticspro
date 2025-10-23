@@ -1,0 +1,62 @@
+{% load i18n %}
+
+{% load static %}
+
+<div class="container">
+  <div class="row">
+    <div class="col-md-12">
+      <h1>{% trans ' Llamadas atendidas General' %}</h1>
+  </div>
+    <div class="col-md-12">
+      <table class="table">
+        <tbody>
+          <tr class="green_line">
+            <td><h3>{% trans 'Reporte Generado' %}</h3></td>
+            <td>{{ reportes.general_atendidas.datos.fecha|date:'Y-m-d H:i:s' }}</td>
+          </tr>
+          <tr>
+            <td><h3>{% trans 'Campañas' %} </h3></td>
+            <td>{{ reportes.general_atendidas.datos.campanas|join:', ' }}</td>
+          </tr>
+          <tr>
+            <td><h3>{% trans 'Fecha inicial del periodo' %}</h3></td>
+            <td>{{ reportes.general_atendidas.datos.fecha_inicial|date:'Y-m-d' }}</td>
+          </tr>
+          <tr>
+            <td><h3>{% trans 'Fecha final del periodo'%}</h3></td>
+            <td>{{ reportes.general_atendidas.datos.fecha_final|date:'Y-m-d' }}</td>
+          </tr>
+          <tr>
+            <td><h3>{% trans 'Días de la semana'%}</h3></td>
+            <td>
+              {{ reportes.general_atendidas.datos.dias_de_la_semana|join:', ' }}</td>
+          </tr>
+          <tr>
+            <td><h3>{% trans 'Franjas horarias'%}</h3></td>
+            <td>
+            {% for franja in reportes.general_atendidas.datos.franjas_horarias%}
+            <div>{{ franja.0 }} - {{ franja.1}}</div> 
+            {% endfor%}
+            </td>
+          </tr>
+          <tr>
+            <td><h3>{% trans 'Llamadas atendidas' %}</h3></td>
+            <td>{{ reportes.general_atendidas.datos.llamadas_atendidas}}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    {% if reportes.general_atendidas.datos.llamadas_atendidas > 0 %}
+    <div class="col-md-12">
+      <h3>{% trans 'Llamadas atendidas según campaña' %}</h3>
+      <div class="graficos-avances">
+        <figure>
+          {{ graficos.atendidas_por_campana.render_unicode|safe }}
+        </figure>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>

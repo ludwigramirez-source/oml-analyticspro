@@ -1,0 +1,50 @@
+{% load i18n %}
+
+{% load static %}
+
+<div class="container">
+    <div class="row">
+        <h1>{% trans 'Causas de no conexión' %}</h1>
+    </div>
+    <div class="row">
+        <div class="table-responsive">
+            <table class="table table-sm" id="table_causas_no_conexion">
+              <thead>
+                <tr class="green_line">
+                  <th>{% trans 'Causas' %}</th>
+                  <th>{% trans 'N. Llamadas'%}</th>
+                  <th>{% trans 'Porcentaje' %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for datos_causa in reportes.causas_desconexion_no_atendidas.datos.por_causas.values %}
+                    <tr>
+                        <td>
+                            {{ datos_causa.nombre }}
+                            <button id="tooltip" type="button" class="btn btn-primary" data-bs-toggle="tooltip" title="{{ datos_causa.descripcion }}" disabled>?</button>
+                        </td>
+                        <td>{{ datos_causa.cantidad }}</td>
+                        <td>%{{ datos_causa.porcentaje|floatformat:2 }}</td>
+                    </tr>
+                {% empty %}
+                    <tr empty_table="empty">
+                        <td>{% trans 'No hay llamadas no atendidas' %}</td>
+                    </tr>
+                {% endfor %}
+              </tbody>
+            </table>            
+        </div>
+    </div>
+
+    {% if reportes.causas_desconexion_no_atendidas.datos.por_causas.values %}
+      <div class="col-md-12">
+        <h3>{% trans 'Causas de no conexión' %}</h3>
+        <div class="graficos-avances">
+          <figure>
+            {{ graficos.causas_desconexion_no_atendidas.render_unicode|safe }}
+          </figure>
+        </div>
+      </div>
+    {% endif %}
+
+</div>

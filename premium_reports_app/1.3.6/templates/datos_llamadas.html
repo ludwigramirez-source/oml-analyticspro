@@ -1,0 +1,70 @@
+<script type="text/javascript">
+    var atendidas = {{ reportes.detalle_atendidas.datos }};
+    var no_atendidas = {{ reportes.detalle_no_atendidas.datos }};
+
+    var atendidas_por_agente = {};
+    {% for atendida, datos_atendidas in reportes.atendidas_por_agente.datos.items%}
+        atendidas_por_agente['{{ atendida }}'] = {{ datos_atendidas.llamadas }};
+    {% endfor %}
+
+    var distribuciones_generales = {
+        'por_campana': {},
+        'por_dia': {},
+        'por_hora': {},
+        'por_mes': {},
+        'por_rango_horario': {},
+        'por_semana': {},
+    }
+
+    var distribuciones_salientes;
+    {% if reportes.distribucion_llamada_saliente %}
+        distribuciones_salientes = {
+        'por_campana': {},
+        'por_dia': {},
+        'por_hora': {},
+        'por_mes': {},
+        'por_rango_horario': {},
+        'por_semana': {},
+    }
+    {% endif %}
+    
+    {% for campana, datos_distribucion in reportes.distribuciones_generales.datos.por_campana.items %}
+        distribuciones_generales['por_campana']['{{ campana }}'] = {{ datos_distribucion.llamadas }}
+    {% endfor %}
+    {% for dia, datos_distribucion in reportes.distribuciones_generales.datos.por_dia.items %}
+        distribuciones_generales['por_dia']['{{ dia }}'] = {{ datos_distribucion.llamadas }}
+    {% endfor %}
+    {% for hora, datos_distribucion in reportes.distribuciones_generales.datos.por_hora.items %}
+        distribuciones_generales['por_hora']['{{ hora }}'] = {{ datos_distribucion.llamadas }}
+    {% endfor %}
+    {% for mes, datos_distribucion in reportes.distribuciones_generales.datos.por_mes.items %}
+        distribuciones_generales['por_mes']['{{ mes }}'] = {{ datos_distribucion.llamadas }}
+    {% endfor %}
+    {% for rango, datos_distribucion in reportes.distribuciones_generales.datos.por_rango_horario.items %}
+        distribuciones_generales['por_rango_horario']['{{ rango }}'] = {{ datos_distribucion.llamadas }}
+    {% endfor %}
+    {% for semana, datos_distribucion in reportes.distribuciones_generales.datos.por_semana.items %}
+        distribuciones_generales['por_semana']['{{ semana }}'] = {{ datos_distribucion.llamadas }}
+    {% endfor %}
+
+
+    {% for campana, datos_distribucion in reportes.distribucion_llamada_saliente.datos.por_campana.items %}
+        distribuciones_salientes['por_campana']['{{ campana }}'] = {{ datos_distribucion.llamadas }}
+    {% endfor %}
+    {% for dia, datos_distribucion in reportes.distribucion_llamada_saliente.datos.por_dia.items %}
+        distribuciones_salientes['por_dia']['{{ dia }}'] = {{ datos_distribucion.llamadas }}
+    {% endfor %}
+    {% for hora, datos_distribucion in reportes.distribucion_llamada_saliente.datos.por_hora.items %}
+        distribuciones_salientes['por_hora']['{{ hora }}'] = {{ datos_distribucion.llamadas }}
+    {% endfor %}
+    {% for mes, datos_distribucion in reportes.distribucion_llamada_saliente.datos.por_mes.items %}
+        distribuciones_salientes['por_mes']['{{ mes }}'] = {{ datos_distribucion.llamadas }}
+    {% endfor %}
+    {% for rango, datos_distribucion in reportes.distribucion_llamada_saliente.datos.por_rango_horario.items %}
+        distribuciones_salientes['por_rango_horario']['{{ rango }}'] = {{ datos_distribucion.llamadas }}
+    {% endfor %}
+    {% for semana, datos_distribucion in reportes.distribucion_llamada_saliente.datos.por_semana.items %}
+        distribuciones_salientes['por_semana']['{{ semana }}'] = {{ datos_distribucion.llamadas }}
+    {% endfor %}
+
+</script>

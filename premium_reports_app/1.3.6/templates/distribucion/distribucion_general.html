@@ -1,0 +1,30 @@
+
+{% load i18n %}
+
+{% load static %}
+<div class="container" id="padding_container">
+  <div class="row">
+    <div class="col-md-3">
+      <h1>{% trans 'Distribución por ' %}</h1>
+    </div>
+    <div class="col-md-8">
+        <button type="button" id="por_campana" href="javascript:void(0)" class="btn btn-primary">{% trans 'Campaña' %}</button>
+        <button type="button" id="por_rango_horario" href="javascript:void(0)" class="btn btn-outline-primary">{% trans 'Rango Horario' %}</button>
+        <button type="button" id="por_mes" href="javascript:void(0)" class="btn btn-outline-primary">{% trans 'Mes' %}</button>
+        <button type="button" id="por_semana" href="javascript:void(0)" class="btn btn-outline-primary">{% trans 'Semana' %}</button>
+        <button type="button" id="por_dia" href="javascript:void(0)" class="btn btn-outline-primary">{% trans 'Día' %}</button>
+        <button type="button" id="por_horario" href="javascript:void(0)" class="btn btn-outline-primary">{% trans 'Hora' %}</button>
+    </div>
+  </div>
+</div>
+<div id="content_por_campana">{% include 'distribucion/distribucion_por_campana.html'%}</div>
+<div id="content_por_rango_horario" class="hidden">{% include 'distribucion/distribucion_por_rango_horario.html' %}</div>
+<div id="content_por_mes" class="hidden">{% include 'distribucion/distribucion_por_mes.html' %}</div>
+<div id="content_por_semana" class="hidden">{% include 'distribucion/distribucion_por_semana.html' %}</div>
+<div id="content_por_dia" class="hidden">{% include 'distribucion/distribucion_por_dia.html' %}</div>
+<div id="content_por_horario" class="hidden">{% include 'distribucion/distribucion_por_hora.html' %}</div>
+
+
+
+
+

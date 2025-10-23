@@ -1,0 +1,266 @@
+<!--
+     Copyright (C) 2018 Freetech Solutions
+   -->
+
+{% extends "base.html" %}
+{% load i18n %}
+{% load widget_tweaks %}
+
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'premium_reports_app/CSS/main.css' %}"></link>
+{% endblock %}
+
+{% block extra_js %}
+    {% get_current_language as LANGUAGE_CODE %}
+    <input class="hidden" value="{{ LANGUAGE_CODE }}" id="languageCode">
+    <script src="{% static 'ominicontacto/JS/jquery.formset.js' %}"></script>
+    <script type="text/javascript" src="{% static 'ominicontacto/JS/csrf.js' %}"></script>
+    <script type="text/javascript" src="{% static 'premium_reports_app/JS/main.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+    <div class="row mt-1">
+      <div class="col-md-10">
+        <h1>{% trans 'Filtros Reportes Premium' %}</h1>
+      </div>
+      <div class="col-md-2">
+        <h2> v{{ version}} </h2>
+      </div>
+    </div>
+    <form action="" method="post">{% csrf_token %}
+        {{ form.non_field_errors }}
+        <div class="col-md-12">
+            <div class="row mt-3">
+                <div class="col-md-6 form-control">
+                    <h2>{% trans 'Filtros de objetos' %}</h2>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-row">
+                                <div id="filtroTiposCampanas" class="">
+                                    <label >{{ form.tipos_campanas.label_tag }}</label>
+                                    {{ form.tipos_campanas }}
+                                    {{ form.tipos_campanas.errors }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-row">
+                                <div id="filtroCampanas" class="">
+                                    <label >{{ form.campanas.label_tag }}</label>
+                                    {{ form.campanas }}
+                                    {{ form.campanas.errors }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-row">
+                                <div id="filtroGruposAgentes" class="">
+                                    <label >{{ form.grupos_agentes.label_tag }}</label>
+                                    {{ form.grupos_agentes }}
+                                    {{ form.grupos_agentes.errors }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-row">
+                                <div id="filtroAgentes" class="">
+                                    <label>{{ form.agentes.label_tag }}</label>
+                                    {{ form.agentes }}
+                                    {{ form.agentes.errors }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-row">
+                                <div class="">
+                                    <label>{{ form.salientes_manuales.label_tag }}</label>
+                                    {{ form.salientes_manuales|add_class:"form-inline1" }}
+                                    {{ form.salientes_manuales.errors }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 form-control">
+                    <h2>{% trans 'Filtros generales' %}</h2>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-row">
+                                <div class="">
+                                    <label >{{ form.telefono.label_tag }}</label>
+                                    {{ form.telefono }}
+                                    {{ form.telefono.errors }}
+                                    <small class="form-text text-muted">
+                                        {{ form.time_out.help_text }}
+                                    </small>
+                                </div>
+                                <div class="">
+                                    <label >{{ form.callid.label_tag }}</label>
+                                    {{ form.callid }}
+                                    {{ form.callid.errors }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-inline">
+                                <div class="" id="filtroTipoConexion">
+                                    <label >{{ form.tipo_conexion.label_tag }}</label>
+                                    {{ form.tipo_conexion }}
+                                    {{ form.tipo_conexion.errors }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-row">
+                                <div class="hidden" id="filtroExitosas">
+                                    <label >{{ form.exitosas.label_tag }}</label>
+                                    {{ form.exitosas }}
+                                    {{ form.exitosas.errors }}
+                                </div>
+                                <div class="hidden" id="filtroFallidas">
+                                    <label >{{ form.fallidas.label_tag }}</label>
+                                    {{ form.fallidas|add_class:"form-control" }}
+                                    {{ form.fallidas.errors }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-row">
+                                <div class="hidden" id="filtroDuracionLlamada">
+                                    <label >{{ form.duracion_llamada.label_tag }}</label>
+                                    {{ form.duracion_llamada }}
+                                    {{ form.duracion_llamada.errors }}
+                                </div>
+                                <div class="hidden" id="filtroCalificacionLlamada">
+                                    <label >{{ form.calificacion_agente.label_tag }}</label>
+                                    {{ form.calificacion_agente }}
+                                    {{ form.calificacion_agente.errors }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-md-12 form-control">
+                    <h2>{% trans 'Filtros temporales' %}</h2>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-row">
+                                <div class="">
+                                    <label >{{ form.fecha_inicio.label_tag }}</label>
+                                    {{ form.fecha_inicio }}
+                                    {{ form.fecha_inicio.errors }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-row">
+                                <div class="">
+                                    <label >{{ form.fecha_fin.label_tag }}</label>
+                                    {{ form.fecha_fin }}
+                                    {{ form.fecha_fin.errors }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <h3>{% trans 'Tiempo no contiguo' %}</h3>
+                            <div class="row">
+                                <div class="col-md-5">
+                                    <div class="form-row">
+                                        <div class="">
+                                            <label >{{ form.dia_semana.label_tag }}</label>
+                                            {{ form.dia_semana }}
+                                            {{ form.dia_semana.errors }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-5">
+                                    <div class="form-row">
+                                        <div class="">
+                                            <input class="hidden" value="{{ formset_rangos_horarios.prefix }}" id="wizard">
+                                            <table border="0" cellpadding="0" cellspacing="0">
+                                                <tbody>
+                                                    {% if formset_rangos_horarios.non_form_errors %}
+                                                        {% for error in formset_rangos_horarios.non_form_errors %}
+                                                            <div class="alert alert-warning">{{ error|escape }}</div>
+                                                        {% endfor %}
+                                                    {% endif %}
+                                                    {% for form in formset_rangos_horarios.forms %}
+                                                        <tr class="validacionTiempoTr">
+                                                            <td>
+                                                                {{ form.rango_hora_inicial.errors }}
+                                                                {{ form.rango_hora_inicial|add_class:"form-control tiempo" }}
+                                                            </td>
+                                                            <td>
+                                                                {{ form.rango_hora_final.errors }}
+                                                                {{ form.rango_hora_final|add_class:"form-control tiempo" }}
+                                                            </td>
+                                                            <td></td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                            {{ formset_rangos_horarios.management_form }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-row">
+                                        <div class="">
+                                            <label >{{ form.ajuste_zona_horaria.label_tag }}</label>
+                                            {{ form.ajuste_zona_horaria }}
+                                            {{ form.ajuste_zona_horaria.errors }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-row">
+                                        <div class="">
+                                            <label >{{ form.nivel_servicio.label_tag }}</label>
+                                            {{ form.nivel_servicio }}
+                                            {{ form.nivel_servicio.errors }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-row">
+                                        <div class="">
+                                            <label >{{ form.maximo_sesion_estimada.label_tag }}</label>
+                                            {{ form.maximo_sesion_estimada }}
+                                            {{ form.maximo_sesion_estimada.errors }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col-md-6">
+                <button type="submit" id="id_enviar_filtro" class="btn btn-primary">
+                    {% trans 'Aplicar' %}
+                </button>
+            </div>
+        </div>
+    </form>
+{% endblock %}

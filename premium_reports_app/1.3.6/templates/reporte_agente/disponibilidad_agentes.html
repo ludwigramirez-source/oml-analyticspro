@@ -1,0 +1,188 @@
+{% load i18n %}
+
+{% load static %}
+{% load timedelta_seconds %}
+
+<div class="table-responsive">
+    <table class="table table-sm" id="table_disponibilidad_agentes">
+      <h1>{% trans 'Disponibilidad de agentes' %}</h1>
+      <thead>
+        <tr class="green_line">
+          <th scope="col">{% trans 'ID' %}</th>
+          <th scope="col">{% trans 'Agente'%}</th>
+          <th scope="col">{% trans 'Username Agente'%}</th>
+          <th scope="col">{% trans 'Nº de sesiones' %}</th>
+          <th scope="col">{% trans 'Tiempo de Hold' %}</th>
+          <th scope="col">{% trans 'Tiempo total sesión' %}</th>
+          <th scope="col">{% trans 'Tiempo promedio sesión' %}</th>
+          <th scope="col">{% trans 'Tiempo al habla' %}</th>
+          <th scope="col">{% trans 'Nº Pausas' %}</th>
+          <th scope="col">{% trans 'Tiempo total espera' %}</th>
+          <th scope="col">{% trans 'Tiempo total pausa' %}</th>
+          <th scope="col">{% trans 'Tiempo promedio pausa' %}</th>
+          <th scope="col">{% trans '% ocupación' %}</th>
+          <th scope="col">{% trans 'Primer login' %}</th>
+          <th scope="col">{% trans 'Ultimo logout' %}</th>
+        </tr>
+      </thead>
+        <tbody>
+            {% for disponibilidad, datos_disponibilidad in reportes.disponibilidad_de_agentes.datos.items %}
+            <tr>
+                 <td>{{ disponibilidad }}</td>
+                 <td><a href="#" data-toggle="modal" data-target="#dispAgente{{ forloop.counter }}">{{ datos_disponibilidad.nombre_agente }}</a></td>
+                 <td>{{ datos_disponibilidad.user_agente }}</td>
+                 <td>{{ datos_disponibilidad.n_sesiones }}</td>
+                 <td>{{ datos_disponibilidad.t_hold|timedelta_sec }}</td>
+                 <td>{{ datos_disponibilidad.t_total_sesion|timedelta_sec }}</td>
+                 <td>{{ datos_disponibilidad.t_promedio_sesion|timedelta_sec }}</td>
+                 <td>{{ datos_disponibilidad.t_total_habla|timedelta_sec }}</td>
+                 <td>{{ datos_disponibilidad.n_pausas }}</td>
+                 <td>{{ datos_disponibilidad.t_espera|timedelta_sec }}</td>
+                 <td><a href="#" data-toggle="modal" data-target="#pausaAgente{{ forloop.counter }}">{{ datos_disponibilidad.t_total_pausa|timedelta_sec }}</a></td>
+                 <td>{{ datos_disponibilidad.t_promedio_pausa|timedelta_sec }}</td>
+                 <td>{{ datos_disponibilidad.porcentaje_ocupacion|floatformat:2 }}</td>
+                 <td>{{ datos_disponibilidad.login|date:'Y-m-d H:i:s'}}</td>
+                 <td>{{ datos_disponibilidad.logout|date:'Y-m-d H:i:s'}}</td>
+            </tr>
+            {% empty %}
+                <tr empty_table="empty">
+                    <td></td>
+                    <td colspan="10">{% trans 'No hay Disponibilidad de agentes' %}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+    
+  {% if reportes.disponibilidad_de_agentes.datos.items %}
+    <div class="col-md-12">
+      <h3>{% trans 'Disponibilidad de agentes' %}</h3>
+      <div class="graficos-avances">
+        <figure>
+          {{ graficos.ocupacion_de_agentes.render_unicode|safe }}
+        </figure>
+      </div>
+    </div>
+  {% endif %}
+
+{% for disponibilidad, datos_disponibilidad in reportes.disponibilidad_de_agentes.datos.items %}
+<div class="modal" id="dispAgente{{ forloop.counter }}">
+    <div class="modal-dialog" role="document" id="modal_width">
+        <div class="modal-content">
+          <div class="row"> 
+              <div class="col-md-6">    
+                  <div class="table-responsive">
+                    <table class="table table-sm" grupo="table_modal_sesiones_de_agente" identificador="{{ datos_disponibilidad.nombre_agente }}">
+                      <h1 class="modal_title">{% trans 'Detalle de tiempo por Sesión' %}</h1>
+                      <thead>
+                        <tr class="green_line">
+                          <th scope="col">{% trans 'Fecha Inicio'%}</th>
+                          <th scope="col">{% trans 'Fecha Fin'%}</th>
+                          <th scope="col">{% trans 'Total sesión'%}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                          {% for datos_sesiones in datos_disponibilidad.sesiones %}
+                          <tr {% if datos_sesiones.duracion_estimada %} style="background-color: yellow"{% endif %}>
+                            <td>{{ datos_sesiones.fecha_inicio|date:'Y-m-d H:i:s' }}</td>
+                            <td>{{ datos_sesiones.fecha_fin|date:'Y-m-d H:i:s' }}</td>
+                            <td>{{ datos_sesiones.duracion|timedelta_sec }}</td>
+                          </tr>
+                          {% endfor%}
+                      </tbody>
+                    </table>  
+                  </div>
+              </div>
+              <div class="col-md-6">
+                  <div class="table-responsive">
+                    <table class="table table-sm" grupo="table_modal_pausas_de_agente" identificador="{{ datos_disponibilidad.nombre_agente }}">
+                      <h1 class="modal_title">{% trans 'Detalle de tiempo por pausa' %}</h1>
+                      <thead>
+                        <tr class="green_line">
+                          <th scope="col">{% trans 'ID'%}</th>
+                          <th scope="col">{% trans 'Nombre'%}</th>
+                          <th scope="col">{% trans 'Fecha inicio'%}</th>
+                          <th scope="col">{% trans 'Fecha fin'%}</th>
+                          <th scope="col">{% trans 'Tiempo pausa'%}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                          {% for datos_pausas in datos_disponibilidad.pausas %}
+                          <tr {% if datos_pausas.duracion_estimada %} style="background-color: yellow"{% endif %}>
+                            <td>{{ datos_pausas.pausa_id }}</td>
+                            <td>{{ datos_pausas.nombre }}</td>
+                            <td>{{ datos_pausas.fecha_inicio|date:'Y-m-d H:i:s' }}</td>
+                            <td>{{ datos_pausas.fecha_fin|date:'Y-m-d H:i:s' }}</td>
+                            <td>{{ datos_pausas.duracion|timedelta_sec }}</td>
+                          </tr>
+                          {% endfor%}
+                      </tbody>
+                    </table>  
+                  </div>
+              </div>
+          </div>
+        </div>
+    </div>
+</div>
+{%endfor%}
+
+{% for disponibilidad, datos_disponibilidad in reportes.disponibilidad_de_agentes.datos.items %}
+<div class="modal" id="pausaAgente{{ forloop.counter }}">
+    <div class="modal-dialog" role="document" id="modal_width">
+        <div class="modal-content">
+          <div class="row"> 
+            <div class="col-md-6">
+                <div class="table-responsive">
+                  <table class="table table-sm">
+                    <h1 class="modal_title">{% trans 'Detalle de tiempo para Pausas Productivas' %}</h1>
+                    <thead>
+                      <tr class="green_line">
+                        <th scope="col">{% trans 'Nombre Pausa'%}</th>
+                        <th scope="col">{% trans 'Total Pausa'%}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                        {% for id, datos_pausa in datos_disponibilidad.pausas_productivas.items %}
+                        <tr {% if datos_pausa.duracion_estimada %} style="background-color: yellow"{% endif %}>
+                          <td>{{ datos_pausa.nombre }}</td>
+                          <td>{{ datos_pausa.duracion|timedelta_sec }}</td>
+                        </tr>
+                        {% endfor%}
+                        <tr class="grey_line">
+                          <td>{% trans "Total" %}</td>
+                          <td>{{ datos_disponibilidad.t_pausa_productiva|timedelta_sec }}</td>
+                        </tr>
+                    </tbody>
+                  </table>  
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="table-responsive">
+                  <table class="table table-sm">
+                    <h1 class="modal_title">{% trans 'Detalle de tiempo para Pausas Recreativas' %}</h1>
+                    <thead>
+                      <tr class="green_line">
+                        <th scope="col">{% trans 'Nombre Pausa'%}</th>
+                        <th scope="col">{% trans 'Total Pausa'%}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                        {% for id, datos_pausa in datos_disponibilidad.pausas_recreativas.items %}
+                        <tr {% if datos_pausa.duracion_estimada %} style="background-color: yellow"{% endif %}>
+                          <td>{{ datos_pausa.nombre }}</td>
+                          <td>{{ datos_pausa.duracion|timedelta_sec }}</td>
+                        </tr>
+                        {% endfor%}
+                        <tr class="grey_line">
+                          <td>{% trans "Total" %}</td>
+                          <td>{{ datos_disponibilidad.t_pausa_recreativa|timedelta_sec }}</td>
+                        </tr>
+                    </tbody>
+                  </table>  
+                </div>
+            </div>
+          </div>
+        </div>
+    </div>
+</div>
+{%endfor%}

@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import analyticsApi from '../../services/analyticsApi';
 import KPICard from './KPICard';
 import FilterSection from './FilterSection';
-import SimpleChart from './SimpleChart';
+import ApexChart from './ApexChart';
 import EntradasSalidas from './EntradasSalidas';
 import TablaLlamadas from './TablaLlamadas';
 import TablaAgentes from './TablaAgentes';

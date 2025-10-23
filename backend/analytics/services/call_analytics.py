@@ -12,7 +12,7 @@ class CallAnalyticsService:
     """Servicio para análisis de llamadas"""
     
     # Eventos de llamadas atendidas
-    EVENTOS_ATENDIDAS = ['CONNECT', 'COMPLETEAGENT']
+    EVENTOS_ATENDIDAS = ['CONNECT', 'COMPLETEAGENT', 'COMPLETEOUTNUM']
     
     # Eventos de llamadas no atendidas
     EVENTOS_NO_ATENDIDAS = [
@@ -20,6 +20,17 @@ class CallAnalyticsService:
         'CANCEL', 'BUSY', 'CHANUNAVAIL', 'FAIL',
         'ABANDONWEL', 'RINGNOANSWER', 'CONGESTION'
     ]
+    
+    # Tipos de llamada
+    TIPO_ENTRANTE = 1
+    TIPO_SALIENTE = 2
+    TIPO_TRANSFERENCIA = 3
+    
+    # Umbrales estándar de la industria
+    SLA_THRESHOLD_60 = 60  # Nivel de servicio < 60 segundos
+    SLA_THRESHOLD_20 = 20  # Nivel de servicio < 20 segundos
+    ABANDONMENT_THRESHOLD = 0.05  # 5% tasa de abandono aceptable
+    NIVEL_ATENCION_CRITICO = 80  # Nivel de atención crítico < 80%
     
     def __init__(self, db: Session):
         self.db = db

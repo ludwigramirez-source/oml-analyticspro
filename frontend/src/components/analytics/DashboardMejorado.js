@@ -18,7 +18,7 @@ import Transferencias from './reportes/Transferencias';
 const DashboardMejorado = () => {
   // Estados
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('configuracion');
+  const [activeTab, setActiveTab] = useState('resumen');
   const [filters, setFilters] = useState({});
   const [lastUpdate, setLastUpdate] = useState(new Date());
 

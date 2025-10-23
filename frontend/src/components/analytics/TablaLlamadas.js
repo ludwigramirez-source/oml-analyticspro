@@ -65,28 +65,48 @@ const TablaLlamadas = ({ llamadas }) => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {llamadas.map((llamada, idx) => (
-              <tr key={idx} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-600 font-mono">{llamada.callid || llamada.id}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{llamada.fecha}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{llamada.hora}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{llamada.campana}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{llamada.agente}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">{llamada.numero}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDuracion(llamada.duracion)}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{llamada.espera}s</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    llamada.quien_colgo === 'Agente' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                  }`}>
-                    {llamada.quien_colgo || 'N/A'}
-                  </span>
+            {paginatedData.length > 0 ? (
+              paginatedData.map((llamada, idx) => (
+                <tr key={idx} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-600 font-mono">{llamada.callid || llamada.id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{llamada.fecha}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{llamada.hora}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{llamada.campana}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{llamada.agente}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">{llamada.numero}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDuracion(llamada.duracion)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{llamada.espera}s</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      llamada.quien_colgo === 'Agente' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                    }`}>
+                      {llamada.quien_colgo || 'N/A'}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="9" className="px-6 py-8 text-center text-gray-500">
+                  No hay llamadas para mostrar
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
+      
+      {/* Paginación */}
+      {llamadas && llamadas.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+          totalItems={llamadas.length}
+        />
+      )}
     </div>
   );
 };

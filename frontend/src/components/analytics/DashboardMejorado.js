@@ -39,6 +39,18 @@ const DashboardMejorado = () => {
   const [campanas, setCampanas] = useState([]);
   const [agentes, setAgentes] = useState([]);
 
+  // Establecer rango "Este mes" por defecto al montar el componente
+  useEffect(() => {
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    setFilters({
+      fecha_inicio: format(startOfMonth, 'yyyy-MM-dd'),
+      fecha_fin: format(endOfMonth, 'yyyy-MM-dd')
+    });
+  }, []);
+
   useEffect(() => {
     // Solo cargar datos si no estamos en la pestaña de configuración
     if (activeTab !== 'configuracion') {

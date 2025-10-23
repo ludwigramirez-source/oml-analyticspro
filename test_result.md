@@ -104,9 +104,17 @@
 
 user_problem_statement: |
   User reported that:
-  1. "Evolución por hora" and "Nivel de servicio" graphs in the "Resumen" tab are not updating
-  2. "Distribución de llamadas" needs improvement - user requests two separate pie charts for entrantes and salientes
+  1. "Evolución por hora" and "Nivel de servicio" graphs in the "Resumen" tab are not updating (FIXED ✅)
+  2. "Distribución de llamadas" needs improvement - user requests two separate pie charts for entrantes and salientes (FIXED ✅)
   3. Continue implementing remaining reports and metrics
+  
+  Latest task (COMPLETED ✅):
+  4. Load backup database (backup_capresoca) with real call center data
+  5. Fix "Llamadas Salientes" tab:
+     - Remove "Manuales vs Dialer" distinction (FIXED ✅)
+     - Adjust status categories to show more relevant data (FIXED ✅)
+     - Display final call results instead of intermediate events (FIXED ✅)
+     - Change chart from pie to bar for better visualization (FIXED ✅)
   
 backend:
   - task: "Fix database lazy loading"

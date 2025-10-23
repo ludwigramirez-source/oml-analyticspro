@@ -6,7 +6,6 @@ import ApexChart from '../ApexChart';
 const LlamadasSalientes = ({ filters }) => {
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState(null);
-  const [manualesVsDialer, setManualesVsDialer] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -15,13 +14,8 @@ const LlamadasSalientes = ({ filters }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [dashboardData, manualesData] = await Promise.all([
-        analyticsApi.getSalientesDashboard(filters).catch(() => null),
-        analyticsApi.getManualesVsDiater(filters).catch(() => null)
-      ]);
-
+      const dashboardData = await analyticsApi.getSalientesDashboard(filters).catch(() => null);
       setDashboard(dashboardData);
-      setManualesVsDialer(manualesData);
     } catch (error) {
       console.error('Error loading llamadas salientes:', error);
     } finally {

@@ -37,9 +37,9 @@ const CausasDetalladas = ({ filters }) => {
   const preparePieData = (data) => {
     if (!Array.isArray(data) || data.length === 0) return [];
     return data.map(item => ({
-      label: item.descripcion || item.evento,
-      value: item.total || 0
-    }));
+      label: String(item?.descripcion || item?.evento || 'Sin descripción'),
+      value: Number(item?.total || 0)
+    })).filter(item => item.value > 0);
   };
 
   if (loading) {

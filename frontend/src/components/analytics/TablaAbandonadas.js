@@ -67,14 +67,14 @@ const TablaAbandonadas = ({ llamadas }) => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {llamadas.length === 0 ? (
+            {paginatedData.length === 0 ? (
               <tr>
                 <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
                   No hay llamadas abandonadas en el período seleccionado
                 </td>
               </tr>
             ) : (
-              llamadas.map((llamada, idx) => (
+              paginatedData.map((llamada, idx) => (
                 <tr key={idx} className="hover:bg-red-50">
                   <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-600 font-mono">
                     {llamada.callid}
@@ -98,6 +98,18 @@ const TablaAbandonadas = ({ llamadas }) => {
           </tbody>
         </table>
       </div>
+      
+      {/* Paginación */}
+      {llamadas && llamadas.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+          totalItems={llamadas.length}
+        />
+      )}
     </div>
   );
 };

@@ -110,8 +110,8 @@ class Pausa(Base):
 
 
 class User(Base):
-    """Modelo para auth_user (Django users)"""
-    __tablename__ = 'auth_user'
+    """Modelo para ominicontacto_app_user (Django users)"""
+    __tablename__ = 'ominicontacto_app_user'
     __table_args__ = {'schema': 'public'}
     
     id = Column(Integer, primary_key=True)

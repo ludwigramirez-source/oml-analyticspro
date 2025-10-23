@@ -159,8 +159,8 @@ class CallAnalyticsService:
         # FCR (First Call Resolution) - Simplificado
         fcr = round((llamadas_atendidas / total_llamadas * 100), 2) if total_llamadas > 0 else 0
         
-        # Abandonment Rate
-        abandonment_rate = round((llamadas_no_atendidas / total_llamadas * 100), 2) if total_llamadas > 0 else 0
+        # Abandonment Rate (solo abandonadas, no todas las no atendidas)
+        abandonment_rate = round((llamadas_abandonadas / total_llamadas * 100), 2) if total_llamadas > 0 else 0
         
         # ASA (Average Speed of Answer) - usando bridge_wait_time
         asa = espera_promedio

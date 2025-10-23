@@ -745,7 +745,7 @@ class CallAnalyticsExtended:
             LlamadaLog.callid,
             func.max(LlamadaLog.time).label('ultimo_tiempo')
         ).filter(
-            LlamadaLog.tipo_llamada == 0  # Solo entrantes
+            LlamadaLog.tipo_llamada == 3  # Solo entrantes (tipo_llamada = 3)
         )
         
         if filters.get('fecha_inicio'):

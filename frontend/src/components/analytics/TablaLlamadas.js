@@ -1,0 +1,64 @@
+import React from 'react';
+
+const TablaLlamadas = ({ llamadas }) => {
+  const formatDuracion = (seconds) => {
+    const min = Math.floor(seconds / 60);
+    const sec = seconds % 60;
+    return `${min}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  const getEstadoBadge = (estado) => {
+    const badges = {
+      'CONNECT': 'bg-green-100 text-green-800',
+      'COMPLETEAGENT': 'bg-green-100 text-green-800',
+      'ABANDON': 'bg-red-100 text-red-800',
+      'NOANSWER': 'bg-yellow-100 text-yellow-800',
+      'BUSY': 'bg-orange-100 text-orange-800'
+    };
+    return badges[estado] || 'bg-gray-100 text-gray-800';
+  };
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200">
+      <div className="px-6 py-4 border-b border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-800">Llamadas Detalladas</h3>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hora</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Campaña</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agente</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Número</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duración</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Espera</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {llamadas.map((llamada, idx) => (
+              <tr key={idx} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{llamada.fecha}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{llamada.hora}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{llamada.campana}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{llamada.agente}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{llamada.numero}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDuracion(llamada.duracion)}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{llamada.espera}s</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getEstadoBadge(llamada.estado)}`}>
+                    {llamada.estado}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+export default TablaLlamadas;

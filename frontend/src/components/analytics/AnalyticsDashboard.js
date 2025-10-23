@@ -36,17 +36,31 @@ const AnalyticsDashboard = () => {
 
   const loadInitialData = async () => {
     try {
-      const [campanasRes, agentesRes] = await Promise.all([
-        analyticsApi.getCampanas(),
-        analyticsApi.getAgentes()
-      ]);
-      setCampanas(campanasRes);
-      setAgentes(agentesRes);
+      console.log('🔵 Iniciando carga de datos...');
+      
+      // Cargar listas de campañas y agentes
+      try {
+        const campanasRes = await analyticsApi.getCampanas();
+        console.log('✅ Campañas cargadas:', campanasRes);
+        setCampanas(campanasRes || []);
+      } catch (e) {
+        console.error('Error campañas:', e);
+        setCampanas([]);
+      }
+      
+      try {
+        const agentesRes = await analyticsApi.getAgentes();
+        console.log('✅ Agentes cargados:', agentesRes);
+        setAgentes(agentesRes || []);
+      } catch (e) {
+        console.error('Error agentes:', e);
+        setAgentes([]);
+      }
       
       // Cargar datos del dashboard
-      loadDashboardData();
+      await loadDashboardData();
     } catch (error) {
-      console.error('Error loading initial data:', error);
+      console.error('❌ Error loading initial data:', error);
       setLoading(false);
     }
   };

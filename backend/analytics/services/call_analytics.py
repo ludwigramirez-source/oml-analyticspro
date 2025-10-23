@@ -700,13 +700,14 @@ class CallAnalyticsService:
     def get_llamadas_por_tipo(self, filters: Dict = None) -> Dict:
         """
         Distribución de llamadas separando ENTRANTES y SALIENTES
-        Mejora de Power BI
+        Mejora de Power BI - Solo cuenta eventos finales
         """
         filters = filters or {}
         query = self.db.query(LlamadaLog)
         query = self._apply_filters(query, filters)
+        query = query.filter(LlamadaLog.event.in_(self.EVENTOS_FINALES))  # SOLO EVENTOS FINALES
         
-        # Llamadas ENTRANTES (tipo_llamada = 1)
+        # Llamadas ENTRANTES (tipo_llamada = 3)
         entrantes_total = query.filter(LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE).count()
         entrantes_atendidas = query.filter(
             LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE,
@@ -717,13 +718,17 @@ class CallAnalyticsService:
             LlamadaLog.event.in_(self.EVENTOS_ABANDONADAS)
         ).count()
         
-        # Llamadas SALIENTES (tipo_llamada = 2)
+        # Llamadas SALIENTES (tipo_llamada = 1)
         salientes_total = query.filter(LlamadaLog.tipo_llamada == self.TIPO_SALIENTE).count()
         salientes_atendidas = query.filter(
             LlamadaLog.tipo_llamada == self.TIPO_SALIENTE,
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
         ).count()
-        salientes_no_atendidas = salientes_total - salientes_atendidas
+        # Para salientes: no atendidas = CANCEL, NOANSWER, BUSY, etc.
+        salientes_no_atendidas = query.filter(
+            LlamadaLog.tipo_llamada == self.TIPO_SALIENTE,
+            LlamadaLog.event.in_(['CANCEL', 'NOANSWER', 'BUSY', 'CHANUNAVAIL', 'NONDIALPLAN'])
+        ).count()
         
         return {
             'entrantes': {

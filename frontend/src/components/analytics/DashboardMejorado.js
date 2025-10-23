@@ -14,6 +14,7 @@ import LlamadasSalientes from './reportes/LlamadasSalientes';
 import CausasDetalladas from './reportes/CausasDetalladas';
 import AgentesAvanzado from './reportes/AgentesAvanzado';
 import Transferencias from './reportes/Transferencias';
+import TablaDistribucionHoraria from './reportes/TablaDistribucionHoraria';
 
 const DashboardMejorado = () => {
   // Estados

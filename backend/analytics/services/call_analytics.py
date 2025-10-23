@@ -468,6 +468,69 @@ class CallAnalyticsService:
             'data': [r.total for r in resultados]
         }
     
+    def get_llamadas_abandonadas(self, filters: Dict = None, page: int = 1, per_page: int = 50) -> Dict:
+        """
+        Obtiene lista detallada de llamadas ABANDONADAS con paginación
+        Eventos: ABANDON, ABANDON-CTOUT, ABANDONWEL
+        """
+        filters = filters or {}
+        query = self.db.query(
+            LlamadaLog,
+            Campana.nombre.label('campana_nombre'),
+            User.first_name.label('agente_nombre'),
+            User.last_name.label('agente_apellido')
+        ).outerjoin(
+            Campana, LlamadaLog.campana_id == Campana.id
+        ).outerjoin(
+            AgenteProfile, LlamadaLog.agente_id == AgenteProfile.id
+        ).outerjoin(
+            User, AgenteProfile.user_id == User.id
+        )
+        
+        query = self._apply_filters(query, filters)
+        
+        # Filtrar solo llamadas abandonadas
+        query = query.filter(LlamadaLog.event.in_(self.EVENTOS_ABANDONADAS))
+        
+        # Total de registros
+        total = query.count()
+        
+        # Paginación
+        offset = (page - 1) * per_page
+        resultados = query.order_by(LlamadaLog.time.desc()).offset(offset).limit(per_page).all()
+        
+        llamadas = []
+        for r in resultados:
+            llamada = r.LlamadaLog
+            
+            # Mapear tipo de abandono
+            tipo_abandono = {
+                'ABANDON': 'En Cola',
+                'ABANDON-CTOUT': 'Durante Transferencia',
+                'ABANDONWEL': 'En Audio Bienvenida'
+            }.get(llamada.event, llamada.event)
+            
+            llamadas.append({
+                'id': llamada.id,
+                'callid': llamada.callid,
+                'fecha': llamada.time.strftime('%Y-%m-%d'),
+                'hora': llamada.time.strftime('%H:%M:%S'),
+                'campana': r.campana_nombre or f'Campaña {llamada.campana_id}',
+                'agente': f'{r.agente_nombre or ""} {r.agente_apellido or ""}'.strip() or 'Sin asignar',
+                'numero': llamada.numero_marcado or '-',
+                'tiempo_espera': llamada.bridge_wait_time or 0,
+                'evento': llamada.event,
+                'tipo_abandono': tipo_abandono
+            })
+        
+        return {
+            'data': llamadas,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total + per_page - 1) // per_page
+        }
+    
     def get_llamadas_detalladas(self, filters: Dict = None, page: int = 1, per_page: int = 50) -> Dict:
         """
         Obtiene lista detallada de llamadas con paginación

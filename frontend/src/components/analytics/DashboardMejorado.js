@@ -172,6 +172,22 @@ const DashboardMejorado = () => {
     }));
   };
 
+  const prepareDistribucionEntrantes = (data) => {
+    if (!data || !data.labels) return [];
+    return data.labels.map((label, idx) => ({
+      name: label,
+      value: data.data[idx] || 0
+    }));
+  };
+
+  const prepareDistribucionSalientes = (data) => {
+    if (!data || !data.labels) return [];
+    return data.labels.map((label, idx) => ({
+      name: label,
+      value: data.data[idx] || 0
+    }));
+  };
+
   const prepareEvolucion = (data) => {
     if (!data || !data.labels) return [];
     return data.labels.map((label, idx) => ({

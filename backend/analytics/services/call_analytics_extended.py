@@ -833,13 +833,15 @@ class CallAnalyticsExtended:
             
             # Formatear etiqueta según el tipo de agrupación
             if agrupar_por == 'hora':
-                label = f"{int(grupo_valor):02d}:00 - {int(grupo_valor):02d}:59"
+                hora_inicio = int(grupo_valor)
+                hora_fin = (hora_inicio + 1) % 24
+                label = f"{hora_inicio:02d}:00 - {hora_fin:02d}:00"
+            elif agrupar_por == 'semana':
+                label = f"Semana {int(grupo_valor)}"
             elif agrupar_por == 'mes':
-                meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+                meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
                 label = meses[int(grupo_valor) - 1] if 1 <= int(grupo_valor) <= 12 else str(grupo_valor)
-            elif agrupar_por == 'dia_semana':
-                dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
-                label = dias[int(grupo_valor)] if 0 <= int(grupo_valor) <= 6 else str(grupo_valor)
             else:  # campaña
                 label = str(grupo_valor)
             

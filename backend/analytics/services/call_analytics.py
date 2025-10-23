@@ -100,12 +100,13 @@ class CallAnalyticsService:
         """
         filters = filters or {}
         
-        # Query base - SOLO EVENTOS FINALES
+        # Query base - SOLO EVENTOS FINALES y SOLO tipo_llamada 1 y 3
         query = self.db.query(LlamadaLog)
         query = self._apply_filters(query, filters)
         query = query.filter(LlamadaLog.event.in_(self.EVENTOS_FINALES))
+        query = query.filter(LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE]))
         
-        # Total de llamadas (SOLO EVENTOS FINALES)
+        # Total de llamadas (SOLO EVENTOS FINALES, SOLO tipo 1 y 3)
         total_llamadas = query.count()
         
         # Llamadas atendidas (COMPLETEAGENT, COMPLETEOUTNUM)

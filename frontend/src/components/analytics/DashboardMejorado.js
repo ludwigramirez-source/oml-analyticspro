@@ -446,7 +446,7 @@ const DashboardMejorado = () => {
 
             {/* Tab: Distribución Horaria */}
             {activeTab === 'horaria' && (
-              <TablaDistribucionHoraria filters={filters} />
+              <TablaDistribucionHoraria key="tabla-horaria-detallada" filters={filters} />
             )}
 
             {/* Tab: Campañas con Alertas */}

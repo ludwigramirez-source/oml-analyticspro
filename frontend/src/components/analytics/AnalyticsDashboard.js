@@ -67,43 +67,59 @@ const AnalyticsDashboard = () => {
 
   const loadDashboardData = async () => {
     setLoading(true);
+    console.log('📊 Cargando datos del dashboard...');
+    
     try {
-      // Cargar KPIs y datos principales
-      const [
-        kpisRes,
-        distribRes,
-        evolRes,
-        nivelRes,
-        causasRes,
-        llamadasRes,
-        agentesRes,
-        ocupRes,
-        campanasRes
-      ] = await Promise.all([
-        analyticsApi.getKPIs(filters),
-        analyticsApi.getDistribucionLlamadas(filters),
-        analyticsApi.getEvolucionHora(filters),
-        analyticsApi.getNivelServicio(filters),
-        analyticsApi.getCausasNoAtencion(filters),
-        analyticsApi.getLlamadasDetalladas(1, 50, filters),
-        analyticsApi.getRendimientoAgentes(filters),
-        analyticsApi.getOcupacionAgentes(filters),
-        analyticsApi.getDistribucionCampanas(filters)
-      ]);
-
+      // Cargar KPIs primero
+      const kpisRes = await analyticsApi.getKPIs(filters);
+      console.log('✅ KPIs recibidos:', kpisRes);
       setKpis(kpisRes);
+
+      // Cargar distribución
+      const distribRes = await analyticsApi.getDistribucionLlamadas(filters);
+      console.log('✅ Distribución recibida:', distribRes);
       setDistribucionData(prepareDistribucionChart(distribRes));
+
+      // Cargar evolución
+      const evolRes = await analyticsApi.getEvolucionHora(filters);
+      console.log('✅ Evolución recibida:', evolRes);
       setEvolucionData(prepareEvolucionChart(evolRes));
+
+      // Cargar nivel de servicio
+      const nivelRes = await analyticsApi.getNivelServicio(filters);
+      console.log('✅ Nivel servicio recibido:', nivelRes);
       setNivelServicioData(prepareNivelServicioChart(nivelRes));
+
+      // Cargar causas
+      const causasRes = await analyticsApi.getCausasNoAtencion(filters);
+      console.log('✅ Causas recibidas:', causasRes);
       setCausasData(prepareCausasChart(causasRes));
+
+      // Cargar llamadas detalladas
+      const llamadasRes = await analyticsApi.getLlamadasDetalladas(1, 50, filters);
+      console.log('✅ Llamadas recibidas:', llamadasRes);
       setLlamadasDetalladas(llamadasRes.data || []);
+
+      // Cargar agentes
+      const agentesRes = await analyticsApi.getRendimientoAgentes(filters);
+      console.log('✅ Agentes recibidos:', agentesRes);
       setAgentesData(agentesRes);
+
+      // Cargar ocupación
+      const ocupRes = await analyticsApi.getOcupacionAgentes(filters);
+      console.log('✅ Ocupación recibida:', ocupRes);
       setOcupacionData(prepareOcupacionChart(ocupRes));
+
+      // Cargar campañas
+      const campanasRes = await analyticsApi.getDistribucionCampanas(filters);
+      console.log('✅ Campañas recibidas:', campanasRes);
       setCampanasData(campanasRes);
 
       setLastUpdate(new Date());
+      console.log('✅ ¡Todos los datos cargados exitosamente!');
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      console.error('❌ Error loading dashboard data:', error);
+      console.error('Stack:', error.stack);
     } finally {
       setLoading(false);
     }

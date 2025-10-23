@@ -164,7 +164,7 @@ class CallAnalyticsService:
             'llamadas_perdidas': {
                 'valor': llamadas_no_atendidas,
                 'cambio': '-5%',
-                'tendencia': abandonment_rate <= 5 ? 'positivo' : 'negativo',
+                'tendencia': 'positivo' if abandonment_rate <= 5 else 'negativo',
                 'icono': '❌'
             },
             'aht': {  # Average Handle Time
@@ -179,7 +179,7 @@ class CallAnalyticsService:
                 'valor': asa,
                 'formato': 'segundos',
                 'cambio': '+2%',
-                'tendencia': asa <= 28 ? 'positivo' : 'negativo',
+                'tendencia': 'positivo' if asa <= 28 else 'negativo',
                 'icono': '⏳',
                 'label': 'ASA (Tiempo Espera)'
             },
@@ -187,7 +187,7 @@ class CallAnalyticsService:
                 'valor': service_level_60,
                 'formato': 'porcentaje',
                 'cambio': '+5%',
-                'tendencia': service_level_60 >= 80 ? 'positivo' : 'negativo',
+                'tendencia': 'positivo' if service_level_60 >= 80 else 'negativo',
                 'icono': '🎯',
                 'label': 'Service Level < 60s'
             },
@@ -195,7 +195,7 @@ class CallAnalyticsService:
                 'valor': service_level_20,
                 'formato': 'porcentaje',
                 'cambio': '+3%',
-                'tendencia': service_level_20 >= 70 ? 'positivo' : 'negativo',
+                'tendencia': 'positivo' if service_level_20 >= 70 else 'negativo',
                 'icono': '⚡',
                 'label': 'Service Level < 20s'
             },
@@ -203,7 +203,7 @@ class CallAnalyticsService:
                 'valor': fcr,
                 'formato': 'porcentaje',
                 'cambio': '+7%',
-                'tendencia': fcr >= 70 ? 'positivo' : 'negativo',
+                'tendencia': 'positivo' if fcr >= 70 else 'negativo',
                 'icono': '🎖️',
                 'label': 'FCR (Resolución Primera Llamada)'
             },
@@ -211,7 +211,7 @@ class CallAnalyticsService:
                 'valor': abandonment_rate,
                 'formato': 'porcentaje',
                 'cambio': '-2%',
-                'tendencia': abandonment_rate <= 5 ? 'positivo' : 'negativo',
+                'tendencia': 'positivo' if abandonment_rate <= 5 else 'negativo',
                 'icono': '📉',
                 'label': 'Tasa de Abandono'
             },
@@ -225,7 +225,7 @@ class CallAnalyticsService:
                 'valor': ocupacion,
                 'formato': 'porcentaje',
                 'cambio': '+4%',
-                'tendencia': ocupacion >= 70 and ocupacion <= 90 ? 'positivo' : 'neutro',
+                'tendencia': 'positivo' if (ocupacion >= 70 and ocupacion <= 90) else 'neutro',
                 'icono': '📊'
             }
         }

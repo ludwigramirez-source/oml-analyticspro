@@ -84,14 +84,27 @@ class CallAnalyticsService:
             fecha_fin = filters['fecha_fin'] + timedelta(days=1)
             query = query.filter(LlamadaLog.time < fecha_fin)
         
-        if filters.get('campana_id'):
+        # Campañas: soportar una sola o múltiples
+        if filters.get('campana_ids'):
+            query = query.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
+        elif filters.get('campana_id'):
             query = query.filter(LlamadaLog.campana_id == filters['campana_id'])
         
         if filters.get('tipo_campana'):
             query = query.filter(LlamadaLog.tipo_campana == filters['tipo_campana'])
         
-        if filters.get('agente_id'):
+        # Agentes: soportar uno solo o múltiples
+        if filters.get('agente_ids'):
+            query = query.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
+        elif filters.get('agente_id'):
             query = query.filter(LlamadaLog.agente_id == filters['agente_id'])
+        
+        # Tipo de llamada: entrantes o salientes
+        if filters.get('tipo_llamada'):
+            if filters['tipo_llamada'] == 'entrantes':
+                query = query.filter(LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE)
+            elif filters['tipo_llamada'] == 'salientes':
+                query = query.filter(LlamadaLog.tipo_llamada == self.TIPO_SALIENTE)
         
         return query
     

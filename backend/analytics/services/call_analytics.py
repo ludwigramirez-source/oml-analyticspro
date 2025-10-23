@@ -37,7 +37,7 @@ class CallAnalyticsService:
     ]
     
     # EVENTOS FINALES: Solo estos cuentan como "llamadas" en los totales
-    # Basado en la tabla oficial de eventos de OmniLeads
+    # Basado en la tabla oficial de eventos de OmniLeads y análisis de datos reales
     EVENTOS_FINALES = [
         # Llamadas completadas (atendidas)
         'COMPLETEAGENT',      # Agente cuelga
@@ -45,6 +45,7 @@ class CallAnalyticsService:
         'COMPLETE-BTOUT',     # Transfer ciego completado
         'COMPLETE-CTOUT',     # Transfer consultivo completado
         'COMPLETE-CT',        # Transfer consultivo por agente
+        'COMPLETE-CAMPT',     # Transfer a campaña (encontrado en datos reales)
         
         # Llamadas abandonadas
         'ABANDON',            # Abandono en cola

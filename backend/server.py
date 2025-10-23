@@ -66,15 +66,24 @@ async def get_status_checks():
     
     return status_checks
 
-# Include the router in the main app
-app.include_router(api_router)
-
-# Configure logging
+# Configure logging FIRST
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Add CORS middleware BEFORE routing
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins for development
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include the router in the main app
+app.include_router(api_router)
 
 # Include Analytics router
 try:
@@ -83,14 +92,6 @@ try:
     logger.info("Analytics module loaded successfully")
 except Exception as e:
     logger.warning(f"Analytics module not loaded: {e}")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

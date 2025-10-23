@@ -724,11 +724,11 @@ class CallAnalyticsExtended:
     
     def get_distribucion_horaria_detallada(self, filters: Dict = None, agrupar_por: str = 'hora') -> List[Dict]:
         """
-        Distribución horaria detallada con múltiples métricas
+        Distribución horaria detallada SOLO para llamadas ENTRANTES con múltiples métricas
         
         Args:
             filters: Filtros estándar (fecha_inicio, fecha_fin, campana_ids, agente_ids)
-            agrupar_por: 'hora', 'mes', 'dia_semana', 'campana'
+            agrupar_por: 'hora', 'semana', 'mes', 'campana'
         
         Returns:
             Lista de diccionarios con métricas detalladas por grupo
@@ -745,7 +745,7 @@ class CallAnalyticsExtended:
             LlamadaLog.callid,
             func.max(LlamadaLog.time).label('ultimo_tiempo')
         ).filter(
-            LlamadaLog.tipo_llamada == 3  # Solo entrantes (tipo_llamada = 3)
+            LlamadaLog.tipo_llamada == 3  # Solo entrantes
         )
         
         if filters.get('fecha_inicio'):

@@ -93,6 +93,14 @@ try:
 except Exception as e:
     logger.warning(f"Analytics module not loaded: {e}")
 
+# Include Config router
+try:
+    from analytics.routes.config_routes import router as config_router
+    app.include_router(config_router)
+    logger.info("Config module loaded successfully")
+except Exception as e:
+    logger.warning(f"Config module not loaded: {e}")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()

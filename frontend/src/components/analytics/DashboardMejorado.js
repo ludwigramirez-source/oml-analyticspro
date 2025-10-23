@@ -300,6 +300,7 @@ const DashboardMejorado = () => {
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px overflow-x-auto">
               {[
+                { id: 'configuracion', label: '⚙️ Configuración', icon: '⚙️' },
                 { id: 'resumen', label: '📈 Resumen', icon: '📈' },
                 { id: 'horaria', label: '🕐 Distribución Horaria', icon: '🕐' },
                 { id: 'campanas', label: '🎯 Campañas (Alertas)', icon: '🎯' },

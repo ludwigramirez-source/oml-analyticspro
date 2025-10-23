@@ -17,9 +17,12 @@ router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 async def parse_filters(
     fecha_inicio: Optional[date] = Query(None, description="Fecha inicio (YYYY-MM-DD)"),
     fecha_fin: Optional[date] = Query(None, description="Fecha fin (YYYY-MM-DD)"),
-    campana_id: Optional[int] = Query(None, description="ID de campaña"),
+    campana_id: Optional[int] = Query(None, description="ID de campaña (único)"),
+    campana_ids: Optional[str] = Query(None, description="IDs de campañas separados por coma"),
     tipo_campana: Optional[int] = Query(None, description="Tipo de campaña"),
-    agente_id: Optional[int] = Query(None, description="ID de agente")
+    agente_id: Optional[int] = Query(None, description="ID de agente (único)"),
+    agente_ids: Optional[str] = Query(None, description="IDs de agentes separados por coma"),
+    tipo_llamada: Optional[str] = Query(None, description="Tipo de llamada: entrantes o salientes")
 ) -> dict:
     """Parse y retorna los filtros comunes"""
     filters = {}
@@ -27,12 +30,26 @@ async def parse_filters(
         filters['fecha_inicio'] = datetime.combine(fecha_inicio, datetime.min.time())
     if fecha_fin:
         filters['fecha_fin'] = datetime.combine(fecha_fin, datetime.min.time())
-    if campana_id:
+    
+    # Soportar tanto campana_id único como campana_ids múltiples
+    if campana_ids:
+        filters['campana_ids'] = [int(id.strip()) for id in campana_ids.split(',') if id.strip()]
+    elif campana_id:
         filters['campana_id'] = campana_id
+    
     if tipo_campana:
         filters['tipo_campana'] = tipo_campana
-    if agente_id:
+    
+    # Soportar tanto agente_id único como agente_ids múltiples
+    if agente_ids:
+        filters['agente_ids'] = [int(id.strip()) for id in agente_ids.split(',') if id.strip()]
+    elif agente_id:
         filters['agente_id'] = agente_id
+    
+    # Tipo de llamada
+    if tipo_llamada:
+        filters['tipo_llamada'] = tipo_llamada
+    
     return filters
 
 

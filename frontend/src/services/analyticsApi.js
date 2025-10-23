@@ -182,4 +182,114 @@ class AnalyticsAPI {
   }
 }
 
+  
+  // ==================== NUEVOS ENDPOINTS PREMIUM ====================
+  
+  /**
+   * Distribución por campaña detallada
+   */
+  async getDistribucionPorCampanaDetalle(filters = {}) {
+    return this.fetchData('distribucion-por-campana-detalle', filters);
+  }
+  
+  /**
+   * Distribución por día de la semana
+   */
+  async getDistribucionPorDiaSemana(filters = {}) {
+    return this.fetchData('distribucion-por-dia-semana', filters);
+  }
+  
+  /**
+   * Distribución por mes
+   */
+  async getDistribucionPorMes(anio = null, filters = {}) {
+    const endpoint = anio ? `distribucion-por-mes?anio=${anio}` : 'distribucion-por-mes';
+    return this.fetchData(endpoint, filters);
+  }
+  
+  /**
+   * Distribución por rango horario
+   */
+  async getDistribucionPorRangoHorario(filters = {}) {
+    return this.fetchData('distribucion-por-rango-horario', filters);
+  }
+  
+  /**
+   * Dashboard de llamadas salientes
+   */
+  async getSalientesDashboard(filters = {}) {
+    return this.fetchData('salientes/dashboard', filters);
+  }
+  
+  /**
+   * Llamadas manuales vs dialer
+   */
+  async getManualesVsDiater(filters = {}) {
+    return this.fetchData('salientes/manuales-vs-dialer', filters);
+  }
+  
+  /**
+   * Causas de desconexión detalladas
+   */
+  async getCausasDesconexionDetalladas(filters = {}) {
+    return this.fetchData('causas-desconexion-detalladas', filters);
+  }
+  
+  /**
+   * Causas de no conexión completas
+   */
+  async getCausasNoConexionCompletas(filters = {}) {
+    return this.fetchData('causas-no-conexion-completas', filters);
+  }
+  
+  /**
+   * Llamadas sin conexión por agente
+   */
+  async getSinConexionPorAgente(filters = {}) {
+    return this.fetchData('sin-conexion-por-agente', filters);
+  }
+  
+  /**
+   * Llamadas sin conexión por campaña
+   */
+  async getSinConexionPorCampana(filters = {}) {
+    return this.fetchData('sin-conexion-por-campana', filters);
+  }
+  
+  /**
+   * Total de sesiones de agentes
+   */
+  async getTotalSesionesAgentes(filters = {}) {
+    return this.fetchData('agentes/total-sesiones', filters);
+  }
+  
+  /**
+   * Disponibilidad de agentes (heatmap)
+   */
+  async getDisponibilidadHeatmap(filters = {}) {
+    return this.fetchData('agentes/disponibilidad-heatmap', filters);
+  }
+  
+  /**
+   * Disponibilidad de agentes ampliada
+   */
+  async getDisponibilidadAmpliada(filters = {}) {
+    return this.fetchData('agentes/disponibilidad-ampliada', filters);
+  }
+  
+  /**
+   * Análisis de transferencias
+   */
+  async getAnalisisTransferencias(filters = {}) {
+    return this.fetchData('transferencias', filters);
+  }
+  
+  /**
+   * Nivel de servicio detallado
+   */
+  async getNivelServicioDetallado(filters = {}) {
+    return this.fetchData('nivel-servicio-detallado', filters);
+  }
+
+
 export default new AnalyticsAPI();

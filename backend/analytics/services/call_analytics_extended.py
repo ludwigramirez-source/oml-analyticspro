@@ -196,31 +196,66 @@ class CallAnalyticsExtended:
     def get_llamadas_salientes_dashboard(self, filters: Dict = None) -> Dict:
         """
         Dashboard completo de llamadas salientes
-        Categorías basadas en resultados finales de llamadas
+        Categorías basadas en el evento final de cada llamada única
         """
         filters = filters or {}
         
-        query = self.db.query(LlamadaLog)
-        query = query.filter(LlamadaLog.tipo_llamada == 1)  # Salientes = 1
-        query = self._apply_filters(query, filters)
+        # Subquery para obtener el último evento de cada llamada (por callid)
+        subquery = self.db.query(
+            LlamadaLog.callid,
+            func.max(LlamadaLog.time).label('ultimo_tiempo')
+        ).filter(
+            LlamadaLog.tipo_llamada == 1  # Salientes = 1
+        )
         
-        # Contar por categorías de resultado final
-        total_marcadas = query.filter(LlamadaLog.event == 'DIAL').count()
+        if filters.get('fecha_inicio'):
+            subquery = subquery.filter(LlamadaLog.time >= filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            subquery = subquery.filter(LlamadaLog.time <= filters['fecha_fin'])
+        if filters.get('campana_ids'):
+            subquery = subquery.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
+        if filters.get('agente_ids'):
+            subquery = subquery.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
         
-        # Contestadas: ANSWER y las que terminaron con COMPLETE (exitosas)
-        contestadas = query.filter(LlamadaLog.event.in_(['ANSWER', 'COMPLETEAGENT', 'COMPLETEOUTNUM'])).count()
+        subquery = subquery.group_by(LlamadaLog.callid).subquery()
         
-        # No contestadas/Canceladas
-        no_contestadas = query.filter(LlamadaLog.event.in_(['NOANSWER', 'CANCEL'])).count()
+        # Query principal: unir para obtener el evento final de cada llamada
+        query = self.db.query(LlamadaLog).join(
+            subquery,
+            and_(
+                LlamadaLog.callid == subquery.c.callid,
+                LlamadaLog.time == subquery.c.ultimo_tiempo
+            )
+        )
+        
+        # Contar llamadas únicas por categoría basada en evento final
+        total_llamadas = query.count()
+        
+        # Exitosas: las que terminaron con COMPLETE (fueron contestadas y terminaron)
+        contestadas = query.filter(
+            LlamadaLog.event.in_(['COMPLETEAGENT', 'COMPLETEOUTNUM'])
+        ).count()
+        
+        # No contestadas/Canceladas: terminaron con CANCEL o NOANSWER
+        no_contestadas = query.filter(
+            LlamadaLog.event.in_(['NOANSWER', 'CANCEL'])
+        ).count()
         
         # Ocupadas
         ocupadas = query.filter(LlamadaLog.event == 'BUSY').count()
         
         # Fallos técnicos
-        fallos = query.filter(LlamadaLog.event.in_(['CONGESTION', 'NONDIALPLAN', 'CHANUNAVAIL'])).count()
+        fallos = query.filter(
+            LlamadaLog.event.in_(['CONGESTION', 'NONDIALPLAN', 'CHANUNAVAIL'])
+        ).count()
+        
+        # Transferencias y otros
+        otros = query.filter(
+            LlamadaLog.event.in_(['BT-TRY', 'BT-BUSY', 'CAMPT-COMPLETE', 'CAMPT-TRY'])
+        ).count()
         
         # Calcular tasa de contactación
-        tasa_contactacion = round(contestadas / total_marcadas * 100, 2) if total_marcadas > 0 else 0
+        tasa_contactacion = round(contestadas / total_llamadas * 100, 2) if total_llamadas > 0 else 0
         
         # Preparar eventos para el gráfico
         eventos = {
@@ -239,13 +274,17 @@ class CallAnalyticsExtended:
             'FALLOS': {
                 'descripcion': 'Fallos Técnicos',
                 'total': fallos
+            },
+            'OTROS': {
+                'descripcion': 'Transferencias/Otros',
+                'total': otros
             }
         }
         
         return {
             'eventos': eventos,
             'metricas': {
-                'total_marcadas': total_marcadas,
+                'total_marcadas': total_llamadas,
                 'total_contestadas': contestadas,
                 'total_no_contestadas': no_contestadas,
                 'total_ocupadas': ocupadas,

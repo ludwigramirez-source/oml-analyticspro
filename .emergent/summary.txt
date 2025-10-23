@@ -1,22 +1,23 @@
 <analysis>
-The AI engineer successfully transitioned a Django/Postgres requirement into an existing FastAPI/React application, developing a comprehensive call center reporting module for OmniLeads. Key achievements include implementing a dynamic PostgreSQL configuration UI, significantly expanding backend API endpoints for various reports, and integrating numerous new React components. The development process involved extensive debugging of frontend chart rendering (migrating to ApexCharts), resolving CORS issues, and meticulous backend data aggregation logic. A major challenge involved rectifying database schema mismatches (e.g., ,  values, event filtering) by directly analyzing user-provided data and event logs. The engineer also set up and restored a local PostgreSQL database for debugging, ultimately bringing the dashboard's KPI calculations closer to OmniLeads' official reports. The current focus is on refining existing report visualizations and accuracy.
+The AI engineer successfully built a call center reporting module for OmniLeads using FastAPI/React, transitioning from a Django requirement. Key initial achievements included developing a dynamic PostgreSQL configuration UI and extending backend API endpoints with React components. The primary challenges involved rectifying backend data aggregation logic for KPI accuracy, debugging frontend chart rendering with ApexCharts, and resolving intermittent PostgreSQL connectivity issues. The engineer established a local PostgreSQL environment for thorough debugging and data validation. Recent efforts focused on refining KPI calculations, implementing a robust filter system with preset ranges and multi-selection, and enhancing chart visualizations. The most recent work involved converting a pie chart to a bar chart and adding a new multi-line chart in the Distribución tab, ensuring dynamic data updates and robust error handling for chart rendering. The system now robustly handles database connectivity and dynamic filtering, and charts generally render correctly.
 </analysis>
 
 <product_requirements>
-The user initially requested a reporting module for OmniLeads, specifying Django 2.2.7, Postgres 11, and Python 3.6.8, with an HTML design template and database assets. The core objective was to recreate and enhance a Premium Reports module. The chosen architecture was an independent FastAPI/React application, connecting read-only to OmniLeads' PostgreSQL DB (multi-database setup).
+The user initially requested a comprehensive reporting module for OmniLeads, specified to use Django, Postgres, and Python, to recreate and enhance a Premium Reports module. The project evolved into an independent FastAPI/React application, connecting read-only to OmniLeads' PostgreSQL and using MongoDB for analytics configuration.
 
-**Key features implemented/requested:**
+**Implemented and Requested Features:**
 *   **KPIs & Reports:** General Distribution, Attended Calls (detail, service level), Unattended Calls (causes, abandoned), Agents (performance), Campaigns (metrics). New KPIs like FCR, ASA, Adherencia, Shrinkage, AHT were proposed.
-*   **Visual Design:** Clean, professional (Google Analytics style), white/light grey, subtle borders, #1a73e8 primary color, system fonts, DataTables, and ApexCharts for graphs.
-*   **Specific Filtering Logic:** Precise filtering for Llamadas Atendidas (, ) and Llamadas Abandonadas (, , ) with specific classifications.
-*   **New Requirements (during trajectory):** Implement all reports from  and , incorporate Power BI-based improvements, dynamic pagination (25, 50, 100 records), and a new Configuración tab in the frontend to manage PostgreSQL connection settings. Ensure filters apply correctly to all reports/KPIs and add Excel export to tables. Correct KPI calculation discrepancies with official OmniLeads reports.
+*   **Visual Design:** Clean, professional (Google Analytics style), white/light grey, #1a73e8 primary color, system fonts, DataTables, and ApexCharts.
+*   **Specific Filtering Logic:** Precise filtering for Llamadas Atendidas and Llamadas Abandonadas based on specific events.
+*   **New Requirements:** Implement all reports from provided  and  documents, incorporate Power BI-based improvements, dynamic pagination (25, 50, 100 records), and a Configuración tab for PostgreSQL connection settings. Filters must apply correctly to all reports, and Excel export should be available for tables. KPI calculations must match official OmniLeads reports.
+*   **Recent Requests:** Implement default date ranges, call type filter (entrantes/salientes), multi-selection for campaigns and agents in filters. Convert Distribución por Rango Horario to a bar chart and add Evolución por Semana with three lines (contestadas, abandonadas, agentes).
 </product_requirements>
 
 <key_technical_concepts>
--   **Backend:** FastAPI (Python web framework), PostgreSQL (database), SQLAlchemy (ORM), Psycopg2 (PostgreSQL adapter), Pandas (data manipulation), Passlib (password hashing).
--   **Frontend:** React (JavaScript library for UI), Tailwind CSS (utility-first CSS framework), Yarn (package manager), ApexCharts (charting library).
--   **Deployment:** Supervisor (process control system).
--   **Database:** Read-only access to OmniLeads DB, MongoDB for analytics configuration.
+-   **Backend:** FastAPI, Python, PostgreSQL, SQLAlchemy, Psycopg2, Pandas, Passlib, MongoDB.
+-   **Frontend:** React, JavaScript, Tailwind CSS, Yarn, ApexCharts.
+-   **Deployment & Ops:** Supervisor.
+-   **Database Access:** Read-only access to OmniLeads PostgreSQL, MongoDB for configuration storage.
 </key_technical_concepts>
 
 <code_architecture>
@@ -26,72 +27,47 @@ The application uses a full-stack architecture with a FastAPI backend and a Reac
 
 **Key Files and their importance/changes:**
 
-*   **/app/backend/server.py**: Main FastAPI application.
-    *   **Changes:** Integrated , , and . Corrected logger and CORS.
-*   **/app/backend/.env**: Environment variables.
-    *   **Changes:** Included PostgreSQL and MongoDB connection details.
-*   **/app/backend/analytics/database.py**: SQLAlchemy DB connection.
-    *   **Changes:** Modified to use  from MongoDB if available, falling back to . Implemented dynamic connection update.
-*   **/app/backend/analytics/models/omnileads_models.py**: SQLAlchemy models.
-    *   **Changes:** Corrected  foreign key. Verified  schema does not contain .
-*   **/app/backend/analytics/models/config_models.py**: **NEW.** Pydantic models for PostgreSQL connection configuration, including password encryption.
-*   **/app/backend/analytics/services/call_analytics.py**: Business logic for call metrics.
-    *   **Changes:** Extensive logic for KPIs, call distributions. Updated constants for  (3) and  (1). Modified queries to consider only final events (, ) and include . Removed references to non-existent . Adjusted calculation for attended, abandoned, and no-attention rates.
-*   **/app/backend/analytics/services/call_analytics_extended.py**: **NEW.** Intended for extending  (primary changes were in ).
-*   **/app/backend/analytics/services/config_service.py**: **NEW.** Handles CRUD operations for DB configuration, connection testing, and password encryption.
-*   **/app/backend/analytics/routes/analytics_routes.py**: FastAPI endpoints.
-    *   **Changes:** Added new routes for advanced distribution, outbound calls, detailed causes, agent performance, campaign alerts, and transfers.
-*   **/app/backend/analytics/routes/config_routes.py**: **NEW.** FastAPI endpoints for database configuration management (POST, GET, PUT, DELETE).
-*   **/app/backend/analytics/routes/debug_routes.py**: **NEW.** Temporary route for debugging database values.
-*   **/app/frontend/package.json**: Node.js dependencies.
-    *   **Changes:** Added , .
-*   **/app/frontend/.env**: Frontend environment variables.
-    *   **Changes:**  management for local vs. production.
-*   **/app/frontend/src/App.js**: Main React component.
-    *   **Changes:** Renders .
-*   **/app/frontend/src/services/analyticsApi.js**: Frontend API service.
-    *   **Changes:** Added numerous functions for new reports and KPIs. Corrected syntax errors.
-*   **/app/frontend/src/services/configApi.js**: **NEW.** Frontend API service for configuration.
-*   **/app/frontend/src/components/analytics/ApexChart.js**: Chart component.
-    *   **Changes:** Enhanced to handle  and  for chart data dynamically, supporting various chart types ('pie', 'line', 'bar').
-*   **/app/frontend/src/components/analytics/DashboardMejorado.js**: Main dashboard.
-    *   **Changes:** Replaced . Implemented new tabs (Configuración, Distribución, Salientes, Causas, etc.). Integrated  as the first tab. Modified data loading to be conditional on active configuration and not on the config tab. Added  for filter-triggered data reload. Corrected initial active tab.
-*   **/app/frontend/src/components/analytics/FilterSection.js**: Filter component.
-    *   **Changes:** Ensures  updates the parent component's filter state.
-*   **/app/frontend/src/components/analytics/TablaLlamadas.js**: Table for detailed calls.
-    *   **Changes:** Added Quién Colgó column. Integrated  component and Excel export button using .
-*   **/app/frontend/src/components/analytics/TablaAbandonadas.js**: Table for abandoned calls.
-    *   **Changes:** Added Tipo de Abandono classification. Integrated  component and Excel export button.
-*   **/app/frontend/src/components/analytics/TablaAgentes.js**: Table for agent performance.
-    *   **Changes:** Integrated Excel export button.
-*   **/app/frontend/src/components/analytics/ConfiguracionDB.js**: **NEW.** React component for configuring database connection settings.
-*   **/app/frontend/src/components/analytics/Pagination.js**: **NEW.** Reusable component for table pagination.
-*   **/app/frontend/src/components/analytics/reportes/**: **NEW.** Directory for new report components.
-    *   , , , , , : **NEW.** React components for various new reports. Implemented basic structure with data fetching and error handling.
-*   **/app/frontend/src/utils/excelExport.js**: **NEW.** Utility function for exporting table data to Excel.
+*   **/app/backend/server.py**: Main FastAPI application entry. Integrates routers, configures CORS.
+*   **/app/backend/analytics/database.py**: Manages SQLAlchemy DB connection. Modified for lazy-loading PostgreSQL engine to prevent crashes on startup if not configured.
+*   **/app/backend/analytics/services/call_analytics.py**: Contains core business logic for call analytics.
+    *   **Changes:** Implemented  for separate inbound/outbound distribution. Added  to calculate weekly trends for answered calls, abandoned calls, and active agents. Updated  to support new filter parameters (multi-selection for campaigns/agents, call type). Corrected constants and event filters for KPI accuracy.
+*   **/app/backend/analytics/routes/analytics_routes.py**: FastAPI endpoints for analytics.
+    *   **Changes:** Added new routes  and . Updated  to correctly handle multiple campaign/agent IDs and call type.
+*   **/app/frontend/src/components/analytics/ApexChart.js**: Reusable React component for ApexCharts.
+    *   **Changes:** Fixed data parsing logic to correctly handle  format for single-series charts, ensuring Evolución por Hora and Nivel de Servicio graphs render.
+*   **/app/frontend/src/components/analytics/DashboardMejorado.js**: Main dashboard component.
+    *   **Changes:** Modified to fetch and display  as two separate pie charts. Added a  prop to multiline charts to force re-rendering. Configured default filters (e.g., Este mes).
+*   **/app/frontend/src/components/analytics/FilterSection.js**: Component for applying filters.
+    *   **Changes:** Completely rewritten to include default date range selectors (Hoy, Ayer, Últimos 7 Días, etc.), a Tipo de Llamada selector (Todas, Entrantes, Salientes), and multi-selection for Campañas and Agentes.
+*   **/app/frontend/src/components/analytics/reportes/DistribucionAvanzada.js**: Component for advanced distribution reports.
+    *   **Changes:** Modified Distribución por Rango Horario from a pie chart to a bar chart. Integrated the new Evolución Semanal multi-line chart.
+*   **/app/frontend/src/services/analyticsApi.js**: Frontend service for calling backend analytics APIs.
+    *   **Changes:** Added  and  functions to support new backend endpoints.
 </code_architecture>
 
 <pending_tasks>
--   Evolución por hora and Nivel de servicio graphs in the Resumen tab are not updating.
--   Distribución de llamadas needs improvement; user requests two separate pie charts for entrantes and salientes.
+-   Improve the Llamadas Salientes tab to use correct data, remove the Dialer/Manual distinction, and adjust status categories.
 -   Continue implementing the remaining reports and metrics identified from the provided documents.
 -   Further analyze vital call center metrics and KPIs from web best practices.
 -   Ensure all graphical visualizations load correctly across all tabs for the new reports.
 </pending_tasks>
 
 <current_work>
-Immediately before this summary request, the AI engineer was engaged in a critical debugging phase focusing on the accuracy of KPI calculations and report data, as well as frontend rendering issues. The user reported that while the Configuración tab worked, other report tabs displayed errors, figures didn't match official OmniLeads reports, and some graphs weren't updating.
+Immediately prior to this summary, the AI engineer was working on enhancing the Distribución tab. Specifically, the task was to transform the Distribución por Rango Horario chart from a pie chart into a bar chart, as the pie format was deemed unsuitable. Concurrently, a new Evolución por Semana multi-line chart was added, displaying Llamadas Contestadas, Llamadas Abandonadas, and Agentes over time.
 
-The engineer successfully:
-*   **Resolved KPI Calculation Discrepancies:** Through detailed analysis of user-provided CSV reports and specific call log examples, the engineer corrected backend logic in . This involved updating  (to 3) and  (to 1) constants, refining event filters (, , including ), and ensuring only final call events are counted for accurate totals, attended calls, and derived rates (abandonment, no-attention). Excluded  from main calculations.
-*   **Addressed Backend  Error:** Corrected an  by removing references to the non-existent  column in  within  and .
-*   **Set up Local Database for Testing:** Installed PostgreSQL locally, created  DB and user . Successfully restored a user-provided  with 16,580 call records for precise debugging and validation.
-*   **Frontend Improvements:** Implemented Excel export functionality for all tables (, , , , ) using a new  utility. Enhanced  to ensure filters correctly trigger data reloads and manage initial data fetching based on active configuration. Improved error handling in various report components and  to handle empty or varied data formats.
-*   **Current Status:** The core KPI calculations in the Resumen tab are now closer to the official OmniLeads reports after extensive backend corrections and local database validation. The configuration tab, new report tabs, and pagination/export features are implemented. However, two specific graphs (Evolución por hora and Nivel de servicio) in the Resumen tab are reported as not updating, and the user requested an improvement to the Distribución de llamadas visualization.
+This involved:
+*   **Backend Changes:**
+    *   A new method, , was added to . This method calculates weekly totals for answered calls, abandoned calls, and active agents.
+    *   A corresponding new API endpoint, , was added to .
+*   **Frontend Changes:**
+    *   A new function, , was added to  to fetch data from the new backend endpoint.
+    *   The  component was updated to:
+        *   Change the Distribución por Rango Horario chart's  prop from  to  for better visualization.
+        *   Integrate and display the new Evolución Semanal chart, configured as a  ApexChart.
 
-The immediate work before this summary was refining the KPI calculations and preparing to address the remaining frontend visualization issues.
+The backend was restarted, and a screenshot confirmed that the Distribución por Rango Horario is now a bar chart, and the Evolución Semanal multi-line chart is correctly rendered with placeholder data (before actual data population, due to the snapshot nature). This work built upon previous fixes for PostgreSQL connectivity, lazy database loading, comprehensive filtering, and general chart rendering issues.
 </current_work>
 
 <optional_next_step>
-Investigate and fix why the Evolución por hora and Nivel de servicio graphs are not updating in the Resumen tab.
+Investigate and correct the Llamadas Salientes tab data and visualization.
 </optional_next_step>

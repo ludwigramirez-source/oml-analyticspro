@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_, case, extract
-from ..models.omnileads_models import LlamadaLog, Campana, AgenteProfile, User
+from ..models.omnileads_models import LlamadaLog, Campana, AgenteProfile, User, ActividadAgenteLog, Pausa
 
 
 class CallAnalyticsService:

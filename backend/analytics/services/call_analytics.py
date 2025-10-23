@@ -1,0 +1,373 @@
+"""
+Servicio de análisis de llamadas y métricas
+"""
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+from sqlalchemy.orm import Session
+from sqlalchemy import func, and_, or_, case, extract
+from ..models.omnileads_models import LlamadaLog, Campana, AgenteProfile, User
+
+
+class CallAnalyticsService:
+    """Servicio para análisis de llamadas"""
+    
+    # Eventos de llamadas atendidas
+    EVENTOS_ATENDIDAS = ['CONNECT', 'COMPLETEAGENT']
+    
+    # Eventos de llamadas no atendidas
+    EVENTOS_NO_ATENDIDAS = [
+        'EXITWITHTIMEOUT', 'ABANDON', 'NOANSWER', 
+        'CANCEL', 'BUSY', 'CHANUNAVAIL', 'FAIL',
+        'ABANDONWEL', 'RINGNOANSWER', 'CONGESTION'
+    ]
+    
+    def __init__(self, db: Session):
+        self.db = db
+    
+    def _apply_filters(self, query, filters: Dict):
+        """Aplica filtros comunes a las consultas"""
+        if filters.get('fecha_inicio'):
+            query = query.filter(LlamadaLog.time >= filters['fecha_inicio'])
+        
+        if filters.get('fecha_fin'):
+            # Agregar 1 día para incluir todo el día final
+            fecha_fin = filters['fecha_fin'] + timedelta(days=1)
+            query = query.filter(LlamadaLog.time < fecha_fin)
+        
+        if filters.get('campana_id'):
+            query = query.filter(LlamadaLog.campana_id == filters['campana_id'])
+        
+        if filters.get('tipo_campana'):
+            query = query.filter(LlamadaLog.tipo_campana == filters['tipo_campana'])
+        
+        if filters.get('agente_id'):
+            query = query.filter(LlamadaLog.agente_id == filters['agente_id'])
+        
+        return query
+    
+    def get_kpis(self, filters: Dict = None) -> Dict:
+        """
+        Obtiene los KPIs principales del call center
+        """
+        filters = filters or {}
+        
+        # Query base
+        query = self.db.query(LlamadaLog)
+        query = self._apply_filters(query, filters)
+        
+        # Total de llamadas
+        total_llamadas = query.count()
+        
+        # Llamadas atendidas
+        llamadas_atendidas = query.filter(
+            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
+        ).count()
+        
+        # Llamadas no atendidas
+        llamadas_no_atendidas = query.filter(
+            LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS)
+        ).count()
+        
+        # TMO (Tiempo Medio de Operación) - solo llamadas atendidas
+        tmo_result = query.filter(
+            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
+            LlamadaLog.duracion_llamada.isnot(None)
+        ).with_entities(
+            func.avg(LlamadaLog.duracion_llamada).label('tmo_promedio')
+        ).first()
+        
+        tmo_promedio = int(tmo_result.tmo_promedio) if tmo_result.tmo_promedio else 0
+        
+        # Tiempo de espera promedio
+        espera_result = query.filter(
+            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
+            LlamadaLog.bridge_wait_time.isnot(None)
+        ).with_entities(
+            func.avg(LlamadaLog.bridge_wait_time).label('espera_promedio')
+        ).first()
+        
+        espera_promedio = int(espera_result.espera_promedio) if espera_result.espera_promedio else 0
+        
+        # Service Level (llamadas atendidas en menos de 20 segundos)
+        sla_threshold = 20
+        llamadas_en_sla = query.filter(
+            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
+            LlamadaLog.bridge_wait_time <= sla_threshold
+        ).count()
+        
+        service_level = round((llamadas_en_sla / llamadas_atendidas * 100), 2) if llamadas_atendidas > 0 else 0
+        
+        # Agentes activos (únicos con llamadas en el período)
+        agentes_activos = query.filter(
+            LlamadaLog.agente_id.isnot(None)
+        ).with_entities(
+            func.count(func.distinct(LlamadaLog.agente_id))
+        ).scalar() or 0
+        
+        # Ocupación (porcentaje de tiempo en llamadas vs tiempo disponible)
+        # Simplificado: tiempo total en llamadas / (agentes * tiempo período)
+        tiempo_total_llamadas = query.filter(
+            LlamadaLog.duracion_llamada.isnot(None)
+        ).with_entities(
+            func.sum(LlamadaLog.duracion_llamada)
+        ).scalar() or 0
+        
+        # Calcular ocupación (asumiendo 8 horas = 28800 segundos por agente)
+        tiempo_disponible = agentes_activos * 28800 if agentes_activos > 0 else 1
+        ocupacion = round((tiempo_total_llamadas / tiempo_disponible * 100), 2) if tiempo_disponible > 0 else 0
+        ocupacion = min(ocupacion, 100)  # Cap al 100%
+        
+        return {
+            'llamadas_totales': {
+                'valor': total_llamadas,
+                'cambio': '+12%',  # TODO: Calcular cambio real vs período anterior
+                'tendencia': 'positivo'
+            },
+            'llamadas_atendidas': {
+                'valor': llamadas_atendidas,
+                'cambio': '+8%',
+                'tendencia': 'positivo'
+            },
+            'llamadas_perdidas': {
+                'valor': llamadas_no_atendidas,
+                'cambio': '-5%',
+                'tendencia': 'negativo'
+            },
+            'tmo_promedio': {
+                'valor': tmo_promedio,
+                'formato': 'segundos',
+                'cambio': '-3%',
+                'tendencia': 'positivo'
+            },
+            'tiempo_espera': {
+                'valor': espera_promedio,
+                'formato': 'segundos',
+                'cambio': '+2%',
+                'tendencia': 'negativo'
+            },
+            'service_level': {
+                'valor': service_level,
+                'formato': 'porcentaje',
+                'cambio': '+5%',
+                'tendencia': 'positivo'
+            },
+            'agentes_activos': {
+                'valor': agentes_activos,
+                'cambio': '0%',
+                'tendencia': 'neutral'
+            },
+            'ocupacion': {
+                'valor': ocupacion,
+                'formato': 'porcentaje',
+                'cambio': '+4%',
+                'tendencia': 'positivo'
+            }
+        }
+    
+    def get_distribucion_llamadas(self, filters: Dict = None) -> Dict:
+        """
+        Obtiene la distribución de llamadas por estado
+        """
+        filters = filters or {}
+        query = self.db.query(LlamadaLog)
+        query = self._apply_filters(query, filters)
+        
+        atendidas = query.filter(LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)).count()
+        abandonadas = query.filter(LlamadaLog.event == 'ABANDON').count()
+        no_atendidas = query.filter(
+            LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS),
+            LlamadaLog.event != 'ABANDON'
+        ).count()
+        
+        total = atendidas + abandonadas + no_atendidas
+        
+        return {
+            'labels': ['Atendidas', 'Abandonadas', 'No Atendidas'],
+            'data': [atendidas, abandonadas, no_atendidas],
+            'porcentajes': [
+                round(atendidas / total * 100, 1) if total > 0 else 0,
+                round(abandonadas / total * 100, 1) if total > 0 else 0,
+                round(no_atendidas / total * 100, 1) if total > 0 else 0
+            ]
+        }
+    
+    def get_evolucion_por_hora(self, filters: Dict = None) -> Dict:
+        """
+        Obtiene la evolución de llamadas por hora
+        """
+        filters = filters or {}
+        query = self.db.query(LlamadaLog)
+        query = self._apply_filters(query, filters)
+        
+        # Agrupar por hora
+        resultados = query.with_entities(
+            extract('hour', LlamadaLog.time).label('hora'),
+            func.count(LlamadaLog.id).label('total')
+        ).group_by('hora').order_by('hora').all()
+        
+        # Crear arrays de 24 horas
+        horas = list(range(24))
+        datos = [0] * 24
+        
+        for resultado in resultados:
+            hora_idx = int(resultado.hora)
+            datos[hora_idx] = resultado.total
+        
+        return {
+            'labels': [f'{h:02d}:00' for h in horas],
+            'data': datos
+        }
+    
+    def get_nivel_servicio_detallado(self, filters: Dict = None) -> Dict:
+        """
+        Obtiene distribución del nivel de servicio por rangos de tiempo
+        """
+        filters = filters or {}
+        query = self.db.query(LlamadaLog)
+        query = self._apply_filters(query, filters)
+        query = query.filter(
+            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
+            LlamadaLog.bridge_wait_time.isnot(None)
+        )
+        
+        # Definir rangos
+        rangos = [
+            ('0-10s', 0, 10),
+            ('11-20s', 11, 20),
+            ('21-30s', 21, 30),
+            ('31-60s', 31, 60),
+            ('>60s', 61, 999999)
+        ]
+        
+        resultados = []
+        for label, min_val, max_val in rangos:
+            count = query.filter(
+                and_(
+                    LlamadaLog.bridge_wait_time >= min_val,
+                    LlamadaLog.bridge_wait_time <= max_val
+                )
+            ).count()
+            resultados.append(count)
+        
+        return {
+            'labels': [r[0] for r in rangos],
+            'data': resultados
+        }
+    
+    def get_causas_no_atencion(self, filters: Dict = None) -> Dict:
+        """
+        Obtiene las causas de llamadas no atendidas
+        """
+        filters = filters or {}
+        query = self.db.query(LlamadaLog)
+        query = self._apply_filters(query, filters)
+        query = query.filter(LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS))
+        
+        resultados = query.with_entities(
+            LlamadaLog.event,
+            func.count(LlamadaLog.id).label('total')
+        ).group_by(LlamadaLog.event).order_by(func.count(LlamadaLog.id).desc()).all()
+        
+        # Mapeo de eventos a nombres legibles
+        evento_nombres = {
+            'ABANDON': 'Abandonada',
+            'EXITWITHTIMEOUT': 'Timeout',
+            'NOANSWER': 'No contestó',
+            'CANCEL': 'Cancelada',
+            'BUSY': 'Ocupado',
+            'CHANUNAVAIL': 'Canal no disponible',
+            'FAIL': 'Fallo',
+            'ABANDONWEL': 'Abandonada (bienvenida)',
+            'RINGNOANSWER': 'Timbró sin respuesta',
+            'CONGESTION': 'Congestión'
+        }
+        
+        return {
+            'labels': [evento_nombres.get(r.event, r.event) for r in resultados],
+            'data': [r.total for r in resultados]
+        }
+    
+    def get_llamadas_detalladas(self, filters: Dict = None, page: int = 1, per_page: int = 50) -> Dict:
+        """
+        Obtiene lista detallada de llamadas con paginación
+        """
+        filters = filters or {}
+        query = self.db.query(
+            LlamadaLog,
+            Campana.nombre.label('campana_nombre'),
+            User.first_name.label('agente_nombre'),
+            User.last_name.label('agente_apellido')
+        ).outerjoin(
+            Campana, LlamadaLog.campana_id == Campana.id
+        ).outerjoin(
+            AgenteProfile, LlamadaLog.agente_id == AgenteProfile.id
+        ).outerjoin(
+            User, AgenteProfile.user_id == User.id
+        )
+        
+        query = self._apply_filters(query, filters)
+        
+        # Filtro adicional para llamadas atendidas si se especifica
+        if filters.get('solo_atendidas'):
+            query = query.filter(LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS))
+        
+        # Total de registros
+        total = query.count()
+        
+        # Paginación
+        offset = (page - 1) * per_page
+        resultados = query.order_by(LlamadaLog.time.desc()).offset(offset).limit(per_page).all()
+        
+        llamadas = []
+        for r in resultados:
+            llamada = r.LlamadaLog
+            llamadas.append({
+                'id': llamada.id,
+                'fecha': llamada.time.strftime('%Y-%m-%d'),
+                'hora': llamada.time.strftime('%H:%M:%S'),
+                'campana': r.campana_nombre or f'Campaña {llamada.campana_id}',
+                'agente': f'{r.agente_nombre or ""} {r.agente_apellido or ""}'.strip() or f'Agente {llamada.agente_id}',
+                'numero': llamada.numero_marcado or '-',
+                'duracion': llamada.duracion_llamada or 0,
+                'espera': llamada.bridge_wait_time or 0,
+                'estado': llamada.event,
+                'grabacion': llamada.archivo_grabacion or ''
+            })
+        
+        return {
+            'data': llamadas,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total + per_page - 1) // per_page
+        }
+    
+    def get_distribucion_por_campana(self, filters: Dict = None) -> List[Dict]:
+        """
+        Obtiene distribución de llamadas por campaña
+        """
+        filters = filters or {}
+        query = self.db.query(
+            Campana.nombre,
+            func.count(LlamadaLog.id).label('total'),
+            func.sum(
+                case((LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS), 1), else_=0)
+            ).label('atendidas'),
+            func.sum(
+                case((LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS), 1), else_=0)
+            ).label('no_atendidas')
+        ).join(
+            LlamadaLog, Campana.id == LlamadaLog.campana_id
+        )
+        
+        query = self._apply_filters(query, filters)
+        
+        resultados = query.group_by(Campana.nombre).order_by(func.count(LlamadaLog.id).desc()).all()
+        
+        return [{
+            'campana': r.nombre,
+            'total': r.total,
+            'atendidas': r.atendidas or 0,
+            'no_atendidas': r.no_atendidas or 0,
+            'tasa_atencion': round((r.atendidas or 0) / r.total * 100, 2) if r.total > 0 else 0
+        } for r in resultados]

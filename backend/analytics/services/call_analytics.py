@@ -181,11 +181,19 @@ class CallAnalyticsService:
                 'tendencia': 'positivo',
                 'icono': '✅'
             },
-            'llamadas_perdidas': {
-                'valor': llamadas_no_atendidas,
+            'llamadas_abandonadas': {
+                'valor': llamadas_abandonadas,
                 'cambio': '-5%',
                 'tendencia': 'positivo' if abandonment_rate <= 5 else 'negativo',
-                'icono': '❌'
+                'icono': '📞❌',
+                'label': 'Llamadas Abandonadas'
+            },
+            'llamadas_perdidas': {
+                'valor': llamadas_no_atendidas_total,
+                'cambio': '-3%',
+                'tendencia': 'neutro',
+                'icono': '❌',
+                'label': 'Otras No Atendidas'
             },
             'aht': {  # Average Handle Time
                 'valor': aht,

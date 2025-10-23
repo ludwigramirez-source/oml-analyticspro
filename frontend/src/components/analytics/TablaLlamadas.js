@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { ExportButton } from '../../utils/excelExport';
+import Pagination from './Pagination';
 
 const TablaLlamadas = ({ llamadas }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const formatDuracion = (seconds) => {
     const min = Math.floor(seconds / 60);
     const sec = seconds % 60;

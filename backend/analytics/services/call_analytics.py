@@ -456,6 +456,72 @@ class CallAnalyticsService:
             'total_pages': (total + per_page - 1) // per_page
         }
     
+    def get_nivel_atencion_por_campana(self, filters: Dict = None) -> List[Dict]:
+        """
+        Nivel de atención por campaña con alertas (como Power BI)
+        Verde >= 90%, Amarillo >= 80%, Rojo < 80%
+        """
+        filters = filters or {}
+        query = self.db.query(
+            Campana.nombre,
+            Campana.id,
+            func.count(func.distinct(AgenteProfile.id)).label('cantidad_agentes'),
+            func.count(LlamadaLog.id).label('total_llamadas'),
+            func.sum(
+                case((LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS), 1), else_=0)
+            ).label('atendidas'),
+            func.sum(
+                case((LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS), 1), else_=0)
+            ).label('abandonadas'),
+            func.avg(
+                case((LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS), LlamadaLog.duracion_llamada), else_=None)
+            ).label('prom_duracion')
+        ).join(
+            LlamadaLog, Campana.id == LlamadaLog.campana_id
+        ).outerjoin(
+            AgenteProfile, LlamadaLog.agente_id == AgenteProfile.id
+        )
+        
+        query = self._apply_filters(query, filters)
+        
+        resultados = query.group_by(Campana.nombre, Campana.id).order_by(
+            func.count(LlamadaLog.id).desc()
+        ).all()
+        
+        campanias = []
+        for r in resultados:
+            nivel_atencion = round((r.atendidas / r.total_llamadas * 100), 2) if r.total_llamadas > 0 else 0
+            
+            # Determinar estado y color según nivel
+            if nivel_atencion >= 90:
+                estado = 'excelente'
+                color = 'green'
+                alerta = False
+            elif nivel_atencion >= 80:
+                estado = 'bueno'
+                color = 'yellow'
+                alerta = False
+            else:
+                estado = 'critico'
+                color = 'red'
+                alerta = True  # Requiere atención inmediata
+            
+            campanias.append({
+                'campana_id': r.id,
+                'campana': r.nombre,
+                'cantidad_agentes': r.cantidad_agentes or 0,
+                'llamadas_entrantes': r.total_llamadas,
+                'atendidas': r.atendidas or 0,
+                'abandonadas': r.abandonadas or 0,
+                'nivel_atencion': nivel_atencion,
+                'prom_duracion': int(r.prom_duracion) if r.prom_duracion else 0,
+                'estado': estado,
+                'color': color,
+                'alerta': alerta
+            })
+        
+        return campanias
+    
     def get_distribucion_por_campana(self, filters: Dict = None) -> List[Dict]:
         """
         Obtiene distribución de llamadas por campaña

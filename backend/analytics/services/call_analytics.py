@@ -749,18 +749,24 @@ class CallAnalyticsService:
             LlamadaLog.event.in_(['CANCEL', 'NOANSWER', 'BUSY', 'CHANUNAVAIL', 'NONDIALPLAN'])
         ).count()
         
+        # Calcular tasas
+        tasa_abandono_entrantes = round(entrantes_abandonadas / entrantes_total * 100, 2) if entrantes_total > 0 else 0
+        tasa_no_atencion_salientes = round(salientes_no_atendidas / salientes_total * 100, 2) if salientes_total > 0 else 0
+        
         return {
             'entrantes': {
                 'total': entrantes_total,
                 'atendidas': entrantes_atendidas,
                 'abandonadas': entrantes_abandonadas,
-                'nivel_atencion': round(entrantes_atendidas / entrantes_total * 100, 2) if entrantes_total > 0 else 0
+                'nivel_atencion': round(entrantes_atendidas / entrantes_total * 100, 2) if entrantes_total > 0 else 0,
+                'tasa_abandono': tasa_abandono_entrantes
             },
             'salientes': {
                 'total': salientes_total,
                 'atendidas': salientes_atendidas,
                 'no_atendidas': salientes_no_atendidas,
-                'nivel_atencion': round(salientes_atendidas / salientes_total * 100, 2) if salientes_total > 0 else 0
+                'nivel_atencion': round(salientes_atendidas / salientes_total * 100, 2) if salientes_total > 0 else 0,
+                'tasa_no_atencion': tasa_no_atencion_salientes
             }
         }
 

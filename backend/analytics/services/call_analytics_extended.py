@@ -242,27 +242,21 @@ class CallAnalyticsExtended:
         query = query.filter(LlamadaLog.tipo_llamada == 1)  # Salientes = 1
         query = self._apply_filters(query, filters)
         
-        # Obtener todas las llamadas con información de campaña
-        llamadas = query.join(Campana, LlamadaLog.campana_id == Campana.id).all()
+        # Contar por tipo_campana
+        # tipo_campana: 1 = Manual, 3 = Dialer (basado en ejemplos reales)
+        manuales = query.filter(LlamadaLog.tipo_campana == 1).count()
+        dialer = query.filter(LlamadaLog.tipo_campana == 3).count()
         
-        # Clasificar (esto depende de cómo OmniLeads distingue manual vs dialer)
-        # Por ahora, asumiré que hay un campo en Campana que indica el tipo
-        manuales = 0
-        dialer = 0
-        
-        for llamada in llamadas:
-            # Aquí necesitaríamos la lógica real para distinguir
-            # Por ahora, voy a usar un placeholder
-            manuales += 1  # Placeholder
+        total = manuales + dialer
         
         return {
             'manuales': {
                 'total': manuales,
-                'porcentaje': round(manuales / len(llamadas) * 100, 2) if len(llamadas) > 0 else 0
+                'porcentaje': round(manuales / total * 100, 2) if total > 0 else 0
             },
             'dialer': {
                 'total': dialer,
-                'porcentaje': round(dialer / len(llamadas) * 100, 2) if len(llamadas) > 0 else 0
+                'porcentaje': round(dialer / total * 100, 2) if total > 0 else 0
             }
         }
     

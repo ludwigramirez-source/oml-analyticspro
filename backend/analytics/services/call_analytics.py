@@ -33,10 +33,9 @@ class CallAnalyticsService:
         'NONDIALPLAN'         # Sin ruta de marcado
     ]
     
-    # Tipos de llamada
-    TIPO_ENTRANTE = 1
-    TIPO_SALIENTE = 2
-    TIPO_TRANSFERENCIA = 3
+    # Tipos de llamada (basado en estructura real de OmniLeads)
+    TIPO_SALIENTE = 1      # Llamadas manuales salientes
+    TIPO_ENTRANTE = 3      # Llamadas entrantes (inbound)
     
     # Umbrales estándar de la industria
     SLA_THRESHOLD_60 = 60  # Nivel de servicio < 60 segundos

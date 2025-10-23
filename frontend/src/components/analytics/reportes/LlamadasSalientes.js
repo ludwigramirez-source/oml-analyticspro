@@ -32,10 +32,12 @@ const LlamadasSalientes = ({ filters }) => {
   const prepareEventosChart = () => {
     if (!dashboard || !dashboard.eventos) return [];
     
-    return Object.entries(dashboard.eventos).map(([evento, data]) => ({
-      label: data.descripcion,
-      value: data.total
-    }));
+    return Object.entries(dashboard.eventos)
+      .map(([evento, data]) => ({
+        label: String(data?.descripcion || evento),
+        value: Number(data?.total || 0)
+      }))
+      .filter(item => item.value > 0);
   };
 
   if (loading) {

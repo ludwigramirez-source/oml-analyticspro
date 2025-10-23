@@ -473,14 +473,14 @@ async def get_nivel_servicio_detallado(
 
 
 
-@router.get("/distribucion-horaria-detallada")
-async def get_distribucion_horaria_detallada(
+@router.get("/tabla-distribucion-horaria")
+async def get_tabla_distribucion_horaria(
     agrupar_por: str = 'hora',
     filters: dict = Depends(parse_filters),
     db: Session = Depends(get_db)
 ):
     """
-    Distribución horaria detallada con métricas completas
+    Tabla de distribución horaria con métricas completas
     Parámetros:
         - agrupar_por: 'hora', 'mes', 'dia_semana', 'campana'
     """

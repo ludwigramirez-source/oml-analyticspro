@@ -33,6 +33,15 @@ class CallAnalyticsService:
         'NONDIALPLAN'         # Sin ruta de marcado
     ]
     
+    # EVENTOS FINALES: Solo estos cuentan como "llamadas" en los totales
+    EVENTOS_FINALES = [
+        'COMPLETEAGENT', 'COMPLETEOUTNUM',  # Atendidas
+        'ABANDON', 'ABANDONWEL', 'ABANDON-CTOUT',  # Abandonadas  
+        'NOANSWER', 'CANCEL', 'BUSY',  # Salientes no atendidas
+        'EXITWITHTIMEOUT',  # Timeout en cola
+        'CHANUNAVAIL', 'NONDIALPLAN'  # Sin ruta/canal
+    ]
+    
     # Tipos de llamada (basado en estructura real de OmniLeads)
     TIPO_SALIENTE = 1      # Llamadas manuales salientes
     TIPO_ENTRANTE = 3      # Llamadas entrantes (inbound)

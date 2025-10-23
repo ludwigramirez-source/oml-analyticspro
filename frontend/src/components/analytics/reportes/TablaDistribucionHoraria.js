@@ -122,8 +122,8 @@ const TablaDistribucionHoraria = ({ filters }) => {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {agrupacion === 'hora' ? 'Hora' : 
-                 agrupacion === 'dia_semana' ? 'Día' :
+                {agrupacion === 'hora' ? 'Rango Horario' : 
+                 agrupacion === 'semana' ? 'Semana' :
                  agrupacion === 'mes' ? 'Mes' : 'Campaña'}
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">

@@ -26,6 +26,7 @@ const DashboardMejorado = () => {
   const [kpis, setKpis] = useState({});
   const [llamadasPorTipo, setLlamadasPorTipo] = useState(null);
   const [distribucionData, setDistribucionData] = useState([]);
+  const [distribucionPorTipo, setDistribucionPorTipo] = useState(null);
   const [evolucionData, setEvolucionData] = useState([]);
   const [horariaData, setHorariaData] = useState([]);
   const [nivelServicioData, setNivelServicioData] = useState([]);

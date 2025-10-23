@@ -810,7 +810,7 @@ class CallAnalyticsExtended:
                 LlamadaLog.callid == subquery.c.callid,
                 LlamadaLog.time == subquery.c.ultimo_tiempo
             )
-        ).filter(LlamadaLog.tipo_llamada == 0)
+        ).filter(LlamadaLog.tipo_llamada == 3)
         
         if filters.get('fecha_inicio'):
             query = query.filter(LlamadaLog.time >= filters['fecha_inicio'])

@@ -43,16 +43,6 @@ class ActividadAgenteLog(Base):
 
 
 
-class Pausa(Base):
-    """Modelo para ominicontacto_app_pausa"""
-    __tablename__ = 'ominicontacto_app_pausa'
-    __table_args__ = {'schema': 'public'}
-    
-    id = Column(Integer, primary_key=True)
-    nombre = Column(String(100))
-    tipo = Column(String(1))  # 'R' = Recreativa, 'P' = Productiva
-
-
 class Campana(Base):
     """Modelo para ominicontacto_app_campana"""
     __tablename__ = 'ominicontacto_app_campana'

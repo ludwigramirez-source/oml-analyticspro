@@ -1,4 +1,5 @@
 import React from 'react';
+import { ExportButton } from '../../utils/excelExport';
 
 const TablaAbandonadas = ({ llamadas }) => {
   const formatTiempo = (seconds) => {
@@ -18,11 +19,18 @@ const TablaAbandonadas = ({ llamadas }) => {
 
   return (
     <div className="bg-white rounded-lg border border-gray-200">
-      <div className="px-6 py-4 border-b border-gray-200 bg-red-50">
-        <h3 className="text-lg font-semibold text-red-800">📞❌ Llamadas Abandonadas</h3>
-        <p className="text-sm text-red-600 mt-1">
-          Total: {llamadas.length} llamadas abandonadas por clientes
-        </p>
+      <div className="px-6 py-4 border-b border-gray-200 bg-red-50 flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-semibold text-red-800">📞❌ Llamadas Abandonadas</h3>
+          <p className="text-sm text-red-600 mt-1">
+            Total: {llamadas.length} llamadas abandonadas por clientes
+          </p>
+        </div>
+        <ExportButton 
+          data={llamadas} 
+          filename="llamadas_abandonadas"
+          label="Exportar a Excel"
+        />
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">

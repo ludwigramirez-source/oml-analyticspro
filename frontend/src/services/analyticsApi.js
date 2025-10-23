@@ -302,9 +302,6 @@ class AnalyticsAPI {
   async getNivelServicioDetallado(filters = {}) {
     return this.fetchData('nivel-servicio-detallado', filters);
   }
-}
-
-export default new AnalyticsAPI();
 
   /**
    * Tabla de distribución horaria con métricas detalladas
@@ -312,4 +309,7 @@ export default new AnalyticsAPI();
   async getTablaDistribucionHoraria(filters = {}, agruparPor = 'hora') {
     return this.fetchData(`tabla-distribucion-horaria?agrupar_por=${agruparPor}`, filters);
   }
+}
+
+export default new AnalyticsAPI();
 

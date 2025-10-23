@@ -11,14 +11,26 @@ from ..models.omnileads_models import LlamadaLog, Campana, AgenteProfile, User
 class CallAnalyticsService:
     """Servicio para análisis de llamadas"""
     
-    # Eventos de llamadas atendidas
-    EVENTOS_ATENDIDAS = ['CONNECT', 'COMPLETEAGENT', 'COMPLETEOUTNUM']
+    # Eventos de llamadas ATENDIDAS (cuando hay respuesta/conexión real)
+    EVENTOS_ATENDIDAS = [
+        'COMPLETEAGENT',      # Agente cuelga la llamada
+        'COMPLETEOUTNUM',     # Cliente/llamante cuelga la llamada
+    ]
     
-    # Eventos de llamadas no atendidas
+    # Eventos de llamadas ABANDONADAS (cliente abandona)
+    EVENTOS_ABANDONADAS = [
+        'ABANDON',            # Abandono en cola
+        'ABANDON-CTOUT',      # Abandono durante transfer consultivo
+        'ABANDONWEL'          # Abandono durante audio de bienvenida
+    ]
+    
+    # Otros eventos de llamadas NO atendidas
     EVENTOS_NO_ATENDIDAS = [
-        'EXITWITHTIMEOUT', 'ABANDON', 'NOANSWER', 
-        'CANCEL', 'BUSY', 'CHANUNAVAIL', 'FAIL',
-        'ABANDONWEL', 'RINGNOANSWER', 'CONGESTION'
+        'EXITWITHTIMEOUT',    # Timeout en cola
+        'NOANSWER',           # No contesta (saliente)
+        'CANCEL',             # Cancelada (saliente)
+        'CHANUNAVAIL',        # Canal no disponible
+        'NONDIALPLAN'         # Sin ruta de marcado
     ]
     
     # Tipos de llamada

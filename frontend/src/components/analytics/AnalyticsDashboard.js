@@ -178,19 +178,26 @@ const AnalyticsDashboard = () => {
     };
   };
 
-  const prepareCausasChart = (data) => ({
-    labels: data.labels,
-    datasets: [{
-      data: data.data,
-      backgroundColor: [
-        'rgba(234, 67, 53, 0.8)',
-        'rgba(234, 134, 0, 0.8)',
-        'rgba(251, 188, 4, 0.8)',
-        'rgba(26, 115, 232, 0.8)',
-        'rgba(52, 168, 83, 0.8)'
-      ]
-    }]
-  });
+  const prepareCausasChart = (data) => {
+    if (!data || !data.labels || !data.data) {
+      console.warn('⚠️ Datos de causas inválidos:', data);
+      return null;
+    }
+    return {
+      labels: data.labels,
+      datasets: [{
+        data: data.data,
+        backgroundColor: [
+          'rgba(234, 67, 53, 0.8)',
+          'rgba(234, 134, 0, 0.8)',
+          'rgba(251, 188, 4, 0.8)',
+          'rgba(26, 115, 232, 0.8)',
+          'rgba(52, 168, 83, 0.8)',
+          'rgba(156, 39, 176, 0.8)'
+        ]
+      }]
+    };
+  };
 
   const prepareOcupacionChart = (data) => {
     if (!data || !data.datasets) return null;

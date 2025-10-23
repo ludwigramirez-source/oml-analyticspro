@@ -219,7 +219,7 @@ class CallAnalyticsService:
                 # Nuevo agente - cerrar sesión anterior si existe
                 if tiempo_login is not None:
                     # Agregar tiempo hasta el final del período o hasta ahora
-                    tiempo_fin = filters.get('fecha_fin') or datetime.now()
+                    tiempo_fin = filters.get('fecha_fin') or datetime.now(timezone.utc)
                     tiempo_sesion_total += (tiempo_fin - tiempo_login).total_seconds()
                 
                 agente_actual = actividad.agente_id

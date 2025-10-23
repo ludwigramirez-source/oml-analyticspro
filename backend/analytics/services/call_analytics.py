@@ -362,6 +362,62 @@ class CallAnalyticsService:
             ]
         }
     
+    def get_distribucion_por_tipo(self, filters: Dict = None) -> Dict:
+        """
+        Obtiene la distribución de llamadas separada por tipo (entrantes vs salientes)
+        Para mostrar dos gráficos de pie separados
+        """
+        filters = filters or {}
+        
+        # Consulta para llamadas entrantes
+        query_entrantes = self.db.query(LlamadaLog)
+        query_entrantes = self._apply_filters(query_entrantes, filters)
+        query_entrantes = query_entrantes.filter(LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE)
+        
+        entrantes_atendidas = query_entrantes.filter(
+            LlamadaLog.event.in_(self.EVENTOS_FINAL_ENTRANTES)
+        ).count()
+        entrantes_abandonadas = query_entrantes.filter(
+            LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS)
+        ).count()
+        
+        total_entrantes = entrantes_atendidas + entrantes_abandonadas
+        
+        # Consulta para llamadas salientes
+        query_salientes = self.db.query(LlamadaLog)
+        query_salientes = self._apply_filters(query_salientes, filters)
+        query_salientes = query_salientes.filter(LlamadaLog.tipo_llamada == self.TIPO_SALIENTE)
+        
+        salientes_conectadas = query_salientes.filter(
+            LlamadaLog.event.in_(self.EVENTOS_FINAL_SALIENTES)
+        ).count()
+        salientes_no_conectadas = query_salientes.filter(
+            ~LlamadaLog.event.in_(self.EVENTOS_FINAL_SALIENTES)
+        ).count()
+        
+        total_salientes = salientes_conectadas + salientes_no_conectadas
+        
+        return {
+            'entrantes': {
+                'labels': ['Atendidas', 'Abandonadas'],
+                'data': [entrantes_atendidas, entrantes_abandonadas],
+                'porcentajes': [
+                    round(entrantes_atendidas / total_entrantes * 100, 1) if total_entrantes > 0 else 0,
+                    round(entrantes_abandonadas / total_entrantes * 100, 1) if total_entrantes > 0 else 0
+                ],
+                'total': total_entrantes
+            },
+            'salientes': {
+                'labels': ['Conectadas', 'No Conectadas'],
+                'data': [salientes_conectadas, salientes_no_conectadas],
+                'porcentajes': [
+                    round(salientes_conectadas / total_salientes * 100, 1) if total_salientes > 0 else 0,
+                    round(salientes_no_conectadas / total_salientes * 100, 1) if total_salientes > 0 else 0
+                ],
+                'total': total_salientes
+            }
+        }
+    
     def get_distribucion_horaria_detallada(self, filters: Dict = None) -> Dict:
         """
         Distribución horaria separando entrantes, salientes y abandonadas

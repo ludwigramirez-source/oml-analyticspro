@@ -410,6 +410,11 @@ const DashboardMejorado = () => {
               <TablaLlamadas llamadas={llamadasDetalladas} />
             )}
 
+            {/* Tab: Llamadas Abandonadas */}
+            {activeTab === 'abandonadas' && (
+              <TablaAbandonadas llamadas={llamadasAbandonadas} />
+            )}
+
             {/* Tab: Agentes */}
             {activeTab === 'agentes' && (
               <TablaAgentes agentes={agentesData} />

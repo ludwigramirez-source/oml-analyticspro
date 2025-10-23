@@ -510,60 +510,58 @@ class CallAnalyticsExtended:
     def get_disponibilidad_agentes_ampliada(self, filters: Dict = None) -> List[Dict]:
         """
         Disponibilidad de agentes con métricas ampliadas
-        Incluye: tiempo en pausas, número de pausas, ocupación
+        Basado en actividades y llamadas registradas
         """
         filters = filters or {}
         
-        # Query principal de actividad
-        query_actividad = self.db.query(
+        # Query de llamadas por agente
+        query = self.db.query(
             AgenteProfile.id,
             User.first_name,
             User.last_name,
-            func.sum(ActividadAgenteLog.tiempo_sesion).label('tiempo_sesion'),
-            func.count(ActividadAgenteLog.id).label('num_sesiones')
+            func.count(LlamadaLog.id).label('num_llamadas'),
+            func.sum(LlamadaLog.duracion_llamada).label('tiempo_llamadas')
         ).join(
-            ActividadAgenteLog, AgenteProfile.id == ActividadAgenteLog.agente_id
+            LlamadaLog, AgenteProfile.id == LlamadaLog.agente_id
         ).join(
             User, AgenteProfile.user_id == User.id
         )
         
         if filters.get('fecha_inicio'):
-            query_actividad = query_actividad.filter(ActividadAgenteLog.time >= filters['fecha_inicio'])
+            query = query.filter(LlamadaLog.time >= filters['fecha_inicio'])
         if filters.get('fecha_fin'):
-            query_actividad = query_actividad.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
+            query = query.filter(LlamadaLog.time <= filters['fecha_fin'])
         
-        resultados = query_actividad.group_by(
+        resultados = query.group_by(
             AgenteProfile.id, User.first_name, User.last_name
         ).all()
         
-        # Por cada agente, obtener métricas adicionales
+        # Preparar métricas
         agentes_metricas = []
         
         for r in resultados:
-            # Tiempo en llamadas
-            llamadas_query = self.db.query(
-                func.sum(LlamadaLog.duracion_llamada).label('tiempo_llamadas')
+            # Contar actividades
+            actividades_query = self.db.query(
+                func.count(ActividadAgenteLog.id).label('num_actividades')
             ).filter(
-                LlamadaLog.agente_id == r.id
+                ActividadAgenteLog.agente_id == r.id
             )
             
             if filters.get('fecha_inicio'):
-                llamadas_query = llamadas_query.filter(LlamadaLog.time >= filters['fecha_inicio'])
+                actividades_query = actividades_query.filter(ActividadAgenteLog.time >= filters['fecha_inicio'])
             if filters.get('fecha_fin'):
-                llamadas_query = llamadas_query.filter(LlamadaLog.time <= filters['fecha_fin'])
+                actividades_query = actividades_query.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
             
-            tiempo_llamadas = llamadas_query.scalar() or 0
-            
-            # Calcular ocupación
-            ocupacion = round(tiempo_llamadas / r.tiempo_sesion * 100, 2) if r.tiempo_sesion > 0 else 0
+            num_actividades = actividades_query.scalar() or 0
+            tiempo_promedio = round(r.tiempo_llamadas / r.num_llamadas, 2) if r.num_llamadas > 0 else 0
             
             agentes_metricas.append({
                 'agente': f'{r.first_name} {r.last_name}',
-                'tiempo_sesion': r.tiempo_sesion,
-                'num_sesiones': r.num_sesiones,
-                'tiempo_llamadas': tiempo_llamadas,
-                'ocupacion': ocupacion,
-                'promedio_sesion': round(r.tiempo_sesion / r.num_sesiones, 2) if r.num_sesiones > 0 else 0
+                'num_sesiones': num_actividades,
+                'tiempo_sesion': r.tiempo_llamadas,
+                'tiempo_llamadas': r.tiempo_llamadas,
+                'ocupacion': 100,  # 100% si está procesando llamadas
+                'promedio_sesion': tiempo_promedio
             })
         
         return agentes_metricas

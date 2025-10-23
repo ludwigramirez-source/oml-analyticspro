@@ -227,6 +227,16 @@ async def get_distribucion_campanas(
     return service.get_distribucion_por_campana(filters)
 
 
+@router.get("/evolucion-semanal")
+async def get_evolucion_semanal(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Obtiene evolución semanal con contestadas, abandonadas y agentes activos"""
+    service = CallAnalyticsService(db)
+    return service.get_evolucion_semanal(filters)
+
+
 @router.get("/agentes/rendimiento")
 async def get_rendimiento_agentes(
     filters: dict = Depends(parse_filters),

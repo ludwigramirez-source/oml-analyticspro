@@ -389,10 +389,10 @@ class CallAnalyticsService:
         query_salientes = query_salientes.filter(LlamadaLog.tipo_llamada == self.TIPO_SALIENTE)
         
         salientes_conectadas = query_salientes.filter(
-            LlamadaLog.event.in_(self.EVENTOS_FINAL_SALIENTES)
+            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
         ).count()
         salientes_no_conectadas = query_salientes.filter(
-            ~LlamadaLog.event.in_(self.EVENTOS_FINAL_SALIENTES)
+            LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS)
         ).count()
         
         total_salientes = salientes_conectadas + salientes_no_conectadas

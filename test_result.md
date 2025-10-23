@@ -199,9 +199,8 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Database lazy loading"
-    - "Two separate pie charts for distribution"
-    - "Chart re-rendering with filters"
+    - "Frontend chart re-rendering with filters"
+    - "Frontend two separate pie charts testing"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -209,3 +208,5 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: "Implemented fixes for database connection and chart rendering issues. Backend now uses lazy loading for PostgreSQL connection. Split distribution chart into two separate pie charts for entrantes and salientes. Added React key props to force chart re-render when data changes. Ready for backend testing."
+  - agent: "testing"
+    message: "✅ BACKEND TESTING COMPLETE: All backend tasks tested successfully. Fixed critical bug in get_distribucion_por_tipo method (undefined constants). Backend service health: ✅ Accessible, ✅ CORS configured, ✅ All endpoints exist, ✅ Database errors handled gracefully. New /api/analytics/distribucion-por-tipo endpoint working correctly. Ready for frontend testing or user validation."

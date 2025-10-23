@@ -290,6 +290,6 @@ class AnalyticsAPI {
   async getNivelServicioDetallado(filters = {}) {
     return this.fetchData('nivel-servicio-detallado', filters);
   }
-
+}
 
 export default new AnalyticsAPI();

@@ -70,8 +70,14 @@ const ChartCard = ({ title, type, data, options = {} }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
       <h3 className="text-base font-semibold text-gray-800 mb-4">{title}</h3>
-      <div style={{ height: '300px' }}>
-        {getChartComponent()}
+      <div style={{ height: '350px', minHeight: '350px', width: '100%', position: 'relative' }}>
+        {data && data.labels && data.labels.length > 0 ? (
+          getChartComponent()
+        ) : (
+          <div className="flex items-center justify-center h-full text-gray-400">
+            <p>No hay datos disponibles</p>
+          </div>
+        )}
       </div>
     </div>
   );

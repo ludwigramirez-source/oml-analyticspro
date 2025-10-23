@@ -8,6 +8,7 @@ const DistribucionAvanzada = ({ filters }) => {
   const [porDiaSemana, setPorDiaSemana] = useState([]);
   const [porMes, setPorMes] = useState([]);
   const [porRangoHorario, setPorRangoHorario] = useState([]);
+  const [evolucionSemanal, setEvolucionSemanal] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -16,7 +17,7 @@ const DistribucionAvanzada = ({ filters }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [campana, diaSemana, mes, rangoHorario] = await Promise.all([
+      const [campana, diaSemana, mes, rangoHorario, semanal] = await Promise.all([
         analyticsApi.getDistribucionPorCampanaDetalle(filters).catch(err => {
           console.warn('Error en campaña:', err);
           return [];
@@ -32,15 +33,20 @@ const DistribucionAvanzada = ({ filters }) => {
         analyticsApi.getDistribucionPorRangoHorario(filters).catch(err => {
           console.warn('Error en rango horario:', err);
           return [];
+        }),
+        analyticsApi.getEvolucionSemanal(filters).catch(err => {
+          console.warn('Error en evolución semanal:', err);
+          return null;
         })
       ]);
 
-      console.log('Datos recibidos:', { campana, diaSemana, mes, rangoHorario });
+      console.log('Datos recibidos:', { campana, diaSemana, mes, rangoHorario, semanal });
 
       setPorCampana(preparePieData(campana));
       setPorDiaSemana(prepareBarData(diaSemana));
       setPorMes(prepareLineData(mes));
-      setPorRangoHorario(preparePieData(rangoHorario));
+      setPorRangoHorario(prepareBarData(rangoHorario));
+      setEvolucionSemanal(semanal);
     } catch (error) {
       console.error('Error loading distribución avanzada:', error);
     } finally {
@@ -58,13 +64,10 @@ const DistribucionAvanzada = ({ filters }) => {
 
   const prepareBarData = (data) => {
     if (!Array.isArray(data) || data.length === 0) return [];
-    return [{
-      name: 'Llamadas',
-      data: data.map(item => ({
-        x: String(item.dia || 'N/A'),
-        y: Number(item.total || 0)
-      }))
-    }];
+    return data.map(item => ({
+      name: String(item.dia || item.rango || item.name || 'N/A'),
+      value: Number(item.total || item.value || 0)
+    }));
   };
 
   const prepareLineData = (data) => {
@@ -76,6 +79,18 @@ const DistribucionAvanzada = ({ filters }) => {
         y: Number(item.total || 0)
       }))
     }];
+  };
+
+  const prepareMultilineData = (data) => {
+    if (!data || !data.labels || !data.series) return [];
+    
+    return data.labels.map((label, idx) => {
+      const dataPoint = { name: label };
+      data.series.forEach(serie => {
+        dataPoint[serie.name] = serie.data[idx] || 0;
+      });
+      return dataPoint;
+    });
   };
 
   if (loading) {
@@ -90,7 +105,7 @@ const DistribucionAvanzada = ({ filters }) => {
     <div>
       <h2 className="text-2xl font-bold text-gray-800 mb-6">📊 Distribución Avanzada</h2>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Distribución por Campaña */}
         <ApexChart
           type="pie"
@@ -98,13 +113,24 @@ const DistribucionAvanzada = ({ filters }) => {
           title="Distribución por Campaña"
         />
 
-        {/* Distribución por Rango Horario */}
+        {/* Distribución por Rango Horario - Cambiado a BAR */}
         <ApexChart
-          type="pie"
+          type="bar"
           data={porRangoHorario}
           title="Distribución por Rango Horario"
         />
+      </div>
 
+      {/* Evolución Semanal - NUEVO */}
+      <div className="mb-6">
+        <ApexChart
+          type="multiline"
+          data={evolucionSemanal ? prepareMultilineData(evolucionSemanal) : []}
+          title="Evolución Semanal: Contestadas vs Abandonadas vs Agentes"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Distribución por Día de Semana */}
         <ApexChart
           type="bar"

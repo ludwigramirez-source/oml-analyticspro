@@ -533,7 +533,8 @@ class CallAnalyticsService:
     
     def get_llamadas_detalladas(self, filters: Dict = None, page: int = 1, per_page: int = 50) -> Dict:
         """
-        Obtiene lista detallada de llamadas con paginación
+        Obtiene lista detallada de llamadas ATENDIDAS con paginación
+        Solo eventos: COMPLETEAGENT, COMPLETEOUTNUM
         """
         filters = filters or {}
         query = self.db.query(
@@ -551,9 +552,8 @@ class CallAnalyticsService:
         
         query = self._apply_filters(query, filters)
         
-        # Filtro adicional para llamadas atendidas si se especifica
-        if filters.get('solo_atendidas'):
-            query = query.filter(LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS))
+        # Filtrar SOLO llamadas atendidas (COMPLETEAGENT, COMPLETEOUTNUM)
+        query = query.filter(LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS))
         
         # Total de registros
         total = query.count()

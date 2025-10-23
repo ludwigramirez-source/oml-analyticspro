@@ -1,0 +1,182 @@
+import React, { useState, useEffect } from 'react';
+import analyticsApi from '../../../services/analyticsApi';
+import KPICard from '../KPICard';
+
+const AgentesAvanzado = ({ filters }) => {
+  const [loading, setLoading] = useState(true);
+  const [totalSesiones, setTotalSesiones] = useState(null);
+  const [heatmapData, setHeatmapData] = useState(null);
+  const [disponibilidadAmpliada, setDisponibilidadAmpliada] = useState([]);
+
+  useEffect(() => {
+    loadData();
+  }, [filters]);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [sesiones, heatmap, disponibilidad] = await Promise.all([
+        analyticsApi.getTotalSesionesAgentes(filters).catch(() => null),
+        analyticsApi.getDisponibilidadHeatmap(filters).catch(() => null),
+        analyticsApi.getDisponibilidadAmpliada(filters).catch(() => [])
+      ]);
+
+      setTotalSesiones(sesiones);
+      setHeatmapData(heatmap);
+      setDisponibilidadAmpliada(disponibilidad);
+    } catch (error) {
+      console.error('Error loading agentes avanzado:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatTime = (seconds) => {
+    if (!seconds) return '0m 0s';
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m ${secs}s`;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">👥 Análisis Avanzado de Agentes</h2>
+      
+      {/* Resumen de Sesiones */}
+      {totalSesiones && (
+        <div className="mb-6">
+          <h3 className="text-lg font-bold text-gray-700 mb-4">Resumen de Sesiones</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <KPICard
+              title="Total Agentes"
+              value={totalSesiones.total_agentes}
+              icon="👥"
+            />
+            <KPICard
+              title="Tiempo Promedio"
+              value={formatTime(totalSesiones.tiempo_promedio)}
+              icon="⏱️"
+            />
+            <KPICard
+              title="Tiempo Mínimo"
+              value={formatTime(totalSesiones.tiempo_minimo)}
+              icon="🔽"
+            />
+            <KPICard
+              title="Tiempo Máximo"
+              value={formatTime(totalSesiones.tiempo_maximo)}
+              icon="🔼"
+            />
+            <KPICard
+              title="Tiempo Total"
+              value={formatTime(totalSesiones.tiempo_total)}
+              icon="📊"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Heatmap de Disponibilidad */}
+      {heatmapData && heatmapData.matriz && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <h3 className="text-lg font-bold text-gray-800 mb-4">
+            📅 Disponibilidad de Agentes por Día/Hora
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr>
+                  <th className="px-2 py-2 text-xs font-medium text-gray-500 sticky left-0 bg-white">Día</th>
+                  {heatmapData.horas.map(hora => (
+                    <th key={hora} className="px-2 py-2 text-xs font-medium text-gray-500">
+                      {hora}h
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {heatmapData.dias.map((dia, diaIdx) => (
+                  <tr key={diaIdx}>
+                    <td className="px-2 py-2 text-sm font-medium text-gray-700 sticky left-0 bg-white">
+                      {dia}
+                    </td>
+                    {heatmapData.matriz[diaIdx].map((valor, horaIdx) => {
+                      const color = valor === 0 ? 'bg-gray-100' :
+                                   valor <= 2 ? 'bg-blue-200' :
+                                   valor <= 5 ? 'bg-blue-400' :
+                                   valor <= 10 ? 'bg-blue-600 text-white' :
+                                   'bg-blue-800 text-white';
+                      
+                      return (
+                        <td key={horaIdx} className={`px-2 py-2 text-center text-xs ${color}`}>
+                          {valor > 0 ? valor : ''}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            * Los colores más oscuros indican mayor cantidad de agentes disponibles
+          </p>
+        </div>
+      )}
+
+      {/* Tabla de Disponibilidad Ampliada */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-bold text-gray-800 mb-4">
+          Métricas Detalladas por Agente
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agente</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sesiones</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">T. Sesión</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">T. Llamadas</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ocupación</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prom. Sesión</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {disponibilidadAmpliada.map((agente, idx) => (
+                <tr key={idx}>
+                  <td className="px-4 py-3 text-sm text-gray-900">{agente.agente}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{agente.num_sesiones}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{formatTime(agente.tiempo_sesion)}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{formatTime(agente.tiempo_llamadas)}</td>
+                  <td className="px-4 py-3 text-sm">
+                    <span className={`px-2 py-1 rounded font-semibold ${
+                      agente.ocupacion >= 80 ? 'bg-green-100 text-green-800' :
+                      agente.ocupacion >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {agente.ocupacion}%
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{formatTime(agente.promedio_sesion)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AgentesAvanzado;

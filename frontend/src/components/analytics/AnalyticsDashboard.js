@@ -145,17 +145,23 @@ const AnalyticsDashboard = () => {
     };
   };
 
-  const prepareEvolucionChart = (data) => ({
-    labels: data.labels,
-    datasets: [{
-      label: 'Llamadas',
-      data: data.data,
-      borderColor: 'rgba(26, 115, 232, 1)',
-      backgroundColor: 'rgba(26, 115, 232, 0.1)',
-      tension: 0.4,
-      fill: true
-    }]
-  });
+  const prepareEvolucionChart = (data) => {
+    if (!data || !data.labels || !data.data) {
+      console.warn('⚠️ Datos de evolución inválidos:', data);
+      return null;
+    }
+    return {
+      labels: data.labels,
+      datasets: [{
+        label: 'Llamadas',
+        data: data.data,
+        borderColor: 'rgba(26, 115, 232, 1)',
+        backgroundColor: 'rgba(26, 115, 232, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    };
+  };
 
   const prepareNivelServicioChart = (data) => ({
     labels: data.labels,

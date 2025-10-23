@@ -134,16 +134,38 @@ async def get_causas_no_atencion(
     return service.get_causas_no_atencion(filters)
 
 
+@router.get("/llamadas-atendidas")
+async def get_llamadas_atendidas(
+    page: int = Query(1, ge=1, description="Número de página"),
+    per_page: int = Query(50, ge=1, le=200, description="Registros por página"),
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Obtiene lista detallada de llamadas ATENDIDAS (COMPLETEAGENT, COMPLETEOUTNUM)"""
+    service = CallAnalyticsService(db)
+    return service.get_llamadas_detalladas(filters, page, per_page)
+
+
+@router.get("/llamadas-abandonadas")
+async def get_llamadas_abandonadas(
+    page: int = Query(1, ge=1, description="Número de página"),
+    per_page: int = Query(50, ge=1, le=200, description="Registros por página"),
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Obtiene lista detallada de llamadas ABANDONADAS (ABANDON, ABANDON-CTOUT, ABANDONWEL)"""
+    service = CallAnalyticsService(db)
+    return service.get_llamadas_abandonadas(filters, page, per_page)
+
+
 @router.get("/llamadas-detalladas")
 async def get_llamadas_detalladas(
     page: int = Query(1, ge=1, description="Número de página"),
     per_page: int = Query(50, ge=1, le=200, description="Registros por página"),
-    solo_atendidas: bool = Query(False, description="Solo llamadas atendidas"),
     filters: dict = Depends(parse_filters),
     db: Session = Depends(get_db)
 ):
-    """Obtiene lista detallada de llamadas con paginación"""
-    filters['solo_atendidas'] = solo_atendidas
+    """Obtiene lista detallada de llamadas atendidas (alias para compatibilidad)"""
     service = CallAnalyticsService(db)
     return service.get_llamadas_detalladas(filters, page, per_page)
 

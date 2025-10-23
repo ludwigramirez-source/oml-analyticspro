@@ -755,32 +755,59 @@ class CallAnalyticsService:
         """
         Nivel de atención por campaña con alertas (como Power BI)
         Verde >= 90%, Amarillo >= 80%, Rojo < 80%
+        Cuenta solo llamadas únicas (por callid, último evento)
         """
         filters = filters or {}
+        
+        # Subquery para obtener el último evento de cada llamada
+        subquery = self.db.query(
+            LlamadaLog.callid,
+            func.max(LlamadaLog.time).label('ultimo_tiempo')
+        ).filter(
+            LlamadaLog.tipo_llamada == 3  # Solo entrantes
+        )
+        
+        if filters.get('fecha_inicio'):
+            subquery = subquery.filter(LlamadaLog.time >= filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            subquery = subquery.filter(LlamadaLog.time <= filters['fecha_fin'])
+        
+        subquery = subquery.group_by(LlamadaLog.callid).subquery()
+        
+        # Query principal con llamadas únicas
         query = self.db.query(
             Campana.nombre,
             Campana.id,
             func.count(func.distinct(AgenteProfile.id)).label('cantidad_agentes'),
-            func.count(LlamadaLog.id).label('total_llamadas'),
+            func.count(func.distinct(LlamadaLog.callid)).label('total_llamadas'),
             func.sum(
                 case((LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS), 1), else_=0)
             ).label('atendidas'),
             func.sum(
-                case((LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS), 1), else_=0)
+                case((LlamadaLog.event.in_(self.EVENTOS_ABANDONADAS), 1), else_=0)
             ).label('abandonadas'),
             func.avg(
                 case((LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS), LlamadaLog.duracion_llamada), else_=None)
             ).label('prom_duracion')
         ).join(
-            LlamadaLog, Campana.id == LlamadaLog.campana_id
+            Campana, Campana.id == LlamadaLog.campana_id
+        ).join(
+            subquery,
+            and_(
+                LlamadaLog.callid == subquery.c.callid,
+                LlamadaLog.time == subquery.c.ultimo_tiempo
+            )
         ).outerjoin(
             AgenteProfile, LlamadaLog.agente_id == AgenteProfile.id
         )
         
-        query = self._apply_filters(query, filters)
+        if filters.get('campana_ids'):
+            query = query.filter(Campana.id.in_(filters['campana_ids']))
+        if filters.get('agente_ids'):
+            query = query.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
         
         resultados = query.group_by(Campana.nombre, Campana.id).order_by(
-            func.count(LlamadaLog.id).desc()
+            func.count(func.distinct(LlamadaLog.callid)).desc()
         ).all()
         
         campanias = []

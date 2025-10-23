@@ -94,19 +94,34 @@ const DashboardMejorado = () => {
       setDistribucionData(prepareDistribucion(distribRes));
 
       // Cargar evolución por hora
-      const evolRes = await analyticsApi.getEvolucionHora(filters);
-      console.log('✅ Evolución:', evolRes);
-      setEvolucionData(prepareEvolucion(evolRes));
+      try {
+        const evolRes = await analyticsApi.getEvolucionHora(filters);
+        console.log('✅ Evolución:', evolRes);
+        setEvolucionData(prepareEvolucion(evolRes));
+      } catch (err) {
+        console.warn('⚠️ Error en evolución por hora:', err);
+        setEvolucionData([]);
+      }
 
       // Cargar distribución horaria detallada
-      const horariaRes = await analyticsApi.getDistribucionHorariaDetallada(filters);
-      console.log('✅ Horaria detallada:', horariaRes);
-      setHorariaData(prepareHoraria(horariaRes));
+      try {
+        const horariaRes = await analyticsApi.getDistribucionHorariaDetallada(filters);
+        console.log('✅ Horaria detallada:', horariaRes);
+        setHorariaData(prepareHoraria(horariaRes));
+      } catch (err) {
+        console.warn('⚠️ Error en distribución horaria:', err);
+        setHorariaData([]);
+      }
 
       // Cargar nivel de servicio
-      const nivelRes = await analyticsApi.getNivelServicio(filters);
-      console.log('✅ Nivel servicio:', nivelRes);
-      setNivelServicioData(prepareNivelServicio(nivelRes));
+      try {
+        const nivelRes = await analyticsApi.getNivelServicio(filters);
+        console.log('✅ Nivel servicio:', nivelRes);
+        setNivelServicioData(prepareNivelServicio(nivelRes));
+      } catch (err) {
+        console.warn('⚠️ Error en nivel de servicio:', err);
+        setNivelServicioData([]);
+      }
 
       // Cargar campañas con alertas
       const campanasRes = await analyticsApi.getNivelAtencionCampanas(filters);

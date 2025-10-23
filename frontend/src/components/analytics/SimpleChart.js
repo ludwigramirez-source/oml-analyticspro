@@ -123,5 +123,3 @@ const SimpleChart = ({ type, data, title }) => {
 };
 
 export default SimpleChart;
-
-export default SimpleChart;

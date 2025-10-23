@@ -17,11 +17,25 @@ const DistribucionAvanzada = ({ filters }) => {
     setLoading(true);
     try {
       const [campana, diaSemana, mes, rangoHorario] = await Promise.all([
-        analyticsApi.getDistribucionPorCampanaDetalle(filters).catch(() => []),
-        analyticsApi.getDistribucionPorDiaSemana(filters).catch(() => []),
-        analyticsApi.getDistribucionPorMes(null, filters).catch(() => []),
-        analyticsApi.getDistribucionPorRangoHorario(filters).catch(() => [])
+        analyticsApi.getDistribucionPorCampanaDetalle(filters).catch(err => {
+          console.warn('Error en campaña:', err);
+          return [];
+        }),
+        analyticsApi.getDistribucionPorDiaSemana(filters).catch(err => {
+          console.warn('Error en día semana:', err);
+          return [];
+        }),
+        analyticsApi.getDistribucionPorMes(null, filters).catch(err => {
+          console.warn('Error en mes:', err);
+          return [];
+        }),
+        analyticsApi.getDistribucionPorRangoHorario(filters).catch(err => {
+          console.warn('Error en rango horario:', err);
+          return [];
+        })
       ]);
+
+      console.log('Datos recibidos:', { campana, diaSemana, mes, rangoHorario });
 
       setPorCampana(preparePieData(campana));
       setPorDiaSemana(prepareBarData(diaSemana));

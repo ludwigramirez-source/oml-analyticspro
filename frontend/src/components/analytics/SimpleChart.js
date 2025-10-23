@@ -115,9 +115,13 @@ const SimpleChart = ({ type, data, title }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
       <h3 className="text-base font-semibold text-gray-800 mb-4">{title}</h3>
-      {renderChart()}
+      <div style={{ width: '100%', height: '320px', minHeight: '320px' }}>
+        {renderChart()}
+      </div>
     </div>
   );
 };
+
+export default SimpleChart;
 
 export default SimpleChart;

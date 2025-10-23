@@ -69,6 +69,14 @@ async def get_status_checks():
 # Include the router in the main app
 app.include_router(api_router)
 
+# Include Analytics router
+try:
+    from analytics.routes.analytics_routes import router as analytics_router
+    app.include_router(analytics_router)
+    logger.info("Analytics module loaded successfully")
+except Exception as e:
+    logger.warning(f"Analytics module not loaded: {e}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,

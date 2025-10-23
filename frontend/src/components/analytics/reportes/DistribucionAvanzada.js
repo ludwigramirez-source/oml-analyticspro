@@ -37,9 +37,9 @@ const DistribucionAvanzada = ({ filters }) => {
   const preparePieData = (data) => {
     if (!Array.isArray(data) || data.length === 0) return [];
     return data.map(item => ({
-      label: item.campana || item.rango || item.name,
-      value: item.total || item.value || 0
-    }));
+      label: String(item.campana || item.rango || item.name || 'Sin nombre'),
+      value: Number(item.total || item.value || 0)
+    })).filter(item => item.value > 0);
   };
 
   const prepareBarData = (data) => {
@@ -47,8 +47,8 @@ const DistribucionAvanzada = ({ filters }) => {
     return [{
       name: 'Llamadas',
       data: data.map(item => ({
-        x: item.dia,
-        y: item.total
+        x: String(item.dia || 'N/A'),
+        y: Number(item.total || 0)
       }))
     }];
   };
@@ -58,8 +58,8 @@ const DistribucionAvanzada = ({ filters }) => {
     return [{
       name: 'Llamadas',
       data: data.map(item => ({
-        x: item.mes,
-        y: item.total
+        x: String(item.mes || 'N/A'),
+        y: Number(item.total || 0)
       }))
     }];
   };

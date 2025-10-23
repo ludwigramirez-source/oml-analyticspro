@@ -275,3 +275,162 @@ async def get_agentes(db: Session = Depends(get_db)):
         'nombre': f'{a.first_name} {a.last_name}',
         'estado': a.estado
     } for a in agentes]
+
+
+
+# ==================== NUEVOS ENDPOINTS PREMIUM ====================
+
+# Importar servicio extendido
+from ..services.call_analytics_extended import CallAnalyticsExtended
+
+
+@router.get("/distribucion-por-campana-detalle")
+async def get_distribucion_por_campana_detalle(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Distribución de llamadas por campaña (Pie Chart)"""
+    service_ext = CallAnalyticsExtended(db)
+    return service_ext.get_distribucion_por_campana(filters)
+
+
+@router.get("/distribucion-por-dia-semana")
+async def get_distribucion_por_dia_semana(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Distribución de llamadas por día de la semana"""
+    service_ext = CallAnalyticsExtended(db)
+    return service_ext.get_distribucion_por_dia_semana(filters)
+
+
+@router.get("/distribucion-por-mes")
+async def get_distribucion_por_mes(
+    anio: int = Query(None, description="Año para filtrar"),
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Distribución de llamadas por mes"""
+    service_ext = CallAnalyticsExtended(db)
+    return service_ext.get_distribucion_por_mes(anio, filters)
+
+
+@router.get("/distribucion-por-rango-horario")
+async def get_distribucion_por_rango_horario(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Distribución de llamadas por rangos horarios"""
+    service_ext = CallAnalyticsExtended(db)
+    return service_ext.get_distribucion_por_rango_horario(filters)
+
+
+@router.get("/salientes/dashboard")
+async def get_salientes_dashboard(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Dashboard completo de llamadas salientes"""
+    service_ext = CallAnalyticsExtended(db)
+    return service_ext.get_llamadas_salientes_dashboard(filters)
+
+
+@router.get("/salientes/manuales-vs-dialer")
+async def get_manuales_vs_dialer(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Comparativa llamadas manuales vs dialer"""
+    service_ext = CallAnalyticsExtended(db)
+    return service_ext.get_llamadas_manuales_vs_dialer(filters)
+
+
+@router.get("/causas-desconexion-detalladas")
+async def get_causas_desconexion_detalladas(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Causas de desconexión detalladas (incluye transferencias)"""
+    service_ext = CallAnalyticsExtended(db)
+    return service_ext.get_causas_desconexion_detalladas(filters)
+
+
+@router.get("/causas-no-conexion-completas")
+async def get_causas_no_conexion_completas(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Causas de no conexión completas"""
+    service_ext = CallAnalyticsExtended(db)
+    return service_ext.get_causas_no_conexion_completas(filters)
+
+
+@router.get("/sin-conexion-por-agente")
+async def get_sin_conexion_por_agente(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Llamadas sin conexión desglosadas por agente"""
+    service_ext = CallAnalyticsExtended(db)
+    return service_ext.get_sin_conexion_por_agente(filters)
+
+
+@router.get("/sin-conexion-por-campana")
+async def get_sin_conexion_por_campana(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Llamadas sin conexión desglosadas por campaña"""
+    service_ext = CallAnalyticsExtended(db)
+    return service_ext.get_sin_conexion_por_campana(filters)
+
+
+@router.get("/agentes/total-sesiones")
+async def get_total_sesiones(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Resumen de sesiones de todos los agentes"""
+    service_ext = CallAnalyticsExtended(db)
+    return service_ext.get_total_sesiones_agentes(filters)
+
+
+@router.get("/agentes/disponibilidad-heatmap")
+async def get_disponibilidad_heatmap(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Número de agentes por día/hora (heatmap)"""
+    service_ext = CallAnalyticsExtended(db)
+    return service_ext.get_agentes_por_dia_hora(filters)
+
+
+@router.get("/agentes/disponibilidad-ampliada")
+async def get_disponibilidad_ampliada(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Disponibilidad de agentes con métricas ampliadas"""
+    service_ext = CallAnalyticsExtended(db)
+    return service_ext.get_disponibilidad_agentes_ampliada(filters)
+
+
+@router.get("/transferencias")
+async def get_analisis_transferencias(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Análisis completo de transferencias"""
+    service_ext = CallAnalyticsExtended(db)
+    return service_ext.get_analisis_transferencias(filters)
+
+
+@router.get("/nivel-servicio-detallado")
+async def get_nivel_servicio_detallado(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Nivel de servicio con bloques configurables"""
+    service_ext = CallAnalyticsExtended(db)
+    return service_ext.get_nivel_servicio_detallado(filters)
+

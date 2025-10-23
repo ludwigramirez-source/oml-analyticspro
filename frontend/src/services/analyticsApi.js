@@ -307,7 +307,23 @@ class AnalyticsAPI {
    * Tabla de distribución horaria con métricas detalladas
    */
   async getTablaDistribucionHoraria(filters = {}, agruparPor = 'hora') {
-    return this.fetchData(`tabla-distribucion-horaria?agrupar_por=${agruparPor}`, filters);
+    const queryString = this.buildQueryString(filters);
+    const baseUrl = `tabla-distribucion-horaria?agrupar_por=${agruparPor}`;
+    const url = queryString ? `${baseUrl}&${queryString}` : baseUrl;
+    
+    try {
+      const fullUrl = `${API_URL}/api/analytics/${url}`;
+      const response = await fetch(fullUrl);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error(`Error fetching tabla-distribucion-horaria:`, error);
+      throw error;
+    }
   }
 }
 

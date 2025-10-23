@@ -839,4 +839,78 @@ class CallAnalyticsService:
                 'tasa_no_atencion': tasa_no_atencion_salientes
             }
         }
-
+    
+    def get_evolucion_semanal(self, filters: Dict = None) -> Dict:
+        """
+        Obtiene evolución semanal de llamadas con 3 series:
+        - Llamadas contestadas (atendidas)
+        - Llamadas abandonadas
+        - Agentes activos
+        """
+        filters = filters or {}
+        
+        # Consultar llamadas agrupadas por semana
+        query = self.db.query(
+            func.date_trunc('week', LlamadaLog.time).label('semana'),
+            func.count(LlamadaLog.id).label('total'),
+            func.sum(
+                case((LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS), 1), else_=0)
+            ).label('contestadas'),
+            func.sum(
+                case((LlamadaLog.event.in_(self.EVENTOS_ABANDONADAS), 1), else_=0)
+            ).label('abandonadas')
+        )
+        
+        query = self._apply_filters(query, filters)
+        query = query.filter(LlamadaLog.event.in_(self.EVENTOS_FINALES))
+        
+        resultados = query.group_by('semana').order_by('semana').all()
+        
+        # Consultar agentes activos por semana
+        agentes_query = self.db.query(
+            func.date_trunc('week', LlamadaLog.time).label('semana'),
+            func.count(func.distinct(LlamadaLog.agente_id)).label('agentes_activos')
+        )
+        
+        agentes_query = self._apply_filters(agentes_query, filters)
+        agentes_query = agentes_query.filter(
+            LlamadaLog.agente_id.isnot(None),
+            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
+        )
+        
+        agentes_resultados = agentes_query.group_by('semana').order_by('semana').all()
+        
+        # Crear diccionario de agentes por semana
+        agentes_por_semana = {r.semana: r.agentes_activos for r in agentes_resultados}
+        
+        # Preparar respuesta
+        semanas = []
+        contestadas = []
+        abandonadas = []
+        agentes = []
+        
+        for r in resultados:
+            # Formatear semana como "Semana del DD/MM"
+            fecha_semana = r.semana.strftime('%d/%m')
+            semanas.append(f"Semana {fecha_semana}")
+            contestadas.append(r.contestadas or 0)
+            abandonadas.append(r.abandonadas or 0)
+            agentes.append(agentes_por_semana.get(r.semana, 0))
+        
+        return {
+            'labels': semanas,
+            'series': [
+                {
+                    'name': 'Contestadas',
+                    'data': contestadas
+                },
+                {
+                    'name': 'Abandonadas',
+                    'data': abandonadas
+                },
+                {
+                    'name': 'Agentes Activos',
+                    'data': agentes
+                }
+            ]
+        }

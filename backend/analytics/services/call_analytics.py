@@ -250,7 +250,7 @@ class CallAnalyticsService:
         
         # Cerrar sesiones abiertas al final del período
         if tiempo_login is not None:
-            tiempo_fin = filters.get('fecha_fin') or datetime.now()
+            tiempo_fin = filters.get('fecha_fin') or datetime.now(timezone.utc)
             tiempo_sesion_total += (tiempo_fin - tiempo_login).total_seconds()
         
         # Calcular ocupación: tiempo en llamadas / (tiempo de sesión - pausas recreativas)

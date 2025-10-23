@@ -305,6 +305,45 @@ class CallAnalyticsService:
             ]
         }
     
+    def get_distribucion_horaria_detallada(self, filters: Dict = None) -> Dict:
+        """
+        Distribución horaria separando entrantes, salientes y abandonadas
+        Como el gráfico "Distribución Horaria" de Power BI
+        """
+        filters = filters or {}
+        query = self.db.query(LlamadaLog)
+        query = self._apply_filters(query, filters)
+        
+        # Obtener datos agrupados
+        resultados = query.with_entities(
+            extract('hour', LlamadaLog.time).label('hora'),
+            LlamadaLog.tipo_llamada,
+            LlamadaLog.event,
+            func.count(LlamadaLog.id).label('total')
+        ).group_by('hora', LlamadaLog.tipo_llamada, LlamadaLog.event).all()
+        
+        # Inicializar arrays de 24 horas
+        horas = list(range(24))
+        entrantes = [0] * 24
+        salientes = [0] * 24
+        abandonadas = [0] * 24
+        
+        for r in resultados:
+            hora_idx = int(r.hora)
+            if r.tipo_llamada == self.TIPO_ENTRANTE:
+                entrantes[hora_idx] += r.total
+                if r.event in self.EVENTOS_NO_ATENDIDAS:
+                    abandonadas[hora_idx] += r.total
+            elif r.tipo_llamada == self.TIPO_SALIENTE:
+                salientes[hora_idx] += r.total
+        
+        return {
+            'labels': [f'{h:02d}:00' for h in horas],
+            'entrantes': entrantes,
+            'salientes': salientes,
+            'abandonadas': abandonadas
+        }
+    
     def get_evolucion_por_hora(self, filters: Dict = None) -> Dict:
         """
         Obtiene la evolución de llamadas por hora

@@ -201,7 +201,7 @@ class CallAnalyticsExtended:
         filters = filters or {}
         
         query = self.db.query(LlamadaLog)
-        query = query.filter(LlamadaLog.tipo_llamada == 2)  # Salientes
+        query = query.filter(LlamadaLog.tipo_llamada == 1)  # Salientes = 1
         query = self._apply_filters(query, filters)
         
         # Contar por evento

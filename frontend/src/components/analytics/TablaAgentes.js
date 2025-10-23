@@ -30,6 +30,11 @@ const TablaAgentes = ({ agentes }) => {
     <div className="bg-white rounded-lg border border-gray-200">
       <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
         <h3 className="text-lg font-semibold text-gray-800">Rendimiento de Agentes</h3>
+        <ExportButton 
+          data={agentes} 
+          filename="rendimiento_agentes"
+          label="Exportar a Excel"
+        />
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">

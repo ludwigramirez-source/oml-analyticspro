@@ -196,7 +196,7 @@ class CallAnalyticsExtended:
     def get_llamadas_salientes_dashboard(self, filters: Dict = None) -> Dict:
         """
         Dashboard completo de llamadas salientes
-        Métricas: DIAL, ANSWER, NOANSWER, BUSY, CANCEL, tasa de contactación
+        Categorías basadas en resultados finales de llamadas
         """
         filters = filters or {}
         
@@ -204,29 +204,52 @@ class CallAnalyticsExtended:
         query = query.filter(LlamadaLog.tipo_llamada == 1)  # Salientes = 1
         query = self._apply_filters(query, filters)
         
-        # Contar por evento
-        eventos = {}
-        for evento, descripcion in self.EVENTOS_SALIENTES.items():
-            count = query.filter(LlamadaLog.event == evento).count()
-            eventos[evento] = {
-                'descripcion': descripcion,
-                'total': count
+        # Contar por categorías de resultado final
+        total_marcadas = query.filter(LlamadaLog.event == 'DIAL').count()
+        
+        # Contestadas: ANSWER y las que terminaron con COMPLETE (exitosas)
+        contestadas = query.filter(LlamadaLog.event.in_(['ANSWER', 'COMPLETEAGENT', 'COMPLETEOUTNUM'])).count()
+        
+        # No contestadas/Canceladas
+        no_contestadas = query.filter(LlamadaLog.event.in_(['NOANSWER', 'CANCEL'])).count()
+        
+        # Ocupadas
+        ocupadas = query.filter(LlamadaLog.event == 'BUSY').count()
+        
+        # Fallos técnicos
+        fallos = query.filter(LlamadaLog.event.in_(['CONGESTION', 'NONDIALPLAN', 'CHANUNAVAIL'])).count()
+        
+        # Calcular tasa de contactación
+        tasa_contactacion = round(contestadas / total_marcadas * 100, 2) if total_marcadas > 0 else 0
+        
+        # Preparar eventos para el gráfico
+        eventos = {
+            'CONTESTADAS': {
+                'descripcion': 'Llamadas Contestadas',
+                'total': contestadas
+            },
+            'NO_CONTESTADAS': {
+                'descripcion': 'No Contestadas',
+                'total': no_contestadas
+            },
+            'OCUPADO': {
+                'descripcion': 'Línea Ocupada',
+                'total': ocupadas
+            },
+            'FALLOS': {
+                'descripcion': 'Fallos Técnicos',
+                'total': fallos
             }
-        
-        # Calcular métricas
-        total_marcadas = eventos.get('DIAL', {}).get('total', 0)
-        total_contestadas = eventos.get('ANSWER', {}).get('total', 0)
-        
-        tasa_contactacion = round(total_contestadas / total_marcadas * 100, 2) if total_marcadas > 0 else 0
+        }
         
         return {
             'eventos': eventos,
             'metricas': {
                 'total_marcadas': total_marcadas,
-                'total_contestadas': total_contestadas,
-                'total_no_contestadas': eventos.get('NOANSWER', {}).get('total', 0),
-                'total_ocupadas': eventos.get('BUSY', {}).get('total', 0),
-                'total_canceladas': eventos.get('CANCEL', {}).get('total', 0),
+                'total_contestadas': contestadas,
+                'total_no_contestadas': no_contestadas,
+                'total_ocupadas': ocupadas,
+                'total_fallos': fallos,
                 'tasa_contactacion': tasa_contactacion
             }
         }

@@ -303,6 +303,7 @@ const DashboardMejorado = () => {
                 { id: 'horaria', label: '🕐 Distribución Horaria', icon: '🕐' },
                 { id: 'campanas', label: '🎯 Campañas (Alertas)', icon: '🎯' },
                 { id: 'atendidas', label: '✅ Llamadas Atendidas', icon: '✅' },
+                { id: 'abandonadas', label: '📞❌ Llamadas Abandonadas', icon: '📞❌' },
                 { id: 'agentes', label: '👥 Agentes', icon: '👥' }
               ].map(tab => (
                 <button

@@ -565,8 +565,13 @@ class CallAnalyticsService:
         llamadas = []
         for r in resultados:
             llamada = r.LlamadaLog
+            
+            # Determinar quién colgó
+            quien_colgo = 'Agente' if llamada.event == 'COMPLETEAGENT' else 'Cliente'
+            
             llamadas.append({
                 'id': llamada.id,
+                'callid': llamada.callid,
                 'fecha': llamada.time.strftime('%Y-%m-%d'),
                 'hora': llamada.time.strftime('%H:%M:%S'),
                 'campana': r.campana_nombre or f'Campaña {llamada.campana_id}',
@@ -574,7 +579,8 @@ class CallAnalyticsService:
                 'numero': llamada.numero_marcado or '-',
                 'duracion': llamada.duracion_llamada or 0,
                 'espera': llamada.bridge_wait_time or 0,
-                'estado': llamada.event,
+                'evento': llamada.event,
+                'quien_colgo': quien_colgo,
                 'grabacion': llamada.archivo_grabacion or ''
             })
         

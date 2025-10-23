@@ -171,7 +171,7 @@ async def get_ocupacion_agentes(
 @router.get("/agentes/{agente_id}/timeline")
 async def get_timeline_agente(
     agente_id: int,
-    filters: dict = Depends(parse_filters),
+    filters: dict = Depends(parse_filters_no_agente),
     db: Session = Depends(get_db)
 ):
     """Obtiene el timeline de actividad de un agente"""

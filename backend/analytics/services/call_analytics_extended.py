@@ -865,13 +865,37 @@ class CallAnalyticsExtended:
         
         # Ordenar según tipo de agrupación
         if agrupar_por == 'hora':
-            datos.sort(key=lambda x: int(x['grupo'].split(':')[0]))
+            # Crear lista completa de 24 horas (0-23)
+            datos_dict = {d['grupo']: d for d in datos}
+            datos_completos = []
+            for hora in range(24):
+                hora_inicio = hora
+                hora_fin = (hora + 1) % 24
+                label = f"{hora_inicio:02d}:00 - {hora_fin:02d}:00"
+                
+                if label in datos_dict:
+                    datos_completos.append(datos_dict[label])
+                else:
+                    # Agregar hora sin datos
+                    datos_completos.append({
+                        'grupo': label,
+                        'total_llamadas': 0,
+                        'atendidas': 0,
+                        'abandonadas': 0,
+                        'transferidas': 0,
+                        'porcentaje_atendidas': 0,
+                        'porcentaje_abandonadas': 0,
+                        'tiempo_espera_promedio': 0,
+                        'tiempo_abandono_promedio': 0,
+                        'duracion_promedio': 0
+                    })
+            return datos_completos
+        elif agrupar_por == 'semana':
+            datos.sort(key=lambda x: int(x['grupo'].split()[1]))
         elif agrupar_por == 'mes':
-            meses_orden = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+            meses_orden = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                          'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
             datos.sort(key=lambda x: meses_orden.index(x['grupo']) if x['grupo'] in meses_orden else 99)
-        elif agrupar_por == 'dia_semana':
-            dias_orden = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
-            datos.sort(key=lambda x: dias_orden.index(x['grupo']) if x['grupo'] in dias_orden else 99)
         else:  # campaña - ordenar por total descendente
             datos.sort(key=lambda x: x['total_llamadas'], reverse=True)
         

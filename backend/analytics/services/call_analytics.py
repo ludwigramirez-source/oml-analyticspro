@@ -81,15 +81,23 @@ class CallAnalyticsService:
         # Total de llamadas
         total_llamadas = query.count()
         
-        # Llamadas atendidas
+        # Llamadas atendidas (COMPLETEAGENT, COMPLETEOUTNUM)
         llamadas_atendidas = query.filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
         ).count()
         
-        # Llamadas no atendidas
-        llamadas_no_atendidas = query.filter(
+        # Llamadas abandonadas (ABANDON, ABANDON-CTOUT, ABANDONWEL)
+        llamadas_abandonadas = query.filter(
+            LlamadaLog.event.in_(self.EVENTOS_ABANDONADAS)
+        ).count()
+        
+        # Otras llamadas no atendidas (NOANSWER, TIMEOUT, etc)
+        llamadas_no_atendidas_otras = query.filter(
             LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS)
         ).count()
+        
+        # Total no atendidas = abandonadas + otras
+        llamadas_no_atendidas_total = llamadas_abandonadas + llamadas_no_atendidas_otras
         
         # TMO (Tiempo Medio de Operación) - solo llamadas atendidas
         tmo_result = query.filter(

@@ -117,11 +117,26 @@ class AnalyticsAPI {
   }
 
   /**
-   * Obtiene llamadas detalladas
+   * Obtiene llamadas ATENDIDAS detalladas
+   */
+  async getLlamadasAtendidas(page = 1, perPage = 50, filters = {}) {
+    const endpoint = `llamadas-atendidas?page=${page}&per_page=${perPage}`;
+    return this.fetchData(endpoint, filters);
+  }
+
+  /**
+   * Obtiene llamadas ABANDONADAS detalladas
+   */
+  async getLlamadasAbandonadas(page = 1, perPage = 50, filters = {}) {
+    const endpoint = `llamadas-abandonadas?page=${page}&per_page=${perPage}`;
+    return this.fetchData(endpoint, filters);
+  }
+
+  /**
+   * Obtiene llamadas detalladas (alias para atendidas)
    */
   async getLlamadasDetalladas(page = 1, perPage = 50, filters = {}) {
-    const endpoint = `llamadas-detalladas?page=${page}&per_page=${perPage}`;
-    return this.fetchData(endpoint, filters);
+    return this.getLlamadasAtendidas(page, perPage, filters);
   }
 
   /**

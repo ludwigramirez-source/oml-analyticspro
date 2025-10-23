@@ -34,12 +34,27 @@ class CallAnalyticsService:
     ]
     
     # EVENTOS FINALES: Solo estos cuentan como "llamadas" en los totales
+    # Basado en la tabla oficial de eventos de OmniLeads
     EVENTOS_FINALES = [
-        'COMPLETEAGENT', 'COMPLETEOUTNUM',  # Atendidas
-        'ABANDON', 'ABANDONWEL', 'ABANDON-CTOUT',  # Abandonadas  
-        'NOANSWER', 'CANCEL', 'BUSY',  # Salientes no atendidas
-        'EXITWITHTIMEOUT',  # Timeout en cola
-        'CHANUNAVAIL', 'NONDIALPLAN'  # Sin ruta/canal
+        # Llamadas completadas (atendidas)
+        'COMPLETEAGENT',      # Agente cuelga
+        'COMPLETEOUTNUM',     # Cliente cuelga
+        'COMPLETE-BTOUT',     # Transfer ciego completado
+        'COMPLETE-CTOUT',     # Transfer consultivo completado
+        'COMPLETE-CT',        # Transfer consultivo por agente
+        
+        # Llamadas abandonadas
+        'ABANDON',            # Abandono en cola
+        'ABANDONWEL',         # Abandono en bienvenida
+        'ABANDON-CTOUT',      # Abandono durante transfer
+        'EXITWITHTIMEOUT',    # Timeout/Expirada
+        
+        # Salientes no atendidas
+        'NOANSWER',           # No contestada
+        'CANCEL',             # Cancelada
+        'BUSY',               # Ocupado
+        'CHANUNAVAIL',        # Canal no disponible
+        'NONDIALPLAN'         # Sin ruta
     ]
     
     # Tipos de llamada (basado en estructura real de OmniLeads)

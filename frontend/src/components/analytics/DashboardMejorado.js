@@ -39,16 +39,28 @@ const DashboardMejorado = () => {
   const [agentes, setAgentes] = useState([]);
 
   useEffect(() => {
-    loadInitialData();
-  }, []);
+    // Solo cargar datos si no estamos en la pestaña de configuración
+    if (activeTab !== 'configuracion') {
+      loadInitialData();
+    } else {
+      setLoading(false);
+    }
+  }, [activeTab]);
 
   const loadInitialData = async () => {
     try {
       console.log('🔵 Cargando datos iniciales...');
+      setLoading(true);
       
       const [campanasRes, agentesRes] = await Promise.all([
-        analyticsApi.getCampanas().catch(() => []),
-        analyticsApi.getAgentes().catch(() => [])
+        analyticsApi.getCampanas().catch((err) => {
+          console.warn('⚠️ Error cargando campañas:', err);
+          return [];
+        }),
+        analyticsApi.getAgentes().catch((err) => {
+          console.warn('⚠️ Error cargando agentes:', err);
+          return [];
+        })
       ]);
       
       setCampanas(campanasRes);

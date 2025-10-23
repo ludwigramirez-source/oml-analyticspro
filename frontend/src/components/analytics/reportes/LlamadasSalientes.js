@@ -48,7 +48,7 @@ const LlamadasSalientes = ({ filters }) => {
       
       {/* KPIs */}
       {dashboard && dashboard.metricas && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           <KPICard
             title="Total Marcadas"
             value={dashboard.metricas.total_marcadas}
@@ -58,7 +58,7 @@ const LlamadasSalientes = ({ filters }) => {
             title="Contestadas"
             value={dashboard.metricas.total_contestadas}
             icon="✅"
-            subtitle={`${dashboard.metricas.tasa_contactacion}% contactación`}
+            subtitle={`${dashboard.metricas.tasa_contactacion}% tasa`}
           />
           <KPICard
             title="No Contestadas"
@@ -69,6 +69,11 @@ const LlamadasSalientes = ({ filters }) => {
             title="Ocupadas"
             value={dashboard.metricas.total_ocupadas}
             icon="🔴"
+          />
+          <KPICard
+            title="Fallos Técnicos"
+            value={dashboard.metricas.total_fallos || 0}
+            icon="⚠️"
           />
         </div>
       )}

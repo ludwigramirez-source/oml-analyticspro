@@ -307,11 +307,16 @@ const DashboardMejorado = () => {
               {[
                 { id: 'configuracion', label: '⚙️ Configuración', icon: '⚙️' },
                 { id: 'resumen', label: '📈 Resumen', icon: '📈' },
+                { id: 'distribucion', label: '📊 Distribución', icon: '📊' },
+                { id: 'salientes', label: '📱 Salientes', icon: '📱' },
+                { id: 'causas', label: '🔍 Causas', icon: '🔍' },
                 { id: 'horaria', label: '🕐 Distribución Horaria', icon: '🕐' },
                 { id: 'campanas', label: '🎯 Campañas (Alertas)', icon: '🎯' },
                 { id: 'atendidas', label: '✅ Llamadas Atendidas', icon: '✅' },
                 { id: 'abandonadas', label: '📞❌ Llamadas Abandonadas', icon: '📞❌' },
-                { id: 'agentes', label: '👥 Agentes', icon: '👥' }
+                { id: 'agentes', label: '👥 Agentes', icon: '👥' },
+                { id: 'agentes-avanzado', label: '👥📊 Agentes Avanzado', icon: '👥' },
+                { id: 'transferencias', label: '🔄 Transferencias', icon: '🔄' }
               ].map(tab => (
                 <button
                   key={tab.id}

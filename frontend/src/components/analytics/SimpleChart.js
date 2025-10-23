@@ -47,7 +47,7 @@ const SimpleChart = ({ type, data, title }) => {
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
               <XAxis dataKey="name" stroke="#666" style={{ fontSize: '12px' }} />
-              <YAxis stroke="#666" style="{{" fontSize: '12px' }} />
+              <YAxis stroke="#666" style={{ fontSize: '12px' }} />
               <Tooltip />
               <Legend />
               <Bar dataKey="value" fill="#1a73e8" />

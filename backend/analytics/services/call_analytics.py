@@ -375,10 +375,10 @@ class CallAnalyticsService:
         query_entrantes = query_entrantes.filter(LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE)
         
         entrantes_atendidas = query_entrantes.filter(
-            LlamadaLog.event.in_(self.EVENTOS_FINAL_ENTRANTES)
+            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
         ).count()
         entrantes_abandonadas = query_entrantes.filter(
-            LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS)
+            LlamadaLog.event.in_(self.EVENTOS_ABANDONADAS)
         ).count()
         
         total_entrantes = entrantes_atendidas + entrantes_abandonadas

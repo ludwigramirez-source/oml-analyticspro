@@ -84,6 +84,16 @@ async def get_kpis(
     return service.get_kpis(filters)
 
 
+@router.get("/llamadas-por-tipo")
+async def get_llamadas_por_tipo(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Distribución separando ENTRANTES vs SALIENTES (crítico Power BI)"""
+    service = CallAnalyticsService(db)
+    return service.get_llamadas_por_tipo(filters)
+
+
 @router.get("/distribucion-llamadas")
 async def get_distribucion_llamadas(
     filters: dict = Depends(parse_filters),

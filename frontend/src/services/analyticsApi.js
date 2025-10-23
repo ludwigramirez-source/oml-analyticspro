@@ -180,8 +180,6 @@ class AnalyticsAPI {
   async getAgentes() {
     return this.fetchData('agentes');
   }
-}
-
   
   // ==================== NUEVOS ENDPOINTS PREMIUM ====================
   

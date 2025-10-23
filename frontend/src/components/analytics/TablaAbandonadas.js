@@ -20,6 +20,23 @@ const TablaAbandonadas = ({ llamadas }) => {
     return badges[tipo] || 'bg-gray-100 text-gray-800';
   };
 
+  // Paginación
+  const totalPages = Math.ceil((llamadas?.length || 0) / pageSize);
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    return llamadas?.slice(start, end) || [];
+  }, [llamadas, currentPage, pageSize]);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (size) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  };
+
   return (
     <div className="bg-white rounded-lg border border-gray-200">
       <div className="px-6 py-4 border-b border-gray-200 bg-red-50 flex justify-between items-center">

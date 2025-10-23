@@ -94,6 +94,16 @@ const DashboardMejorado = () => {
       console.log('✅ Distribución:', distribRes);
       setDistribucionData(prepareDistribucion(distribRes));
 
+      // Cargar distribución por tipo (entrantes vs salientes)
+      try {
+        const distribTipoRes = await analyticsApi.getDistribucionPorTipo(filters);
+        console.log('✅ Distribución por tipo:', distribTipoRes);
+        setDistribucionPorTipo(distribTipoRes);
+      } catch (err) {
+        console.warn('⚠️ Error en distribución por tipo:', err);
+        setDistribucionPorTipo(null);
+      }
+
       // Cargar evolución por hora
       try {
         const evolRes = await analyticsApi.getEvolucionHora(filters);

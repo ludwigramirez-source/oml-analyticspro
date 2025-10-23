@@ -78,54 +78,13 @@ const LlamadasSalientes = ({ filters }) => {
         </div>
       )}
 
-      {/* Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Distribución de Eventos */}
+      {/* Gráfico de Distribución */}
+      <div className="grid grid-cols-1 gap-6">
         <ApexChart
-          type="pie"
+          type="bar"
           data={prepareEventosChart()}
-          title="Distribución de Estados"
+          title="Distribución de Estados de Llamadas Salientes"
         />
-
-        {/* Manuales vs Dialer */}
-        {manualesVsDialer && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">
-              Manuales vs Dialer
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-700">Llamadas Manuales</span>
-                  <span className="font-bold text-blue-600">
-                    {manualesVsDialer.manuales.total} ({manualesVsDialer.manuales.porcentaje}%)
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className="bg-blue-600 h-3 rounded-full"
-                    style={{ width: `${manualesVsDialer.manuales.porcentaje}%` }}
-                  ></div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-700">Llamadas Dialer</span>
-                  <span className="font-bold text-green-600">
-                    {manualesVsDialer.dialer.total} ({manualesVsDialer.dialer.porcentaje}%)
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className="bg-green-600 h-3 rounded-full"
-                    style={{ width: `${manualesVsDialer.dialer.porcentaje}%` }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

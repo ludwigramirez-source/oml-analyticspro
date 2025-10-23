@@ -772,12 +772,13 @@ class CallAnalyticsExtended:
         if agrupar_por == 'hora':
             group_field = extract('hour', LlamadaLog.time)
             group_label = 'hora'
+        elif agrupar_por == 'semana':
+            # Semana del mes (1-5)
+            group_field = func.ceil(extract('day', LlamadaLog.time) / 7.0)
+            group_label = 'semana'
         elif agrupar_por == 'mes':
             group_field = extract('month', LlamadaLog.time)
             group_label = 'mes'
-        elif agrupar_por == 'dia_semana':
-            group_field = extract('dow', LlamadaLog.time)
-            group_label = 'dia_semana'
         elif agrupar_por == 'campana':
             # Para campaña necesitamos join
             base_query = base_query.join(Campana, LlamadaLog.campana_id == Campana.id)

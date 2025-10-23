@@ -13,7 +13,7 @@ import ConfiguracionDB from './ConfiguracionDB';
 const DashboardMejorado = () => {
   // Estados
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('resumen');
+  const [activeTab, setActiveTab] = useState('configuracion');
   const [filters, setFilters] = useState({});
   const [lastUpdate, setLastUpdate] = useState(new Date());
 

@@ -184,16 +184,77 @@ class CallAnalyticsService:
             func.count(func.distinct(LlamadaLog.agente_id))
         ).scalar() or 0
         
-        # Ocupación (porcentaje de tiempo en llamadas vs tiempo disponible)
-        # Simplificado: tiempo total en llamadas / (agentes * tiempo período)
+        # Ocupación (tiempo en llamadas / tiempo de sesión - pausas recreativas)
+        # Calcular tiempo real de sesión de agentes
         tiempo_total_llamadas = query.filter(
             LlamadaLog.duracion_llamada.isnot(None)
         ).with_entities(
             func.sum(LlamadaLog.duracion_llamada)
         ).scalar() or 0
         
-        # Calcular ocupación (asumiendo 8 horas = 28800 segundos por agente)
-        tiempo_disponible = agentes_activos * 28800 if agentes_activos > 0 else 1
+        # Calcular tiempo de sesión real de agentes
+        actividad_query = self.db.query(ActividadAgenteLog)
+        if filters.get('fecha_inicio'):
+            actividad_query = actividad_query.filter(ActividadAgenteLog.time >= filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            actividad_query = actividad_query.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
+        if filters.get('agente_ids'):
+            actividad_query = actividad_query.filter(ActividadAgenteLog.agente_id.in_(filters['agente_ids']))
+        
+        # Calcular tiempo de sesión por agente
+        tiempo_sesion_total = 0
+        tiempo_pausas_recreativas = 0
+        
+        # Obtener todos los eventos de actividad ordenados por agente y tiempo
+        actividades = actividad_query.order_by(ActividadAgenteLog.agente_id, ActividadAgenteLog.time).all()
+        
+        # Procesar por agente
+        agente_actual = None
+        tiempo_login = None
+        tiempo_pausa_inicio = None
+        pausa_id_actual = None
+        
+        for actividad in actividades:
+            if actividad.agente_id != agente_actual:
+                # Nuevo agente - cerrar sesión anterior si existe
+                if tiempo_login is not None:
+                    # Agregar tiempo hasta el final del período o hasta ahora
+                    tiempo_fin = filters.get('fecha_fin') or datetime.now()
+                    tiempo_sesion_total += (tiempo_fin - tiempo_login).total_seconds()
+                
+                agente_actual = actividad.agente_id
+                tiempo_login = None
+                tiempo_pausa_inicio = None
+                pausa_id_actual = None
+            
+            if actividad.event == 'ADDMEMBER':
+                tiempo_login = actividad.time
+            elif actividad.event == 'REMOVEMEMBER' and tiempo_login:
+                tiempo_sesion_total += (actividad.time - tiempo_login).total_seconds()
+                tiempo_login = None
+            elif actividad.event == 'PAUSEALL':
+                tiempo_pausa_inicio = actividad.time
+                pausa_id_actual = actividad.pausa_id
+            elif actividad.event == 'UNPAUSEALL' and tiempo_pausa_inicio:
+                # Calcular duración de la pausa
+                duracion_pausa = (actividad.time - tiempo_pausa_inicio).total_seconds()
+                
+                # Verificar si es pausa recreativa
+                if pausa_id_actual and pausa_id_actual.isdigit():
+                    pausa = self.db.query(Pausa).filter(Pausa.id == int(pausa_id_actual)).first()
+                    if pausa and pausa.tipo == 'R':
+                        tiempo_pausas_recreativas += duracion_pausa
+                
+                tiempo_pausa_inicio = None
+                pausa_id_actual = None
+        
+        # Cerrar sesiones abiertas al final del período
+        if tiempo_login is not None:
+            tiempo_fin = filters.get('fecha_fin') or datetime.now()
+            tiempo_sesion_total += (tiempo_fin - tiempo_login).total_seconds()
+        
+        # Calcular ocupación: tiempo en llamadas / (tiempo de sesión - pausas recreativas)
+        tiempo_disponible = tiempo_sesion_total - tiempo_pausas_recreativas
         ocupacion = round((tiempo_total_llamadas / tiempo_disponible * 100), 2) if tiempo_disponible > 0 else 0
         ocupacion = min(ocupacion, 100)  # Cap al 100%
         

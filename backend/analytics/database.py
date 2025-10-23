@@ -57,8 +57,9 @@ def update_database_connection(db_url: str):
     global engine, SessionLocal
     
     try:
-        # Cerrar engine anterior
-        engine.dispose()
+        # Cerrar engine anterior si existe
+        if engine:
+            engine.dispose()
         
         # Crear nuevo engine
         engine = create_engine(
@@ -84,6 +85,15 @@ def update_database_connection(db_url: str):
 
 def get_db():
     """Dependency para obtener sesión de base de datos"""
+    global engine, SessionLocal
+    
+    # Inicializar engine si no está inicializado
+    if engine is None:
+        _initialize_engine()
+    
+    if SessionLocal is None:
+        raise Exception("Database connection not configured")
+    
     db = SessionLocal()
     try:
         yield db

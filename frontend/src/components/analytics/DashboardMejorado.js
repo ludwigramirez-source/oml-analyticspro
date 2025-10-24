@@ -481,6 +481,7 @@ const DashboardMejorado = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-3 py-1 rounded-full font-semibold text-sm ${
                             c.color === 'green' ? 'bg-green-100 text-green-800' :
+                            c.color === 'orange' ? 'bg-orange-100 text-orange-800' :
                             c.color === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
                           }`}>
@@ -490,6 +491,7 @@ const DashboardMejorado = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{c.prom_duracion}s</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           {c.estado === 'excelente' ? '✅ Excelente' : 
+                           c.estado === 'advertencia' ? '⚠️ Advertencia' : 
                            c.estado === 'bueno' ? '⚠️ Bueno' : 
                            '🔴 Crítico'}
                         </td>

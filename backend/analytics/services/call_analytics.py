@@ -597,20 +597,27 @@ class CallAnalyticsService:
     
     def get_llamadas_abandonadas(self, filters: Dict = None, page: int = 1, per_page: int = 50) -> Dict:
         """
-        Obtiene lista detallada de llamadas ABANDONADAS con paginación
-        Solo eventos finales: ABANDON, ABANDONWEL, EXITWITHTIMEOUT
+        Obtiene lista detallada de llamadas NO ATENDIDAS con paginación
+        Incluye: ABANDONADAS (entrantes) + NO ATENDIDAS (salientes)
+        - ABANDON, ABANDONWEL, EXITWITHTIMEOUT (abandonadas entrantes)
+        - NOANSWER, CANCEL, BUSY, etc. (no atendidas salientes)
         Convierte timezone a GMT-5 (America/Bogota)
         """
         from datetime import timezone as dt_timezone, timedelta
         
         filters = filters or {}
         
-        # Subquery para obtener el último evento de cada llamada abandonada
+        # Combinar eventos abandonadas + no atendidas
+        eventos_no_atendidas_todas = self.EVENTOS_ABANDONADAS + self.EVENTOS_NO_ATENDIDAS
+        
+        # Subquery para obtener el último evento de cada llamada no atendida
+        # SOLO tipo_llamada 1 (entrantes) y 3 (salientes)
         subquery = self.db.query(
             LlamadaLog.callid,
             func.max(LlamadaLog.time).label('ultimo_tiempo')
         ).filter(
-            LlamadaLog.event.in_(self.EVENTOS_ABANDONADAS)
+            LlamadaLog.event.in_(eventos_no_atendidas_todas),
+            LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE])
         )
         
         if filters.get('fecha_inicio'):

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import datetime, date
+import time
 
 from ..database import get_db
 from ..services.call_analytics import CallAnalyticsService
@@ -12,6 +13,11 @@ from ..services.agent_analytics import AgentAnalyticsService
 from ..models.omnileads_models import Campana, AgenteProfile, User
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
+
+# Simple cache for campanas and agentes (expires after 5 minutes)
+_campanas_cache = {'data': None, 'timestamp': 0}
+_agentes_cache = {'data': None, 'timestamp': 0}
+CACHE_TTL = 300  # 5 minutes
 
 
 async def parse_filters(

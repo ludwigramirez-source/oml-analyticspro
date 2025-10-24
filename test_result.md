@@ -116,6 +116,12 @@ user_problem_statement: |
      - Display final call results instead of intermediate events (FIXED ✅)
      - Change chart from pie to bar for better visualization (FIXED ✅)
   
+  Current tasks (IN PROGRESS):
+  6. Fix KPI consistency between dashboard cards and detailed tables
+     - Modified get_kpis to count unique calls by callid
+     - Backend restarted to apply fix
+  7. Replace refresh button with Iptegra logo in header
+  
 backend:
   - task: "Fix database lazy loading"
     implemented: true

@@ -84,7 +84,8 @@ class ConfigService:
         config = DatabaseConfig(
             **config_data.model_dump(),
             connection_test_success=test_result.success,
-            connection_test_message=test_result.message
+            connection_test_message=test_result.message,
+            is_active=test_result.success  # Activar automáticamente si la conexión es exitosa
         )
         
         # Encriptar password antes de guardar
@@ -95,11 +96,12 @@ class ConfigService:
         config_dict['created_at'] = config_dict['created_at'].isoformat()
         config_dict['updated_at'] = config_dict['updated_at'].isoformat()
         
-        # Desactivar todas las configuraciones previas
-        await self.collection.update_many(
-            {'is_active': True},
-            {'$set': {'is_active': False}}
-        )
+        # Si la conexión fue exitosa, desactivar todas las configuraciones previas
+        if test_result.success:
+            await self.collection.update_many(
+                {'is_active': True},
+                {'$set': {'is_active': False}}
+            )
         
         # Guardar en MongoDB
         await self.collection.insert_one(config_dict)

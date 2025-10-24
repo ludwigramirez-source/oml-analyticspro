@@ -321,7 +321,7 @@ async def get_agentes(db: Session = Depends(get_db)):
         current_time - _agentes_cache['timestamp'] < CACHE_TTL):
         return _agentes_cache['data']
     
-    # Query database
+    # Query database (sin filtro borrado para evitar full table scan)
     agentes = db.query(
         AgenteProfile.id,
         User.first_name,
@@ -329,8 +329,6 @@ async def get_agentes(db: Session = Depends(get_db)):
         AgenteProfile.estado
     ).join(
         User, AgenteProfile.user_id == User.id
-    ).filter(
-        AgenteProfile.borrado == False
     ).order_by(User.first_name, User.last_name).all()
     
     result = [{

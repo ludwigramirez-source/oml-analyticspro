@@ -193,6 +193,94 @@ class BackendTester:
                     'description': f'{description} - Working with database'
                 })
     
+    def run_kpi_consistency_tests(self):
+        """Test KPI consistency between dashboard and detailed tables"""
+        print("\n" + "="*60)
+        print("🎯 KPI CONSISTENCY TESTS (CRITICAL)")
+        print("="*60)
+        
+        # Test KPIs endpoint
+        success_kpis, response_kpis = self.test_endpoint('GET', '/api/analytics/kpis', 
+                                                        expected_status=200, 
+                                                        description="Get KPIs for consistency check")
+        
+        # Test detailed calls endpoint
+        success_detailed, response_detailed = self.test_endpoint('GET', '/api/analytics/llamadas-detalladas', 
+                                                               expected_status=200, 
+                                                               description="Get detailed calls for consistency check")
+        
+        # Test abandoned calls endpoint
+        success_abandoned, response_abandoned = self.test_endpoint('GET', '/api/analytics/llamadas-abandonadas', 
+                                                                 expected_status=200, 
+                                                                 description="Get abandoned calls for consistency check")
+        
+        if success_kpis and success_detailed and success_abandoned:
+            try:
+                kpis_data = response_kpis.json()
+                detailed_data = response_detailed.json()
+                abandoned_data = response_abandoned.json()
+                
+                # Extract KPI values
+                kpi_atendidas = kpis_data.get('llamadas_atendidas', {}).get('valor', 0)
+                kpi_abandonadas = kpis_data.get('llamadas_abandonadas', {}).get('valor', 0)
+                
+                # Extract table counts
+                table_atendidas = detailed_data.get('total', 0)
+                table_abandonadas = abandoned_data.get('total', 0)
+                
+                print(f"\n   📊 KPI CONSISTENCY CHECK:")
+                print(f"   📈 Dashboard KPIs:")
+                print(f"      - Llamadas Atendidas: {kpi_atendidas}")
+                print(f"      - Llamadas Abandonadas: {kpi_abandonadas}")
+                print(f"   📋 Table Counts:")
+                print(f"      - Detailed Calls Total: {table_atendidas}")
+                print(f"      - Abandoned Calls Total: {table_abandonadas}")
+                
+                # Check consistency
+                atendidas_match = kpi_atendidas == table_atendidas
+                abandonadas_match = kpi_abandonadas == table_abandonadas
+                
+                if atendidas_match and abandonadas_match:
+                    print(f"   ✅ CONSISTENCY CHECK PASSED - Numbers match!")
+                    self.results['passed'].append({
+                        'endpoint': 'KPI Consistency',
+                        'method': 'COMPARISON',
+                        'status': 'CONSISTENT',
+                        'description': f'KPI numbers match table counts: Atendidas {kpi_atendidas}, Abandonadas {kpi_abandonadas}'
+                    })
+                else:
+                    print(f"   ❌ CONSISTENCY CHECK FAILED - Numbers don't match!")
+                    if not atendidas_match:
+                        print(f"      ❌ Atendidas mismatch: KPI={kpi_atendidas} vs Table={table_atendidas}")
+                    if not abandonadas_match:
+                        print(f"      ❌ Abandonadas mismatch: KPI={kpi_abandonadas} vs Table={table_abandonadas}")
+                    
+                    self.results['failed'].append({
+                        'endpoint': 'KPI Consistency',
+                        'method': 'COMPARISON',
+                        'expected_status': 'CONSISTENT',
+                        'actual_status': 'INCONSISTENT',
+                        'description': f'KPI mismatch - Atendidas: KPI={kpi_atendidas} vs Table={table_atendidas}, Abandonadas: KPI={kpi_abandonadas} vs Table={table_abandonadas}',
+                        'response': 'Data inconsistency detected'
+                    })
+                
+            except Exception as e:
+                print(f"   💥 ERROR parsing KPI consistency data: {str(e)}")
+                self.results['errors'].append({
+                    'endpoint': 'KPI Consistency',
+                    'method': 'COMPARISON',
+                    'error': f'Failed to parse consistency data: {str(e)}',
+                    'description': 'KPI consistency check failed due to parsing error'
+                })
+        else:
+            print(f"   ⚠️  Cannot perform consistency check - one or more endpoints failed")
+            if not success_kpis:
+                print(f"      - KPIs endpoint failed")
+            if not success_detailed:
+                print(f"      - Detailed calls endpoint failed")
+            if not success_abandoned:
+                print(f"      - Abandoned calls endpoint failed")
+    
     def run_additional_analytics_tests(self):
         """Test additional analytics endpoints"""
         print("\n" + "="*60)

@@ -173,10 +173,25 @@ const DashboardMejorado = () => {
       console.log('✅ Total llamadas atendidas cargadas:', todasLlamadasAtendidas.length);
       setLlamadasDetalladas(todasLlamadasAtendidas);
 
-      // Cargar llamadas abandonadas
-      const abandonadasRes = await analyticsApi.getLlamadasAbandonadas(1, 50, filters);
-      console.log('✅ Llamadas abandonadas recibidas:', abandonadasRes);
-      setLlamadasAbandonadas(abandonadasRes.data || []);
+      // Cargar TODAS las llamadas abandonadas (con paginación automática)
+      const todasLlamadasAbandonadas = [];
+      let currentPageAband = 1;
+      let hasMorePagesAband = true;
+      
+      while (hasMorePagesAband) {
+        const abandonadasRes = await analyticsApi.getLlamadasAbandonadas(currentPageAband, 200, filters);
+        console.log(`✅ Página ${currentPageAband} de llamadas abandonadas:`, abandonadasRes.data.length);
+        todasLlamadasAbandonadas.push(...(abandonadasRes.data || []));
+        
+        if (currentPageAband >= abandonadasRes.total_pages) {
+          hasMorePagesAband = false;
+        } else {
+          currentPageAband++;
+        }
+      }
+      
+      console.log('✅ Total llamadas abandonadas cargadas:', todasLlamadasAbandonadas.length);
+      setLlamadasAbandonadas(todasLlamadasAbandonadas);
 
       // Cargar agentes
       const agentesRes = await analyticsApi.getRendimientoAgentes(filters);

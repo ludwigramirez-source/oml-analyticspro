@@ -36,7 +36,9 @@ class AnalyticsAPI {
   async fetchData(endpoint, filters = {}) {
     try {
       const queryString = this.buildQueryString(filters);
-      const url = `${API_URL}/api/analytics/${endpoint}${queryString ? '?' + queryString : ''}`;
+      // Si el endpoint ya tiene parámetros (?), usar & para agregar más
+      const separator = endpoint.includes('?') ? '&' : '?';
+      const url = `${API_URL}/api/analytics/${endpoint}${queryString ? separator + queryString : ''}`;
       
       const response = await fetch(url);
       

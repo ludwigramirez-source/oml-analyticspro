@@ -472,8 +472,21 @@ const DashboardMejorado = () => {
 
             {/* Tab: Campañas con Alertas */}
             {activeTab === 'campanas' && (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+              <div>
+                {/* Botón de descarga */}
+                <div className="mb-4 flex justify-end">
+                  <button
+                    onClick={handleExportCampanasExcel}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <span>📥</span>
+                    Descargar Excel
+                  </button>
+                </div>
+
+                {/* Tabla */}
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Campaña</th>

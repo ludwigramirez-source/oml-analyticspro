@@ -19,7 +19,7 @@
             resultDiv.innerHTML = '<p>Loading...</p>';
             
             try {
-                const response = await fetch('https://reportflow-9.preview.emergentagent.com/api/analytics/kpis');
+                const response = await fetch('https://omnileads-dash-1.preview.emergentagent.com/api/analytics/kpis');
                 const data = await response.json();
                 resultDiv.innerHTML = '<h2>Success!</h2><pre>' + JSON.stringify(data, null, 2) + '</pre>';
             } catch (error) {

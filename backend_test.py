@@ -377,6 +377,7 @@ def main():
     tester.run_health_tests()
     tester.run_config_tests()
     tester.run_analytics_tests()
+    tester.run_kpi_consistency_tests()  # NEW: Critical KPI consistency test
     tester.run_additional_analytics_tests()
     
     # Print summary and return result

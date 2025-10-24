@@ -123,44 +123,32 @@ class CallAnalyticsService:
         # Total de llamadas (SOLO EVENTOS FINALES, SOLO tipo 1 y 3)
         total_llamadas = query.count()
         
-        # Subquery para obtener último evento de cada llamada (llamadas únicas)
-        # SOLO tipo_llamada 1 (entrantes) y 3 (salientes)
-        subquery_todas = self.db.query(
+        # Subquery para obtener último evento ATENDIDO de cada llamada
+        # SOLO tipo_llamada 1 (entrantes) y 3 (salientes) y SOLO eventos atendidos
+        subquery_atendidas = self.db.query(
             LlamadaLog.callid,
             func.max(LlamadaLog.time).label('ultimo_tiempo')
         )
         
-        # Aplicar filtros de tipo_llamada
-        subquery_todas = subquery_todas.filter(
-            LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE])
+        # Aplicar filtros de tipo_llamada y eventos atendidos
+        subquery_atendidas = subquery_atendidas.filter(
+            LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE]),
+            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
         )
         
         if filters.get('fecha_inicio'):
-            subquery_todas = subquery_todas.filter(LlamadaLog.time >= filters['fecha_inicio'])
+            subquery_atendidas = subquery_atendidas.filter(LlamadaLog.time >= filters['fecha_inicio'])
         if filters.get('fecha_fin'):
-            subquery_todas = subquery_todas.filter(LlamadaLog.time <= filters['fecha_fin'])
+            subquery_atendidas = subquery_atendidas.filter(LlamadaLog.time <= filters['fecha_fin'])
         if filters.get('campana_ids'):
-            subquery_todas = subquery_todas.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
+            subquery_atendidas = subquery_atendidas.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
         if filters.get('agente_ids'):
-            subquery_todas = subquery_todas.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
+            subquery_atendidas = subquery_atendidas.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
         
-        subquery_todas = subquery_todas.group_by(LlamadaLog.callid).subquery()
+        subquery_atendidas = subquery_atendidas.group_by(LlamadaLog.callid).subquery()
         
-        # Query de llamadas únicas
-        query_unicas = self.db.query(LlamadaLog).join(
-            subquery_todas,
-            and_(
-                LlamadaLog.callid == subquery_todas.c.callid,
-                LlamadaLog.time == subquery_todas.c.ultimo_tiempo
-            )
-        )
-        
-        # Total de llamadas únicas (no se usa actualmente)
-        
-        # Llamadas atendidas (COMPLETEAGENT, COMPLETEOUTNUM)
-        llamadas_atendidas = query_unicas.filter(
-            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
-        ).count()
+        # Contar llamadas atendidas únicas directamente del subquery
+        llamadas_atendidas = self.db.query(func.count(subquery_atendidas.c.callid)).scalar() or 0
         
         # Llamadas abandonadas (ABANDON, ABANDONWEL, EXITWITHTIMEOUT)
         llamadas_abandonadas = query_unicas.filter(

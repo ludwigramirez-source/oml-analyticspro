@@ -693,14 +693,44 @@ class CallAnalyticsService:
     def get_llamadas_detalladas(self, filters: Dict = None, page: int = 1, per_page: int = 50) -> Dict:
         """
         Obtiene lista detallada de llamadas ATENDIDAS con paginación
-        Solo eventos: COMPLETEAGENT, COMPLETEOUTNUM
+        Solo eventos finales: COMPLETEAGENT, COMPLETEOUTNUM
+        Convierte timezone a GMT-5 (America/Bogota)
         """
+        from datetime import timezone as dt_timezone, timedelta
+        
         filters = filters or {}
+        
+        # Subquery para obtener el último evento de cada llamada atendida
+        subquery = self.db.query(
+            LlamadaLog.callid,
+            func.max(LlamadaLog.time).label('ultimo_tiempo')
+        ).filter(
+            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
+        )
+        
+        if filters.get('fecha_inicio'):
+            subquery = subquery.filter(LlamadaLog.time >= filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            subquery = subquery.filter(LlamadaLog.time <= filters['fecha_fin'])
+        if filters.get('campana_ids'):
+            subquery = subquery.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
+        if filters.get('agente_ids'):
+            subquery = subquery.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
+        
+        subquery = subquery.group_by(LlamadaLog.callid).subquery()
+        
+        # Query principal con JOIN a subquery para obtener solo últimos eventos
         query = self.db.query(
             LlamadaLog,
             Campana.nombre.label('campana_nombre'),
             User.first_name.label('agente_nombre'),
             User.last_name.label('agente_apellido')
+        ).join(
+            subquery,
+            and_(
+                LlamadaLog.callid == subquery.c.callid,
+                LlamadaLog.time == subquery.c.ultimo_tiempo
+            )
         ).outerjoin(
             Campana, LlamadaLog.campana_id == Campana.id
         ).outerjoin(
@@ -709,11 +739,6 @@ class CallAnalyticsService:
             User, AgenteProfile.user_id == User.id
         )
         
-        query = self._apply_filters(query, filters)
-        
-        # Filtrar SOLO llamadas atendidas (COMPLETEAGENT, COMPLETEOUTNUM)
-        query = query.filter(LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS))
-        
         # Total de registros
         total = query.count()
         
@@ -721,9 +746,15 @@ class CallAnalyticsService:
         offset = (page - 1) * per_page
         resultados = query.order_by(LlamadaLog.time.desc()).offset(offset).limit(per_page).all()
         
+        # Timezone GMT-5 (America/Bogota)
+        gmt_minus_5 = dt_timezone(timedelta(hours=-5))
+        
         llamadas = []
         for r in resultados:
             llamada = r.LlamadaLog
+            
+            # Convertir tiempo a GMT-5
+            time_gmt5 = llamada.time.astimezone(gmt_minus_5)
             
             # Determinar quién colgó
             quien_colgo = 'Agente' if llamada.event == 'COMPLETEAGENT' else 'Cliente'
@@ -731,8 +762,8 @@ class CallAnalyticsService:
             llamadas.append({
                 'id': llamada.id,
                 'callid': llamada.callid,
-                'fecha': llamada.time.strftime('%Y-%m-%d'),
-                'hora': llamada.time.strftime('%H:%M:%S'),
+                'fecha': time_gmt5.strftime('%Y-%m-%d'),
+                'hora': time_gmt5.strftime('%H:%M:%S'),
                 'campana': r.campana_nombre or f'Campaña {llamada.campana_id}',
                 'agente': f'{r.agente_nombre or ""} {r.agente_apellido or ""}'.strip() or f'Agente {llamada.agente_id}',
                 'numero': llamada.numero_marcado or '-',

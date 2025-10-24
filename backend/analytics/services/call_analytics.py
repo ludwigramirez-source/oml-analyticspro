@@ -815,13 +815,16 @@ class CallAnalyticsService:
             nivel_atencion = round((r.atendidas / r.total_llamadas * 100), 2) if r.total_llamadas > 0 else 0
             
             # Determinar estado y color según nivel
-            if nivel_atencion >= 90:
+            # Verde (OK): 80% - 100%
+            # Naranja (Advertencia): 60% - 80%
+            # Rojo (Crítico): < 60%
+            if nivel_atencion >= 80:
                 estado = 'excelente'
                 color = 'green'
                 alerta = False
-            elif nivel_atencion >= 80:
-                estado = 'bueno'
-                color = 'yellow'
+            elif nivel_atencion >= 60:
+                estado = 'advertencia'
+                color = 'orange'
                 alerta = False
             else:
                 estado = 'critico'

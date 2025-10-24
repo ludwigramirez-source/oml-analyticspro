@@ -840,6 +840,12 @@ class CallAnalyticsExtended:
                 hora_inicio = int(grupo_valor)
                 hora_fin = (hora_inicio + 1) % 24
                 label = f"{hora_inicio:02d}:00 - {hora_fin:02d}:00"
+            elif agrupar_por == 'dia':
+                # Formatear fecha como DD/MM/YYYY
+                if hasattr(grupo_valor, 'strftime'):
+                    label = grupo_valor.strftime('%d/%m/%Y')
+                else:
+                    label = str(grupo_valor)
             elif agrupar_por == 'semana':
                 label = f"Semana {int(grupo_valor)}"
             elif agrupar_por == 'mes':

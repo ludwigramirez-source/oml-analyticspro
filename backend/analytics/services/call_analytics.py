@@ -227,55 +227,8 @@ class CallAnalyticsService:
         ocupacion_porcentaje = 0.0  # Por ahora retornamos 0 hasta optimizar
         # La ocupación real requiere índices en ActividadAgenteLog para calcular eficientemente
         
-        # Procesar por agente
-        agente_actual = None
-        tiempo_login = None
-        tiempo_pausa_inicio = None
-        pausa_id_actual = None
-        
-        for actividad in actividades:
-            if actividad.agente_id != agente_actual:
-                # Nuevo agente - cerrar sesión anterior si existe
-                if tiempo_login is not None:
-                    # Agregar tiempo hasta el final del período o hasta ahora
-                    tiempo_fin = filters.get('fecha_fin') or datetime.now(timezone.utc)
-                    tiempo_sesion_total += (tiempo_fin - tiempo_login).total_seconds()
-                
-                agente_actual = actividad.agente_id
-                tiempo_login = None
-                tiempo_pausa_inicio = None
-                pausa_id_actual = None
-            
-            if actividad.event == 'ADDMEMBER':
-                tiempo_login = actividad.time
-            elif actividad.event == 'REMOVEMEMBER' and tiempo_login:
-                tiempo_sesion_total += (actividad.time - tiempo_login).total_seconds()
-                tiempo_login = None
-            elif actividad.event == 'PAUSEALL':
-                tiempo_pausa_inicio = actividad.time
-                pausa_id_actual = actividad.pausa_id
-            elif actividad.event == 'UNPAUSEALL' and tiempo_pausa_inicio:
-                # Calcular duración de la pausa
-                duracion_pausa = (actividad.time - tiempo_pausa_inicio).total_seconds()
-                
-                # Verificar si es pausa recreativa
-                if pausa_id_actual and pausa_id_actual.isdigit():
-                    pausa = self.db.query(Pausa).filter(Pausa.id == int(pausa_id_actual)).first()
-                    if pausa and pausa.tipo == 'R':
-                        tiempo_pausas_recreativas += duracion_pausa
-                
-                tiempo_pausa_inicio = None
-                pausa_id_actual = None
-        
-        # Cerrar sesiones abiertas al final del período
-        if tiempo_login is not None:
-            tiempo_fin = filters.get('fecha_fin') or datetime.now(timezone.utc)
-            tiempo_sesion_total += (tiempo_fin - tiempo_login).total_seconds()
-        
-        # Calcular ocupación: tiempo en llamadas / (tiempo de sesión - pausas recreativas)
-        tiempo_disponible = tiempo_sesion_total - tiempo_pausas_recreativas
-        ocupacion = round((tiempo_total_llamadas / tiempo_disponible * 100), 2) if tiempo_disponible > 0 else 0
-        ocupacion = min(ocupacion, 100)  # Cap al 100%
+        # Ocupación simplificada - se mantiene en 0 hasta implementar cálculo completo
+        ocupacion = 0
         
         # Calcular métricas adicionales
         # FCR (First Call Resolution) - Simplificado

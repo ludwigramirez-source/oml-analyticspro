@@ -900,6 +900,18 @@ class CallAnalyticsExtended:
                         'duracion_promedio': 0
                     })
             return datos_completos
+        elif agrupar_por == 'dia':
+            # Ordenar por fecha (formato DD/MM/YYYY)
+            def fecha_sort_key(x):
+                try:
+                    # Convertir DD/MM/YYYY a objeto datetime para ordenar
+                    parts = x['grupo'].split('/')
+                    if len(parts) == 3:
+                        return int(parts[2]) * 10000 + int(parts[1]) * 100 + int(parts[0])
+                    return 0
+                except:
+                    return 0
+            datos.sort(key=fecha_sort_key)
         elif agrupar_por == 'semana':
             datos.sort(key=lambda x: int(x['grupo'].split()[1]))
         elif agrupar_por == 'mes':

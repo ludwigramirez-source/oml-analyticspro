@@ -286,22 +286,44 @@ async def get_distribucion_pausas(
 
 @router.get("/campanas")
 async def get_campanas(db: Session = Depends(get_db)):
-    """Obtiene lista de campañas"""
+    """Obtiene lista de campañas (cached)"""
+    current_time = time.time()
+    
+    # Check cache
+    if (_campanas_cache['data'] is not None and 
+        current_time - _campanas_cache['timestamp'] < CACHE_TTL):
+        return _campanas_cache['data']
+    
+    # Query database
     campanas = db.query(Campana).filter(
         Campana.oculto == False
     ).order_by(Campana.nombre).all()
     
-    return [{
+    result = [{
         'id': c.id,
         'nombre': c.nombre,
         'tipo': c.type,
         'estado': c.estado
     } for c in campanas]
+    
+    # Update cache
+    _campanas_cache['data'] = result
+    _campanas_cache['timestamp'] = current_time
+    
+    return result
 
 
 @router.get("/agentes")
 async def get_agentes(db: Session = Depends(get_db)):
-    """Obtiene lista de agentes"""
+    """Obtiene lista de agentes (cached)"""
+    current_time = time.time()
+    
+    # Check cache
+    if (_agentes_cache['data'] is not None and 
+        current_time - _agentes_cache['timestamp'] < CACHE_TTL):
+        return _agentes_cache['data']
+    
+    # Query database
     agentes = db.query(
         AgenteProfile.id,
         User.first_name,
@@ -313,11 +335,17 @@ async def get_agentes(db: Session = Depends(get_db)):
         AgenteProfile.borrado == False
     ).order_by(User.first_name, User.last_name).all()
     
-    return [{
+    result = [{
         'id': a.id,
         'nombre': f'{a.first_name} {a.last_name}',
         'estado': a.estado
     } for a in agentes]
+    
+    # Update cache
+    _agentes_cache['data'] = result
+    _agentes_cache['timestamp'] = current_time
+    
+    return result
 
 
 

@@ -41,8 +41,15 @@ class ConfigService:
             # Construir URL de conexión
             db_url = f"postgresql://{config.db_user}:{config.db_password}@{config.db_host}:{config.db_port}/{config.db_name}"
             
-            # Intentar crear engine y conectar
-            engine = create_engine(db_url, pool_pre_ping=True)
+            # Intentar crear engine y conectar con timeout
+            engine = create_engine(
+                db_url, 
+                pool_pre_ping=True,
+                connect_args={
+                    "connect_timeout": 10,  # Timeout de 10 segundos
+                    "options": "-c statement_timeout=10000"  # 10 segundos para queries
+                }
+            )
             
             with engine.connect() as connection:
                 # Ejecutar query simple para verificar conexión

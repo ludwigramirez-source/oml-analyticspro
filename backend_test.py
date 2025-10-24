@@ -291,7 +291,10 @@ class BackendTester:
             ('/api/analytics/distribucion-llamadas', 'Call distribution'),
             ('/api/analytics/causas-no-atencion', 'Causes of non-attention'),
             ('/api/analytics/campanas', 'Get campaigns list'),
-            ('/api/analytics/agentes', 'Get agents list')
+            ('/api/analytics/agentes', 'Get agents list'),
+            ('/api/analytics/evolucion-semanal', 'Weekly evolution'),
+            ('/api/analytics/tabla-distribucion-horaria', 'Hourly distribution table'),
+            ('/api/analytics/salientes/dashboard', 'Outbound calls dashboard')
         ]
         
         for endpoint, description in additional_endpoints:

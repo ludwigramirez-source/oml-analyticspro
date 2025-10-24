@@ -150,21 +150,52 @@ class CallAnalyticsService:
         # Contar llamadas atendidas únicas directamente del subquery
         llamadas_atendidas = self.db.query(func.count(subquery_atendidas.c.callid)).scalar() or 0
         
-        # Llamadas abandonadas (ABANDON, ABANDONWEL, EXITWITHTIMEOUT)
-        llamadas_abandonadas = query_unicas.filter(
+        # Subquery para llamadas abandonadas únicas
+        subquery_abandonadas = self.db.query(
+            LlamadaLog.callid,
+            func.max(LlamadaLog.time).label('ultimo_tiempo')
+        ).filter(
+            LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE]),
             LlamadaLog.event.in_(self.EVENTOS_ABANDONADAS)
-        ).count()
+        )
+        if filters.get('fecha_inicio'):
+            subquery_abandonadas = subquery_abandonadas.filter(LlamadaLog.time >= filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            subquery_abandonadas = subquery_abandonadas.filter(LlamadaLog.time <= filters['fecha_fin'])
+        if filters.get('campana_ids'):
+            subquery_abandonadas = subquery_abandonadas.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
+        if filters.get('agente_ids'):
+            subquery_abandonadas = subquery_abandonadas.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
         
-        # Otras llamadas no atendidas (NOANSWER, CANCEL, BUSY, etc)
-        llamadas_no_atendidas_otras = query_unicas.filter(
+        subquery_abandonadas = subquery_abandonadas.group_by(LlamadaLog.callid).subquery()
+        llamadas_abandonadas = self.db.query(func.count(subquery_abandonadas.c.callid)).scalar() or 0
+        
+        # Subquery para otras llamadas no atendidas únicas
+        subquery_no_atendidas = self.db.query(
+            LlamadaLog.callid,
+            func.max(LlamadaLog.time).label('ultimo_tiempo')
+        ).filter(
+            LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE]),
             LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS)
-        ).count()
+        )
+        if filters.get('fecha_inicio'):
+            subquery_no_atendidas = subquery_no_atendidas.filter(LlamadaLog.time >= filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            subquery_no_atendidas = subquery_no_atendidas.filter(LlamadaLog.time <= filters['fecha_fin'])
+        if filters.get('campana_ids'):
+            subquery_no_atendidas = subquery_no_atendidas.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
+        if filters.get('agente_ids'):
+            subquery_no_atendidas = subquery_no_atendidas.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
+        
+        subquery_no_atendidas = subquery_no_atendidas.group_by(LlamadaLog.callid).subquery()
+        llamadas_no_atendidas_otras = self.db.query(func.count(subquery_no_atendidas.c.callid)).scalar() or 0
         
         # Total no atendidas = abandonadas + otras
         llamadas_no_atendidas_total = llamadas_abandonadas + llamadas_no_atendidas_otras
         
         # TMO (Tiempo Medio de Operación) - solo llamadas atendidas únicas
-        tmo_result = query_unicas.filter(
+        # Usar la query base con filtros para calcular promedios
+        tmo_result = query.filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
             LlamadaLog.duracion_llamada.isnot(None)
         ).with_entities(
@@ -174,7 +205,7 @@ class CallAnalyticsService:
         tmo_promedio = int(tmo_result.tmo_promedio) if tmo_result.tmo_promedio else 0
         
         # Tiempo de espera promedio
-        espera_result = query_unicas.filter(
+        espera_result = query.filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
             LlamadaLog.bridge_wait_time.isnot(None)
         ).with_entities(

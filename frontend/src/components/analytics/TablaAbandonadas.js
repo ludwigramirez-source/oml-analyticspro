@@ -48,7 +48,7 @@ const TablaAbandonadas = ({ llamadas }) => {
         </div>
         <ExportButton 
           data={llamadas} 
-          filename="llamadas_abandonadas"
+          filename="llamadas_no_atendidas"
           label="Exportar a Excel"
         />
       </div>

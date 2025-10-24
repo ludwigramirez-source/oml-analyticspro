@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
+import * as XLSX from 'xlsx';
 import analyticsApi from '../../services/analyticsApi';
 import KPICard from './KPICard';
 import FilterSection from './FilterSection';

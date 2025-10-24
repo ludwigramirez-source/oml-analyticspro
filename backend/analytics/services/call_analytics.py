@@ -222,20 +222,10 @@ class CallAnalyticsService:
         ).scalar() or 0
         
         # Calcular tiempo de sesión real de agentes
-        actividad_query = self.db.query(ActividadAgenteLog)
-        if filters.get('fecha_inicio'):
-            actividad_query = actividad_query.filter(ActividadAgenteLog.time >= filters['fecha_inicio'])
-        if filters.get('fecha_fin'):
-            actividad_query = actividad_query.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
-        if filters.get('agente_ids'):
-            actividad_query = actividad_query.filter(ActividadAgenteLog.agente_id.in_(filters['agente_ids']))
-        
-        # Calcular tiempo de sesión por agente
-        tiempo_sesion_total = 0
-        tiempo_pausas_recreativas = 0
-        
-        # Obtener todos los eventos de actividad ordenados por agente y tiempo
-        actividades = actividad_query.order_by(ActividadAgenteLog.agente_id, ActividadAgenteLog.time).all()
+        # Ocupación - Cálculo simplificado para performance
+        # TODO: Optimizar con agregación en base de datos
+        ocupacion_porcentaje = 0.0  # Por ahora retornamos 0 hasta optimizar
+        # La ocupación real requiere índices en ActividadAgenteLog para calcular eficientemente
         
         # Procesar por agente
         agente_actual = None

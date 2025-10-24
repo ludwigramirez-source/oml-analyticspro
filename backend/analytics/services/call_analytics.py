@@ -124,9 +124,15 @@ class CallAnalyticsService:
         total_llamadas = query.count()
         
         # Subquery para obtener último evento de cada llamada (llamadas únicas)
+        # SOLO tipo_llamada 1 (entrantes) y 3 (salientes)
         subquery_todas = self.db.query(
             LlamadaLog.callid,
             func.max(LlamadaLog.time).label('ultimo_tiempo')
+        )
+        
+        # Aplicar filtros de tipo_llamada
+        subquery_todas = subquery_todas.filter(
+            LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE])
         )
         
         if filters.get('fecha_inicio'):

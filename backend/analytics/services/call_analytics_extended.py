@@ -772,6 +772,10 @@ class CallAnalyticsExtended:
         if agrupar_por == 'hora':
             group_field = extract('hour', LlamadaLog.time)
             group_label = 'hora'
+        elif agrupar_por == 'dia':
+            # Día completo (fecha)
+            group_field = func.date(LlamadaLog.time)
+            group_label = 'dia'
         elif agrupar_por == 'semana':
             # Semana del mes (1-5)
             group_field = func.ceil(extract('day', LlamadaLog.time) / 7.0)

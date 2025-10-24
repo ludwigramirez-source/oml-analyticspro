@@ -85,6 +85,16 @@ const TablaDistribucionHoraria = ({ filters }) => {
           🕐 Por Hora
         </button>
         <button
+          onClick={() => setAgrupacion('dia')}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            agrupacion === 'dia'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+        >
+          📆 Por Día
+        </button>
+        <button
           onClick={() => setAgrupacion('semana')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             agrupacion === 'semana'
@@ -102,7 +112,7 @@ const TablaDistribucionHoraria = ({ filters }) => {
               : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
           }`}
         >
-          📆 Por Mes
+          📊 Por Mes
         </button>
         <button
           onClick={() => setAgrupacion('campana')}

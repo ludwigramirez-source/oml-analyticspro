@@ -149,8 +149,7 @@ class CallAnalyticsService:
             )
         )
         
-        # Total de llamadas únicas
-        llamadas_totales = query_unicas.count()
+        # Total de llamadas únicas (no se usa actualmente)
         
         # Llamadas atendidas (COMPLETEAGENT, COMPLETEOUTNUM)
         llamadas_atendidas = query_unicas.filter(

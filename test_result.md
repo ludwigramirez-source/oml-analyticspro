@@ -204,6 +204,18 @@ backend:
         agent: "main"
         comment: "Kept the get_llamadas_manuales_vs_dialer method for backwards compatibility, but frontend no longer uses it. The distinction is no longer displayed to users."
 
+  - task: "Fix KPI consistency - count unique calls"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/analytics/services/call_analytics.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Modified get_kpis method to count unique calls by callid using subquery pattern (same as get_llamadas_detalladas and get_llamadas_abandonadas). This ensures dashboard KPI cards match the counts in detailed tables. Backend restarted to apply changes."
+
 frontend:
   - task: "Split distribution chart into two pie charts"
     implemented: true

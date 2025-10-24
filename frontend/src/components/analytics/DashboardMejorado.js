@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import * as XLSX from 'xlsx';
 import analyticsApi from '../../services/analyticsApi';
 import KPICard from './KPICard';
@@ -18,10 +18,16 @@ import Transferencias from './reportes/Transferencias';
 import TablaDistribucionHoraria from './reportes/TablaDistribucionHoraria';
 
 const DashboardMejorado = () => {
+  // Filtros por defecto: últimos 7 días para carga más rápida
+  const defaultFilters = {
+    fecha_inicio: format(subDays(new Date(), 6), 'yyyy-MM-dd'),
+    fecha_fin: format(new Date(), 'yyyy-MM-dd')
+  };
+
   // Estados
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('resumen');
-  const [filters, setFilters] = useState({});
+  const [filters, setFilters] = useState(defaultFilters);
   const [lastUpdate, setLastUpdate] = useState(new Date());
 
   // Datos

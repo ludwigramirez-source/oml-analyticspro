@@ -364,31 +364,79 @@ class CallAnalyticsService:
     def get_llamadas_por_tipo(self, filters: Dict = None) -> Dict:
         """
         Obtiene distribución separando ENTRANTES vs SALIENTES
-        Crítico para replicar Power BI
+        Solo llamadas únicas (por callid, último evento)
         """
         filters = filters or {}
-        query = self.db.query(LlamadaLog)
-        query = self._apply_filters(query, filters)
         
-        # LLAMADAS ENTRANTES
-        entrantes_total = query.filter(LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE).count()
-        entrantes_atendidas = query.filter(
-            LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE,
+        # LLAMADAS ENTRANTES - Subquery para obtener último evento
+        subquery_entrantes = self.db.query(
+            LlamadaLog.callid,
+            func.max(LlamadaLog.time).label('ultimo_tiempo')
+        ).filter(
+            LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE
+        )
+        
+        if filters.get('fecha_inicio'):
+            subquery_entrantes = subquery_entrantes.filter(LlamadaLog.time >= filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            subquery_entrantes = subquery_entrantes.filter(LlamadaLog.time <= filters['fecha_fin'])
+        if filters.get('campana_ids'):
+            subquery_entrantes = subquery_entrantes.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
+        if filters.get('agente_ids'):
+            subquery_entrantes = subquery_entrantes.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
+        
+        subquery_entrantes = subquery_entrantes.group_by(LlamadaLog.callid).subquery()
+        
+        # Query para llamadas entrantes únicas
+        query_entrantes = self.db.query(LlamadaLog).join(
+            subquery_entrantes,
+            and_(
+                LlamadaLog.callid == subquery_entrantes.c.callid,
+                LlamadaLog.time == subquery_entrantes.c.ultimo_tiempo
+            )
+        )
+        
+        entrantes_total = query_entrantes.count()
+        entrantes_atendidas = query_entrantes.filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
         ).count()
-        entrantes_abandonadas = query.filter(
-            LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE,
-            LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS)
+        entrantes_abandonadas = query_entrantes.filter(
+            LlamadaLog.event.in_(self.EVENTOS_ABANDONADAS)
         ).count()
         
-        # LLAMADAS SALIENTES
-        salientes_total = query.filter(LlamadaLog.tipo_llamada == self.TIPO_SALIENTE).count()
-        salientes_atendidas = query.filter(
-            LlamadaLog.tipo_llamada == self.TIPO_SALIENTE,
+        # LLAMADAS SALIENTES - Subquery para obtener último evento
+        subquery_salientes = self.db.query(
+            LlamadaLog.callid,
+            func.max(LlamadaLog.time).label('ultimo_tiempo')
+        ).filter(
+            LlamadaLog.tipo_llamada == self.TIPO_SALIENTE
+        )
+        
+        if filters.get('fecha_inicio'):
+            subquery_salientes = subquery_salientes.filter(LlamadaLog.time >= filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            subquery_salientes = subquery_salientes.filter(LlamadaLog.time <= filters['fecha_fin'])
+        if filters.get('campana_ids'):
+            subquery_salientes = subquery_salientes.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
+        if filters.get('agente_ids'):
+            subquery_salientes = subquery_salientes.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
+        
+        subquery_salientes = subquery_salientes.group_by(LlamadaLog.callid).subquery()
+        
+        # Query para llamadas salientes únicas
+        query_salientes = self.db.query(LlamadaLog).join(
+            subquery_salientes,
+            and_(
+                LlamadaLog.callid == subquery_salientes.c.callid,
+                LlamadaLog.time == subquery_salientes.c.ultimo_tiempo
+            )
+        )
+        
+        salientes_total = query_salientes.count()
+        salientes_atendidas = query_salientes.filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
         ).count()
-        salientes_no_atendidas = query.filter(
-            LlamadaLog.tipo_llamada == self.TIPO_SALIENTE,
+        salientes_no_atendidas = query_salientes.filter(
             LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS)
         ).count()
         

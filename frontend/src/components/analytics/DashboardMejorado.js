@@ -534,6 +534,7 @@ const DashboardMejorado = () => {
                   </tbody>
                 </table>
               </div>
+              </div>
             )}
 
             {/* Tab: Llamadas Atendidas */}

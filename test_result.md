@@ -304,13 +304,13 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 2
+  test_sequence: 3
   run_ui: false
 
 test_plan:
   current_focus:
-    - "Frontend chart re-rendering with filters"
-    - "Frontend two separate pie charts testing"
+    - "Fix KPI consistency - count unique calls"
+    - "Replace refresh button with Iptegra logo"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -320,3 +320,5 @@ agent_communication:
     message: "Implemented fixes for database connection and chart rendering issues. Backend now uses lazy loading for PostgreSQL connection. Split distribution chart into two separate pie charts for entrantes and salientes. Added React key props to force chart re-render when data changes. Ready for backend testing."
   - agent: "testing"
     message: "✅ BACKEND TESTING COMPLETE: All backend tasks tested successfully. Fixed critical bug in get_distribucion_por_tipo method (undefined constants). Backend service health: ✅ Accessible, ✅ CORS configured, ✅ All endpoints exist, ✅ Database errors handled gracefully. New /api/analytics/distribucion-por-tipo endpoint working correctly. Ready for frontend testing or user validation."
+  - agent: "main"
+    message: "Fixed KPI consistency issue by modifying get_kpis to count unique calls by callid. Replaced refresh button in header with Iptegra logo. Backend restarted. Ready for comprehensive backend testing to verify KPI accuracy and ensure all existing functionality still works."

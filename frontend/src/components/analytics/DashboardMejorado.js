@@ -233,6 +233,26 @@ const DashboardMejorado = () => {
     loadDashboardData();
   };
 
+  const handleExportCampanasExcel = () => {
+    const excelData = campanasConAlerta.map(c => ({
+      'Campaña': c.campana,
+      'Agentes': c.cantidad_agentes,
+      'Llamadas Total': c.llamadas_entrantes,
+      'Atendidas': c.atendidas,
+      'Abandonadas': c.abandonadas,
+      'Nivel Atención': `${c.nivel_atencion}%`,
+      'Prom. Duración (seg)': c.prom_duracion,
+      'Estado': c.estado === 'excelente' ? 'Excelente' : 
+                c.estado === 'advertencia' ? 'Advertencia' : 'Crítico',
+      'Alerta': c.alerta ? 'SÍ' : 'NO'
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Campañas Alertas');
+    XLSX.writeFile(wb, `campanas_alertas_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   if (loading && Object.keys(kpis).length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">

@@ -212,12 +212,40 @@ class CallAnalyticsService:
             func.count(func.distinct(LlamadaLog.agente_id))
         ).scalar() or 0
         
-        # Ocupación - Cálculo simplificado para performance
-        # TODO: Optimizar con agregación en base de datos
-        # La ocupación real requiere índices en ActividadAgenteLog para calcular eficientemente
+        # Ocupación - Cálculo simplificado basado en tiempo de llamadas
+        # Ocupación = Tiempo total en llamadas / Tiempo disponible de agentes
+        # Tiempo disponible estimado = Agentes activos × Duración del período en segundos
         
-        # Ocupación simplificada - se mantiene en 0 hasta implementar cálculo completo
-        ocupacion = 0
+        tiempo_total_llamadas = query.filter(
+            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
+            LlamadaLog.duracion_llamada.isnot(None)
+        ).with_entities(
+            func.sum(LlamadaLog.duracion_llamada)
+        ).scalar() or 0
+        
+        # Calcular duración del período en segundos
+        if filters.get('fecha_inicio') and filters.get('fecha_fin'):
+            # Si hay filtros de fecha, usar esos
+            fecha_inicio = filters['fecha_inicio']
+            fecha_fin = filters['fecha_fin']
+            
+            # Convertir a datetime si son date
+            if not isinstance(fecha_inicio, datetime):
+                fecha_inicio = datetime.combine(fecha_inicio, datetime.min.time())
+            if not isinstance(fecha_fin, datetime):
+                fecha_fin = datetime.combine(fecha_fin, datetime.max.time())
+            
+            duracion_periodo_segundos = (fecha_fin - fecha_inicio).total_seconds()
+        else:
+            # Sin filtros, asumir 1 día laboral (8 horas)
+            duracion_periodo_segundos = 8 * 3600
+        
+        # Tiempo disponible = agentes activos × duración del período
+        tiempo_disponible = agentes_activos * duracion_periodo_segundos
+        
+        # Calcular ocupación
+        ocupacion = round((tiempo_total_llamadas / tiempo_disponible * 100), 2) if tiempo_disponible > 0 else 0
+        ocupacion = min(ocupacion, 100)  # Cap al 100%
         
         # Calcular métricas adicionales
         # FCR (First Call Resolution) - Simplificado

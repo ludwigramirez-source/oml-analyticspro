@@ -800,7 +800,7 @@ class CallAnalyticsExtended:
             func.sum(case((LlamadaLog.event.in_(eventos_abandonadas), 1), else_=0)).label('abandonadas'),
             func.sum(case((LlamadaLog.event.in_(eventos_transferencias), 1), else_=0)).label('transferidas'),
             func.avg(case((LlamadaLog.event.in_(eventos_atendidas), LlamadaLog.bridge_wait_time), else_=None)).label('tiempo_espera_promedio'),
-            func.avg(case((LlamadaLog.event.in_(eventos_abandonadas), LlamadaLog.duracion_llamada), else_=None)).label('tiempo_abandono_promedio'),
+            func.avg(case((LlamadaLog.event.in_(eventos_abandonadas), LlamadaLog.bridge_wait_time), else_=None)).label('tiempo_abandono_promedio'),
             func.avg(case((LlamadaLog.event.in_(eventos_atendidas), LlamadaLog.duracion_llamada), else_=None)).label('duracion_promedio')
         ).select_from(LlamadaLog)
         

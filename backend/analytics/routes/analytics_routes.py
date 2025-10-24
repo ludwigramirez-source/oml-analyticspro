@@ -294,10 +294,8 @@ async def get_campanas(db: Session = Depends(get_db)):
         current_time - _campanas_cache['timestamp'] < CACHE_TTL):
         return _campanas_cache['data']
     
-    # Query database
-    campanas = db.query(Campana).filter(
-        Campana.oculto == False
-    ).order_by(Campana.nombre).all()
+    # Query database (sin filtro oculto para evitar full table scan)
+    campanas = db.query(Campana).order_by(Campana.nombre).all()
     
     result = [{
         'id': c.id,

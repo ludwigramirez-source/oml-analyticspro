@@ -191,7 +191,7 @@ class ConfigService:
         return False
     
     async def activate_config(self, config_id: str) -> bool:
-        """Activa una configuración específica"""
+        """Activa una configuración específica y actualiza la conexión"""
         # Desactivar todas
         await self.collection.update_many(
             {'is_active': True},
@@ -206,6 +206,18 @@ class ConfigService:
         
         if result.modified_count > 0:
             logger.info(f"✅ Configuración activada: {config_id}")
+            
+            # Actualizar la conexión global
+            try:
+                config = await self.get_active_config()
+                if config:
+                    from analytics.database import update_database_connection
+                    connection_string = self.get_connection_string(config)
+                    update_database_connection(connection_string)
+                    logger.info(f"✅ Conexión global actualizada a: {config.db_host}:{config.db_port}/{config.db_name}")
+            except Exception as e:
+                logger.error(f"❌ Error actualizando conexión global: {e}")
+            
             return True
         
         return False

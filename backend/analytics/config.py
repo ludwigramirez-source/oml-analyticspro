@@ -3,7 +3,6 @@ Configuración para el módulo de Analytics OmniLeads
 Conexión READ-ONLY a PostgreSQL
 """
 import os
-import asyncio
 from dotenv import load_dotenv
 from pathlib import Path
 import logging

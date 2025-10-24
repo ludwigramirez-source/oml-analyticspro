@@ -26,36 +26,20 @@ class OmniLeadsConfig:
     
     @classmethod
     def get_active_config_from_mongo(cls):
-        """Obtiene la configuración activa desde MongoDB"""
+        """Obtiene la configuración activa desde MongoDB (synchronous)"""
         try:
-            # Import here to avoid circular imports
-            from motor.motor_asyncio import AsyncIOMotorClient
+            # Use synchronous pymongo instead of motor
+            from pymongo import MongoClient
             import base64
             
             # Get MongoDB connection from server
             mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
-            client = AsyncIOMotorClient(mongo_url)
+            client = MongoClient(mongo_url, serverSelectionTimeoutMS=5000)
             db = client[os.environ.get('DB_NAME', 'test_database')]
             
-            # Try to get active config synchronously
-            import asyncio
-            loop = None
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-            
-            if loop.is_running():
-                # If we're in an async context, we can't run async code
-                return None
-            
-            async def get_config():
-                doc = await db.database_configs.find_one({'is_active': True})
-                client.close()
-                return doc
-            
-            doc = loop.run_until_complete(get_config())
+            # Query MongoDB synchronously
+            doc = db.database_configs.find_one({'is_active': True})
+            client.close()
             
             if doc:
                 # Decrypt password

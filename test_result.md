@@ -289,6 +289,18 @@ frontend:
         agent: "main"
         comment: "Changed ApexChart type from 'pie' to 'bar' for better visualization of outbound call distribution. Removed the two-column grid layout as there's only one chart now."
 
+  - task: "Replace refresh button with Iptegra logo"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/analytics/DashboardMejorado.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Removed the refresh button from top-right corner and replaced it with Iptegra logo. Logo downloaded to /app/frontend/public/logo-iptegra.png and displayed with proper styling."
+
 metadata:
   created_by: "main_agent"
   version: "1.0"

@@ -212,18 +212,8 @@ class CallAnalyticsService:
             func.count(func.distinct(LlamadaLog.agente_id))
         ).scalar() or 0
         
-        # Ocupación (tiempo en llamadas / tiempo de sesión - pausas recreativas)
-        # Calcular tiempo real de sesión de agentes
-        tiempo_total_llamadas = query.filter(
-            LlamadaLog.duracion_llamada.isnot(None)
-        ).with_entities(
-            func.sum(LlamadaLog.duracion_llamada)
-        ).scalar() or 0
-        
-        # Calcular tiempo de sesión real de agentes
         # Ocupación - Cálculo simplificado para performance
         # TODO: Optimizar con agregación en base de datos
-        ocupacion_porcentaje = 0.0  # Por ahora retornamos 0 hasta optimizar
         # La ocupación real requiere índices en ActividadAgenteLog para calcular eficientemente
         
         # Ocupación simplificada - se mantiene en 0 hasta implementar cálculo completo

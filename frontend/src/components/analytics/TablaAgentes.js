@@ -1,7 +1,8 @@
 import React from 'react';
 import { ExportButton } from '../../utils/excelExport';
+import ApexChart from './ApexChart';
 
-const TablaAgentes = ({ agentes }) => {
+const TablaAgentes = ({ agentes, loading }) => {
   const formatTiempo = (seconds) => {
     if (!seconds || seconds === 0) return '00:00:00';
     const hours = Math.floor(seconds / 3600);
@@ -9,6 +10,101 @@ const TablaAgentes = ({ agentes }) => {
     const secs = seconds % 60;
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
+
+  // Preparar datos para el gráfico de barras (ordenado por llamadas contestadas)
+  const agentesOrdenados = [...agentes].sort((a, b) => b.llamadas_contestadas - a.llamadas_contestadas);
+  
+  const chartData = {
+    series: [{
+      name: 'Llamadas Contestadas',
+      data: agentesOrdenados.map(a => a.llamadas_contestadas)
+    }],
+    options: {
+      chart: {
+        type: 'bar',
+        height: 350,
+        toolbar: {
+          show: true,
+          tools: {
+            download: true,
+            zoom: false,
+            zoomin: false,
+            zoomout: false,
+            pan: false,
+            reset: false
+          }
+        }
+      },
+      plotOptions: {
+        bar: {
+          borderRadius: 4,
+          horizontal: false,
+          distributed: true,
+          dataLabels: {
+            position: 'top'
+          }
+        }
+      },
+      colors: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'],
+      dataLabels: {
+        enabled: true,
+        offsetY: -20,
+        style: {
+          fontSize: '12px',
+          colors: ['#304758']
+        }
+      },
+      xaxis: {
+        categories: agentesOrdenados.map(a => a.nombre.split(' ')[0]), // Solo primer nombre
+        labels: {
+          style: {
+            fontSize: '11px'
+          },
+          rotate: -45,
+          rotateAlways: true
+        }
+      },
+      yaxis: {
+        title: {
+          text: 'Llamadas Contestadas'
+        }
+      },
+      title: {
+        text: '📊 Llamadas Contestadas por Agente',
+        align: 'center',
+        style: {
+          fontSize: '16px',
+          fontWeight: 'bold',
+          color: '#1E40AF'
+        }
+      },
+      legend: {
+        show: false
+      },
+      grid: {
+        borderColor: '#e7e7e7',
+        row: {
+          colors: ['#f3f3f3', 'transparent'],
+          opacity: 0.5
+        }
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200 bg-blue-50">
+          <h3 className="text-lg font-semibold text-blue-800">👥 Disponibilidad de Agentes</h3>
+        </div>
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-gray-600 font-medium">Generando reporte de agentes...</p>
+          <p className="mt-2 text-sm text-gray-500">Por favor espere, esto puede tomar unos segundos</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg border border-gray-200">
@@ -25,6 +121,19 @@ const TablaAgentes = ({ agentes }) => {
           label="Exportar a Excel"
         />
       </div>
+
+      {/* Gráfico de barras - Llamadas contestadas por agente */}
+      {agentes.length > 0 && (
+        <div className="px-6 py-6 border-b border-gray-200 bg-gray-50">
+          <ApexChart 
+            options={chartData.options}
+            series={chartData.series}
+            type="bar"
+            height={350}
+          />
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">

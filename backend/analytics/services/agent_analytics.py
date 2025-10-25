@@ -277,18 +277,32 @@ class AgentAnalyticsService:
     
     def get_disponibilidad_agentes(self, filters: Dict = None) -> List[Dict]:
         """
-        Obtiene reporte detallado de disponibilidad de agentes
+        Obtiene reporte detallado de disponibilidad de agentes (OPTIMIZADO)
         Incluye: sesiones, tiempo al habla, pausas, ocupación, TMO, tasa de atención
         """
         from datetime import timezone as dt_timezone
+        from sqlalchemy import distinct
         
         filters = filters or {}
         
         # Constantes para eventos de llamadas atendidas
         EVENTOS_ATENDIDAS = ['COMPLETEAGENT', 'COMPLETEOUTNUM', 'COMPLETE-BTOUT', 'COMPLETE-CTOUT', 'COMPLETE-CT']
         
-        # Obtener todos los agentes activos
-        agentes_query = self.db.query(
+        # PASO 1: Obtener solo agentes que tuvieron actividad en el período
+        actividad_query = self.db.query(distinct(ActividadAgenteLog.agente_id))
+        
+        if filters.get('fecha_inicio'):
+            actividad_query = actividad_query.filter(ActividadAgenteLog.time >= filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            actividad_query = actividad_query.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
+        
+        agentes_activos_ids = [r[0] for r in actividad_query.all()]
+        
+        if not agentes_activos_ids:
+            return []
+        
+        # PASO 2: Obtener información básica de agentes
+        agentes_info = self.db.query(
             AgenteProfile.id,
             User.username,
             User.first_name,
@@ -296,17 +310,23 @@ class AgentAnalyticsService:
         ).join(
             User, AgenteProfile.user_id == User.id
         ).filter(
-            AgenteProfile.borrado == False
-        )
+            AgenteProfile.id.in_(agentes_activos_ids)
+        ).all()
         
-        agentes = agentes_query.all()
+        agentes_dict = {
+            ag.id: {
+                'agente_id': ag.id,
+                'username': ag.username,
+                'nombre': f'{ag.first_name} {ag.last_name}'
+            }
+            for ag in agentes_info
+        }
         
-        resultado = []
-        
-        for agente in agentes:
-            # Obtener actividades del agente
+        # PASO 3: Calcular métricas de actividad por agente
+        for agente_id in agentes_activos_ids:
+            # Obtener todas las actividades del agente en el período
             actividad_query = self.db.query(ActividadAgenteLog).filter(
-                ActividadAgenteLog.agente_id == agente.id
+                ActividadAgenteLog.agente_id == agente_id
             )
             
             if filters.get('fecha_inicio'):
@@ -316,12 +336,14 @@ class AgentAnalyticsService:
             
             actividades = actividad_query.order_by(ActividadAgenteLog.time).all()
             
-            # Calcular métricas de sesión y pausas
+            # Variables para calcular métricas
             num_sesiones = 0
             tiempo_total_sesion = 0
             num_pausas = 0
             tiempo_pausas_recreativas = 0
             tiempo_pausas_productivas = 0
+            primer_login = None
+            ultimo_logout = None
             
             tiempo_login = None
             tiempo_pausa_inicio = None
@@ -331,10 +353,14 @@ class AgentAnalyticsService:
                 if actividad.event == 'ADDMEMBER':
                     tiempo_login = actividad.time
                     num_sesiones += 1
-                elif actividad.event == 'REMOVEMEMBER' and tiempo_login:
-                    duracion_sesion = (actividad.time - tiempo_login).total_seconds()
-                    tiempo_total_sesion += duracion_sesion
-                    tiempo_login = None
+                    if primer_login is None:
+                        primer_login = actividad.time
+                elif actividad.event == 'REMOVEMEMBER':
+                    ultimo_logout = actividad.time
+                    if tiempo_login:
+                        duracion_sesion = (actividad.time - tiempo_login).total_seconds()
+                        tiempo_total_sesion += duracion_sesion
+                        tiempo_login = None
                 elif actividad.event == 'PAUSEALL':
                     tiempo_pausa_inicio = actividad.time
                     pausa_id_actual = actividad.pausa_id
@@ -359,26 +385,25 @@ class AgentAnalyticsService:
                 duracion_sesion = (filters['fecha_fin'] - tiempo_login).total_seconds()
                 tiempo_total_sesion += duracion_sesion
             
-            # Obtener métricas de llamadas del agente
-            llamadas_query = self.db.query(LlamadaLog).filter(
-                LlamadaLog.agente_id == agente.id
-            )
-            
-            if filters.get('fecha_inicio'):
-                llamadas_query = llamadas_query.filter(LlamadaLog.time >= filters['fecha_inicio'])
-            if filters.get('fecha_fin'):
-                llamadas_query = llamadas_query.filter(LlamadaLog.time <= filters['fecha_fin'])
-            
-            # Total de llamadas asignadas al agente
-            total_llamadas = llamadas_query.count()
-            
-            # Subquery para obtener últimas llamadas únicas del agente
-            from sqlalchemy import func
+            # Guardar métricas de actividad
+            agentes_dict[agente_id].update({
+                'num_sesiones': num_sesiones,
+                'tiempo_total_sesion': int(tiempo_total_sesion),
+                'num_pausas': num_pausas,
+                'tiempo_pausa_recreativa': int(tiempo_pausas_recreativas),
+                'tiempo_pausa_productiva': int(tiempo_pausas_productivas),
+                'primer_login': primer_login.strftime('%H:%M:%S') if primer_login else '-',
+                'ultimo_logout': ultimo_logout.strftime('%H:%M:%S') if ultimo_logout else '-'
+            })
+        
+        # PASO 4: Calcular métricas de llamadas usando agregaciones SQL
+        for agente_id in agentes_activos_ids:
+            # Subquery para obtener últimas llamadas únicas
             subquery_llamadas = self.db.query(
                 LlamadaLog.callid,
                 func.max(LlamadaLog.time).label('ultimo_tiempo')
             ).filter(
-                LlamadaLog.agente_id == agente.id
+                LlamadaLog.agente_id == agente_id
             )
             
             if filters.get('fecha_inicio'):
@@ -388,76 +413,67 @@ class AgentAnalyticsService:
             
             subquery_llamadas = subquery_llamadas.group_by(LlamadaLog.callid).subquery()
             
-            # Llamadas atendidas únicas
-            llamadas_atendidas_query = self.db.query(LlamadaLog).join(
+            # Query de llamadas únicas del agente
+            llamadas_unicas = self.db.query(LlamadaLog).join(
                 subquery_llamadas,
                 and_(
                     LlamadaLog.callid == subquery_llamadas.c.callid,
                     LlamadaLog.time == subquery_llamadas.c.ultimo_tiempo
                 )
-            ).filter(
+            )
+            
+            total_llamadas = llamadas_unicas.count()
+            
+            # Llamadas atendidas
+            llamadas_atendidas_query = llamadas_unicas.filter(
                 LlamadaLog.event.in_(EVENTOS_ATENDIDAS)
             )
             
             llamadas_atendidas = llamadas_atendidas_query.count()
             
-            # Tiempo al habla (suma de duraciones de llamadas atendidas)
-            tiempo_al_habla = llamadas_atendidas_query.filter(
-                LlamadaLog.duracion_llamada.isnot(None)
-            ).with_entities(
-                func.sum(LlamadaLog.duracion_llamada)
-            ).scalar() or 0
-            
-            # TMO (Tiempo Medio de Operación)
-            tmo = llamadas_atendidas_query.filter(
-                LlamadaLog.duracion_llamada.isnot(None)
-            ).with_entities(
-                func.avg(LlamadaLog.duracion_llamada)
-            ).scalar() or 0
-            
-            # Tiempo total de espera
-            tiempo_total_espera = llamadas_atendidas_query.filter(
+            # Métricas agregadas de llamadas atendidas
+            metricas = llamadas_atendidas_query.filter(
+                LlamadaLog.duracion_llamada.isnot(None),
                 LlamadaLog.bridge_wait_time.isnot(None)
             ).with_entities(
-                func.sum(LlamadaLog.bridge_wait_time)
-            ).scalar() or 0
+                func.sum(LlamadaLog.duracion_llamada).label('tiempo_al_habla'),
+                func.avg(LlamadaLog.duracion_llamada).label('tmo'),
+                func.sum(LlamadaLog.bridge_wait_time).label('tiempo_total_espera')
+            ).first()
             
-            # Calcular métricas
-            tiempo_promedio_sesion = tiempo_total_sesion / num_sesiones if num_sesiones > 0 else 0
-            tiempo_total_pausas = tiempo_pausas_recreativas + tiempo_pausas_productivas
-            tiempo_promedio_pausa = tiempo_total_pausas / num_pausas if num_pausas > 0 else 0
+            tiempo_al_habla = int(metricas.tiempo_al_habla or 0)
+            tmo = int(metricas.tmo or 0)
+            tiempo_total_espera = int(metricas.tiempo_total_espera or 0)
+            
+            # Calcular métricas derivadas
+            tiempo_promedio_sesion = agentes_dict[agente_id]['tiempo_total_sesion'] / agentes_dict[agente_id]['num_sesiones'] if agentes_dict[agente_id]['num_sesiones'] > 0 else 0
+            
+            tiempo_total_pausas = agentes_dict[agente_id]['tiempo_pausa_recreativa'] + agentes_dict[agente_id]['tiempo_pausa_productiva']
+            tiempo_promedio_pausa = tiempo_total_pausas / agentes_dict[agente_id]['num_pausas'] if agentes_dict[agente_id]['num_pausas'] > 0 else 0
             
             # Ocupación: tiempo al habla / (tiempo de sesión - pausas recreativas) * 100
-            tiempo_disponible = tiempo_total_sesion - tiempo_pausas_recreativas
+            tiempo_disponible = agentes_dict[agente_id]['tiempo_total_sesion'] - agentes_dict[agente_id]['tiempo_pausa_recreativa']
             ocupacion = (tiempo_al_habla / tiempo_disponible * 100) if tiempo_disponible > 0 else 0
-            ocupacion = min(ocupacion, 100)  # Cap al 100%
+            ocupacion = min(ocupacion, 100)
             
             # Tasa de atención
             tasa_atencion = (llamadas_atendidas / total_llamadas * 100) if total_llamadas > 0 else 0
             
-            # Solo agregar agentes que tuvieron actividad
-            if num_sesiones > 0 or total_llamadas > 0:
-                resultado.append({
-                    'agente_id': agente.id,
-                    'nombre': f'{agente.first_name} {agente.last_name}',
-                    'username': agente.username,
-                    'num_sesiones': num_sesiones,
-                    'tiempo_total_sesion': int(tiempo_total_sesion),
-                    'tiempo_promedio_sesion': int(tiempo_promedio_sesion),
-                    'tiempo_al_habla': int(tiempo_al_habla),
-                    'num_pausas': num_pausas,
-                    'tiempo_total_espera': int(tiempo_total_espera),
-                    'tiempo_pausa_recreativa': int(tiempo_pausas_recreativas),
-                    'tiempo_pausa_productiva': int(tiempo_pausas_productivas),
-                    'tiempo_promedio_pausa': int(tiempo_promedio_pausa),
-                    'ocupacion': round(ocupacion, 2),
-                    'tmo': int(tmo),
-                    'llamadas_atendidas': llamadas_atendidas,
-                    'total_llamadas': total_llamadas,
-                    'tasa_atencion': round(tasa_atencion, 2)
-                })
+            # Actualizar con métricas de llamadas
+            agentes_dict[agente_id].update({
+                'tiempo_promedio_sesion': int(tiempo_promedio_sesion),
+                'tiempo_al_habla': tiempo_al_habla,
+                'tiempo_total_espera': tiempo_total_espera,
+                'tiempo_promedio_pausa': int(tiempo_promedio_pausa),
+                'ocupacion': round(ocupacion, 2),
+                'tmo': tmo,
+                'llamadas_contestadas': llamadas_atendidas,
+                'total_llamadas': total_llamadas,
+                'tasa_atencion': round(tasa_atencion, 2)
+            })
         
-        # Ordenar por nombre
+        # Convertir a lista y ordenar por nombre
+        resultado = list(agentes_dict.values())
         resultado.sort(key=lambda x: x['nombre'])
         
         return resultado

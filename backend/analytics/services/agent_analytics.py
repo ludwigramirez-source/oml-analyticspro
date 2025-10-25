@@ -382,7 +382,15 @@ class AgentAnalyticsService:
             
             # Cerrar sesión abierta si hay una al final del período
             if tiempo_login is not None and filters.get('fecha_fin'):
-                duracion_sesion = (filters['fecha_fin'] - tiempo_login).total_seconds()
+                fecha_fin = filters['fecha_fin']
+                # Asegurar que ambas fechas sean aware o naive
+                if tiempo_login.tzinfo is None and hasattr(fecha_fin, 'tzinfo') and fecha_fin.tzinfo is not None:
+                    from datetime import timezone
+                    tiempo_login = tiempo_login.replace(tzinfo=timezone.utc)
+                elif tiempo_login.tzinfo is not None and (not hasattr(fecha_fin, 'tzinfo') or fecha_fin.tzinfo is None):
+                    tiempo_login = tiempo_login.replace(tzinfo=None)
+                    
+                duracion_sesion = (fecha_fin - tiempo_login).total_seconds()
                 tiempo_total_sesion += duracion_sesion
             
             # Guardar métricas de actividad

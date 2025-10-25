@@ -35,7 +35,7 @@ async def parse_filters(
     if fecha_inicio:
         filters['fecha_inicio'] = datetime.combine(fecha_inicio, datetime.min.time())
     if fecha_fin:
-        filters['fecha_fin'] = datetime.combine(fecha_fin, datetime.min.time())
+        filters['fecha_fin'] = datetime.combine(fecha_fin, datetime.max.time())
     
     # Soportar tanto campana_id único como campana_ids múltiples
     if campana_ids:

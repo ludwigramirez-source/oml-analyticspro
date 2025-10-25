@@ -13,7 +13,11 @@ const TablaAgentes = ({ agentes, loading }) => {
 
   // Solo construir el gráfico si hay datos
   const getChartData = () => {
+    console.log('🔍 getChartData called - agentes:', agentes);
+    console.log('🔍 agentes length:', agentes ? agentes.length : 'null');
+    
     if (!agentes || agentes.length === 0) {
+      console.log('❌ No agentes - returning null');
       return null;
     }
 
@@ -21,11 +25,17 @@ const TablaAgentes = ({ agentes, loading }) => {
     const agentesOrdenados = [...agentes]
       .sort((a, b) => (b.llamadas_contestadas || 0) - (a.llamadas_contestadas || 0));
     
+    console.log('📊 agentesOrdenados:', agentesOrdenados.map(a => ({
+      nombre: a.nombre,
+      llamadas: a.llamadas_contestadas
+    })));
+    
     if (agentesOrdenados.length === 0) {
+      console.log('❌ No agentes ordenados - returning null');
       return null;
     }
 
-    return {
+    const chartConfig = {
       series: [{
         name: 'Llamadas Contestadas',
         data: agentesOrdenados.map(a => a.llamadas_contestadas || 0)
@@ -101,9 +111,13 @@ const TablaAgentes = ({ agentes, loading }) => {
         }
       }
     };
+    
+    console.log('✅ Returning chart config with data:', chartConfig.series[0].data);
+    return chartConfig;
   };
 
   const chartData = getChartData();
+  console.log('📈 chartData result:', chartData ? 'HAS DATA' : 'NULL');
 
   if (loading) {
     return (

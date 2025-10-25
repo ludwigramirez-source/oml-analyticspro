@@ -253,6 +253,17 @@ async def get_rendimiento_agentes(
     return service.get_rendimiento_agentes(filters)
 
 
+
+@router.get("/agentes/disponibilidad")
+async def get_disponibilidad_agentes(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Obtiene reporte detallado de disponibilidad de agentes"""
+    service = AgentAnalyticsService(db)
+    return service.get_disponibilidad_agentes(filters)
+
+
 @router.get("/agentes/ocupacion")
 async def get_ocupacion_agentes(
     filters: dict = Depends(parse_filters),

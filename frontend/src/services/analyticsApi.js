@@ -189,6 +189,15 @@ class AnalyticsAPI {
   async getAgentes() {
     return this.fetchData('agentes');
   }
+
+  
+  /**
+   * Obtiene disponibilidad detallada de agentes
+   */
+  async getDisponibilidadAgentes(filters = {}) {
+    return this.fetchData('agentes/disponibilidad', filters);
+  }
+
   
   // ==================== NUEVOS ENDPOINTS PREMIUM ====================
   

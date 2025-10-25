@@ -11,85 +11,100 @@ const TablaAgentes = ({ agentes, loading }) => {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  // Preparar datos para el gráfico de barras (ordenado por llamadas contestadas)
-  const agentesOrdenados = [...agentes].sort((a, b) => b.llamadas_contestadas - a.llamadas_contestadas);
-  
-  const chartData = {
-    series: [{
-      name: 'Llamadas Contestadas',
-      data: agentesOrdenados.map(a => a.llamadas_contestadas)
-    }],
-    options: {
-      chart: {
-        type: 'bar',
-        height: 350,
-        toolbar: {
-          show: true,
-          tools: {
-            download: true,
-            zoom: false,
-            zoomin: false,
-            zoomout: false,
-            pan: false,
-            reset: false
+  // Solo construir el gráfico si hay datos
+  const getChartData = () => {
+    if (!agentes || agentes.length === 0) {
+      return null;
+    }
+
+    // Preparar datos para el gráfico de barras (ordenado por llamadas contestadas)
+    const agentesOrdenados = [...agentes]
+      .filter(a => a.llamadas_contestadas !== undefined && a.llamadas_contestadas !== null)
+      .sort((a, b) => b.llamadas_contestadas - a.llamadas_contestadas);
+    
+    if (agentesOrdenados.length === 0) {
+      return null;
+    }
+
+    return {
+      series: [{
+        name: 'Llamadas Contestadas',
+        data: agentesOrdenados.map(a => a.llamadas_contestadas || 0)
+      }],
+      options: {
+        chart: {
+          type: 'bar',
+          height: 350,
+          toolbar: {
+            show: true,
+            tools: {
+              download: true,
+              zoom: false,
+              zoomin: false,
+              zoomout: false,
+              pan: false,
+              reset: false
+            }
           }
-        }
-      },
-      plotOptions: {
-        bar: {
-          borderRadius: 4,
-          horizontal: false,
-          distributed: true,
-          dataLabels: {
-            position: 'top'
+        },
+        plotOptions: {
+          bar: {
+            borderRadius: 4,
+            horizontal: false,
+            distributed: true,
+            dataLabels: {
+              position: 'top'
+            }
           }
-        }
-      },
-      colors: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'],
-      dataLabels: {
-        enabled: true,
-        offsetY: -20,
-        style: {
-          fontSize: '12px',
-          colors: ['#304758']
-        }
-      },
-      xaxis: {
-        categories: agentesOrdenados.map(a => a.nombre.split(' ')[0]), // Solo primer nombre
-        labels: {
+        },
+        colors: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'],
+        dataLabels: {
+          enabled: true,
+          offsetY: -20,
           style: {
-            fontSize: '11px'
-          },
-          rotate: -45,
-          rotateAlways: true
-        }
-      },
-      yaxis: {
+            fontSize: '12px',
+            colors: ['#304758']
+          }
+        },
+        xaxis: {
+          categories: agentesOrdenados.map(a => a.nombre ? a.nombre.split(' ')[0] : 'Sin nombre'),
+          labels: {
+            style: {
+              fontSize: '11px'
+            },
+            rotate: -45,
+            rotateAlways: true
+          }
+        },
+        yaxis: {
+          title: {
+            text: 'Llamadas Contestadas'
+          }
+        },
         title: {
-          text: 'Llamadas Contestadas'
-        }
-      },
-      title: {
-        text: '📊 Llamadas Contestadas por Agente',
-        align: 'center',
-        style: {
-          fontSize: '16px',
-          fontWeight: 'bold',
-          color: '#1E40AF'
-        }
-      },
-      legend: {
-        show: false
-      },
-      grid: {
-        borderColor: '#e7e7e7',
-        row: {
-          colors: ['#f3f3f3', 'transparent'],
-          opacity: 0.5
+          text: '📊 Llamadas Contestadas por Agente',
+          align: 'center',
+          style: {
+            fontSize: '16px',
+            fontWeight: 'bold',
+            color: '#1E40AF'
+          }
+        },
+        legend: {
+          show: false
+        },
+        grid: {
+          borderColor: '#e7e7e7',
+          row: {
+            colors: ['#f3f3f3', 'transparent'],
+            opacity: 0.5
+          }
         }
       }
-    }
+    };
   };
+
+  const chartData = getChartData();
 
   if (loading) {
     return (

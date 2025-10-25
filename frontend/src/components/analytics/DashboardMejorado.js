@@ -584,7 +584,7 @@ const DashboardMejorado = () => {
 
             {/* Tab: Agentes */}
             {activeTab === 'agentes' && (
-              <TablaAgentes agentes={agentesData} />
+              <TablaAgentes agentes={agentesData} loading={loading} />
             )}
 
             {/* Tab: Distribución Avanzada */}

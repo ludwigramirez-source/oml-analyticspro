@@ -138,7 +138,7 @@ const TablaAgentes = ({ agentes, loading }) => {
       </div>
 
       {/* Gráfico de barras - Llamadas contestadas por agente */}
-      {agentes.length > 0 && (
+      {chartData && (
         <div className="px-6 py-6 border-b border-gray-200 bg-gray-50">
           <ApexChart 
             options={chartData.options}

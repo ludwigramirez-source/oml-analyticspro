@@ -19,8 +19,7 @@ const TablaAgentes = ({ agentes, loading }) => {
 
     // Preparar datos para el gráfico de barras (ordenado por llamadas contestadas)
     const agentesOrdenados = [...agentes]
-      .filter(a => a.llamadas_contestadas !== undefined && a.llamadas_contestadas !== null)
-      .sort((a, b) => b.llamadas_contestadas - a.llamadas_contestadas);
+      .sort((a, b) => (b.llamadas_contestadas || 0) - (a.llamadas_contestadas || 0));
     
     if (agentesOrdenados.length === 0) {
       return null;

@@ -156,10 +156,10 @@ class AnalyticsAPI {
   }
 
   /**
-   * Obtiene rendimiento de agentes
+   * Obtiene rendimiento de agentes (disponibilidad detallada)
    */
   async getRendimientoAgentes(filters = {}) {
-    return this.fetchData('agentes/rendimiento', filters);
+    return this.fetchData('agentes/disponibilidad', filters);
   }
 
   /**

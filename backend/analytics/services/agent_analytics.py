@@ -372,41 +372,5 @@ class AgentAnalyticsService:
         resultado.sort(key=lambda x: x['llamadas_contestadas'], reverse=True)
         
         return resultado
-            
-            tiempo_al_habla = int(metricas.tiempo_al_habla or 0)
-            tmo = int(metricas.tmo or 0)
-            tiempo_total_espera = int(metricas.tiempo_total_espera or 0)
-            
-            # Calcular métricas derivadas
-            tiempo_promedio_sesion = agentes_dict[agente_id]['tiempo_total_sesion'] / agentes_dict[agente_id]['num_sesiones'] if agentes_dict[agente_id]['num_sesiones'] > 0 else 0
-            
-            tiempo_total_pausas = agentes_dict[agente_id]['tiempo_pausa_recreativa'] + agentes_dict[agente_id]['tiempo_pausa_productiva']
-            tiempo_promedio_pausa = tiempo_total_pausas / agentes_dict[agente_id]['num_pausas'] if agentes_dict[agente_id]['num_pausas'] > 0 else 0
-            
-            # Ocupación: tiempo al habla / (tiempo de sesión - pausas recreativas) * 100
-            tiempo_disponible = agentes_dict[agente_id]['tiempo_total_sesion'] - agentes_dict[agente_id]['tiempo_pausa_recreativa']
-            ocupacion = (tiempo_al_habla / tiempo_disponible * 100) if tiempo_disponible > 0 else 0
-            ocupacion = min(ocupacion, 100)
-            
-            # Tasa de atención
-            tasa_atencion = (llamadas_atendidas / total_llamadas * 100) if total_llamadas > 0 else 0
-            
-            # Actualizar con métricas de llamadas
-            agentes_dict[agente_id].update({
-                'tiempo_promedio_sesion': int(tiempo_promedio_sesion),
-                'tiempo_al_habla': tiempo_al_habla,
-                'tiempo_total_espera': tiempo_total_espera,
-                'tiempo_promedio_pausa': int(tiempo_promedio_pausa),
-                'ocupacion': round(ocupacion, 2),
-                'tmo': tmo,
-                'llamadas_contestadas': llamadas_atendidas,
-                'total_llamadas': total_llamadas,
-                'tasa_atencion': round(tasa_atencion, 2)
-            })
-        
-        # Convertir a lista y ordenar por nombre
-        resultado = list(agentes_dict.values())
-        resultado.sort(key=lambda x: x['nombre'])
-        
-        return resultado
+
 

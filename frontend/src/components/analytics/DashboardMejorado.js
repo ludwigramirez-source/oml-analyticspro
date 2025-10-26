@@ -156,21 +156,9 @@ const DashboardMejorado = () => {
       console.log('✅ Campañas con alertas:', campanasRes);
       setCampanasConAlerta(campanasRes);
 
-      // Cargar agentes (opcional - no bloquea carga del dashboard)
-      try {
-        console.log('📊 Intentando cargar rendimiento de agentes...');
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), 5000)
-        );
-        const agentesPromise = analyticsApi.getRendimientoAgentes(filters);
-        
-        const agentesRes = await Promise.race([agentesPromise, timeoutPromise]);
-        console.log('✅ Agentes:', agentesRes);
-        setAgentesData(agentesRes);
-      } catch (err) {
-        console.warn('⚠️ Error cargando agentes (timeout o error):', err.message);
-        setAgentesData([]);  // Establecer array vacío para evitar errores en UI
-      }
+      // Cargar agentes (deshabilitado temporalmente por problemas de performance)
+      // TODO: Optimizar endpoint /agentes/disponibilidad antes de rehabilitar
+      setAgentesData([]);
 
       setLastUpdate(new Date());
       console.log('✅ Datos principales cargados - mostrando dashboard');

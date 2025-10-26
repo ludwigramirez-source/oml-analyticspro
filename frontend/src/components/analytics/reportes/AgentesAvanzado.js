@@ -126,9 +126,33 @@ const AgentesAvanzado = ({ filters }) => {
       {/* Heatmap de Disponibilidad */}
       {heatmapData && heatmapData.matriz && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">
-            📅 Disponibilidad de Agentes por Día/Hora
-          </h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-bold text-gray-800">
+              📅 Disponibilidad de Agentes por Día/Hora
+            </h3>
+            {disponibilidadAgentes && disponibilidadAgentes.length > 0 && (
+              <ExportButton 
+                data={disponibilidadAgentes.map(ag => ({
+                  'Agente': ag.nombre,
+                  'Llamadas Contestadas': ag.llamadas_contestadas,
+                  'Nº Sesiones': ag.num_sesiones,
+                  'Tiempo Total Sesión': formatTiempo(ag.tiempo_total_sesion),
+                  'Tiempo Promedio Sesión': formatTiempo(ag.tiempo_promedio_sesion),
+                  'Tiempo Al Habla': formatTiempo(ag.tiempo_al_habla),
+                  'Nº Pausas': ag.num_pausas,
+                  'Tiempo Pausa Recreativa': formatTiempo(ag.tiempo_pausa_recreativa),
+                  'Tiempo Pausa Productiva': formatTiempo(ag.tiempo_pausa_productiva),
+                  'Tiempo Total Pausa': formatTiempo(ag.tiempo_total_pausa),
+                  'Tiempo Promedio Pausa': formatTiempo(ag.tiempo_promedio_pausa),
+                  '% Ocupación': ag.ocupacion,
+                  'Primer Login': ag.primer_login,
+                  'Último Logout': ag.ultimo_logout
+                }))} 
+                filename="disponibilidad_agentes_heatmap"
+                label="📥 Exportar Disponibilidad"
+              />
+            )}
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead>

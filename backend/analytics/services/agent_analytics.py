@@ -288,7 +288,7 @@ class AgentAnalyticsService:
         # Constantes para eventos de llamadas atendidas
         EVENTOS_ATENDIDAS = ['COMPLETEAGENT', 'COMPLETEOUTNUM', 'COMPLETE-BTOUT', 'COMPLETE-CTOUT', 'COMPLETE-CT']
         
-        # PASO 1: Obtener solo agentes que tuvieron actividad en el período
+        # PASO 1: Obtener solo agentes que tuvieron actividad en el período (limitado a 100)
         actividad_query = self.db.query(distinct(ActividadAgenteLog.agente_id))
         
         if filters.get('fecha_inicio'):
@@ -296,7 +296,7 @@ class AgentAnalyticsService:
         if filters.get('fecha_fin'):
             actividad_query = actividad_query.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
         
-        agentes_activos_ids = [r[0] for r in actividad_query.all()]
+        agentes_activos_ids = [r[0] for r in actividad_query.limit(100).all()]
         
         if not agentes_activos_ids:
             return []

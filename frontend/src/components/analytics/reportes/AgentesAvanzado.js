@@ -79,6 +79,35 @@ const AgentesAvanzado = ({ filters }) => {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
+  const abrirDetalles = async (agente) => {
+    setSelectedAgente(agente);
+    setModalOpen(true);
+    setLoadingDetalles(true);
+    setActiveModalTab('sesiones');
+    
+    try {
+      // Cargar detalles de sesiones y pausas del agente
+      const [sesiones, pausas] = await Promise.all([
+        analyticsApi.getDetalleSesionesAgente(agente.agente_id, filters).catch(() => []),
+        analyticsApi.getDetallePausasAgente(agente.agente_id, filters).catch(() => [])
+      ]);
+      
+      setDetallesSesiones(sesiones);
+      setDetallesPausas(pausas);
+    } catch (error) {
+      console.error('Error cargando detalles:', error);
+    } finally {
+      setLoadingDetalles(false);
+    }
+  };
+
+  const cerrarModal = () => {
+    setModalOpen(false);
+    setSelectedAgente(null);
+    setDetallesSesiones([]);
+    setDetallesPausas([]);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">

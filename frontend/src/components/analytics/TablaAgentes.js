@@ -193,7 +193,7 @@ const TablaAgentes = ({ agentes, loading }) => {
           <tbody className="bg-white divide-y divide-gray-200">
             {agentes.length === 0 ? (
               <tr>
-                <td colSpan="12" className="px-6 py-8 text-center text-gray-500">
+                <td colSpan="14" className="px-6 py-8 text-center text-gray-500">
                   No hay datos de agentes para mostrar en el período seleccionado
                 </td>
               </tr>
@@ -207,7 +207,9 @@ const TablaAgentes = ({ agentes, loading }) => {
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{formatTiempo(agente.tiempo_promedio_sesion)}</td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">{formatTiempo(agente.tiempo_al_habla)}</td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-center text-gray-900">{agente.num_pausas}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-orange-600">{formatTiempo(agente.tiempo_total_pausa)}</td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-orange-600 font-medium">{formatTiempo(agente.tiempo_pausa_recreativa)}</td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-purple-600 font-medium">{formatTiempo(agente.tiempo_pausa_productiva)}</td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{formatTiempo(agente.tiempo_total_pausa)}</td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{formatTiempo(agente.tiempo_promedio_pausa)}</td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-center">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${

@@ -331,6 +331,8 @@ class AgentAnalyticsService:
                 'tiempo_promedio_sesion': 0,
                 'tiempo_al_habla': 0,
                 'num_pausas': 0,
+                'tiempo_pausa_recreativa': 0,
+                'tiempo_pausa_productiva': 0,
                 'tiempo_total_pausa': 0,
                 'tiempo_promedio_pausa': 0,
                 'ocupacion': 0,

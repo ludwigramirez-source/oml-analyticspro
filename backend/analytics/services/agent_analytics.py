@@ -376,6 +376,17 @@ class AgentAnalyticsService:
             
             actividades = actividad_query.order_by(ActividadAgenteLog.time).all()
             
+            # Obtener tipos de pausas del agente de una sola vez
+            pausas_dict = {}
+            if num_pausas > 0:
+                pausas_agente = self.db.query(Pausa).filter(
+                    Pausa.id.in_([
+                        int(act.pausa_id) for act in actividades 
+                        if act.event == 'PAUSEALL' and act.pausa_id and act.pausa_id.isdigit()
+                    ])
+                ).all()
+                pausas_dict = {str(p.id): p.tipo for p in pausas_agente}
+            
             # Calcular sesiones y pausas
             num_sesiones = 0
             tiempo_total_sesion = 0
@@ -408,14 +419,15 @@ class AgentAnalyticsService:
                 elif actividad.event == 'UNPAUSEALL' and tiempo_pausa_inicio:
                     duracion_pausa = (actividad.time - tiempo_pausa_inicio).total_seconds()
                     
-                    # Verificar tipo de pausa (R=Recreativa, P=Productiva)
-                    if pausa_id_actual and pausa_id_actual.isdigit():
-                        pausa = self.db.query(Pausa).filter(Pausa.id == int(pausa_id_actual)).first()
-                        if pausa:
-                            if pausa.tipo == 'R':
-                                tiempo_pausas_recreativas += duracion_pausa
-                            else:
-                                tiempo_pausas_productivas += duracion_pausa
+                    # Verificar tipo de pausa usando el diccionario precargado
+                    if pausa_id_actual and pausa_id_actual in pausas_dict:
+                        if pausas_dict[pausa_id_actual] == 'R':
+                            tiempo_pausas_recreativas += duracion_pausa
+                        else:
+                            tiempo_pausas_productivas += duracion_pausa
+                    else:
+                        # Si no se encuentra el tipo, asumirlo como productiva
+                        tiempo_pausas_productivas += duracion_pausa
                     
                     tiempo_pausa_inicio = None
                     pausa_id_actual = None

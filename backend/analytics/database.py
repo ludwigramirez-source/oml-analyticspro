@@ -27,14 +27,14 @@ def _initialize_engine():
         # URL de conexión a PostgreSQL (inicialmente desde env)
         DATABASE_URL = config.get_database_url()
         
-        # Crear engine con configuración READ-ONLY
+        # Crear engine con configuración READ-ONLY y timeout
         engine = create_engine(
             DATABASE_URL,
             pool_pre_ping=True,
             pool_recycle=3600,
             echo=False,  # Cambiar a True para debug SQL
             connect_args={
-                "options": "-c default_transaction_read_only=on"
+                "options": "-c default_transaction_read_only=on -c statement_timeout=30000"  # 30 segundos timeout
             }
         )
         

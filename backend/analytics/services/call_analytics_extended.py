@@ -36,8 +36,7 @@ class CallAnalyticsExtended:
         'CT-CANCEL': 'Transfer consultivo cancelado',
         'CT-BUSY': 'Transfer consultivo - destino ocupado',
         'COMPLETE-CT': 'Llamada completada vía transfer consultivo',
-        'ENTERQUEUE-TRANSFER': 'Llamada ingresó a cola por transferencia',
-        'CONNECT': 'Conexión establecida (puede ser transfer)'
+        'ENTERQUEUE-TRANSFER': 'Llamada ingresó a cola por transferencia'
     }
     
     def __init__(self, db: Session):

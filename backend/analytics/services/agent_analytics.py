@@ -534,6 +534,9 @@ class AgentAnalyticsService:
             pausas_agente = self.db.query(Pausa).filter(Pausa.id.in_(pausas_ids)).all()
             pausas_dict = {str(p.id): {'tipo': p.tipo, 'nombre': p.nombre} for p in pausas_agente}
         
+        # Agregar pausa ACW (After Call Work) para ID 0
+        pausas_dict['0'] = {'tipo': 'P', 'nombre': 'ACW (After Call Work)'}
+        
         pausas = []
         tiempo_pausa_inicio = None
         pausa_id_actual = None
@@ -548,7 +551,7 @@ class AgentAnalyticsService:
                 minutos = int((duracion_segundos % 3600) // 60)
                 segundos = int(duracion_segundos % 60)
                 
-                pausa_info = pausas_dict.get(pausa_id_actual, {'tipo': 'P', 'nombre': 'Desconocida'})
+                pausa_info = pausas_dict.get(pausa_id_actual, {'tipo': 'P', 'nombre': 'Otra'})
                 
                 pausas.append({
                     'tipo': pausa_info['tipo'],

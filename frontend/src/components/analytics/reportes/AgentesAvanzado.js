@@ -63,31 +63,7 @@ const AgentesAvanzado = ({ filters }) => {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">👥 Análisis Avanzado de Agentes</h2>
-        {disponibilidadAgentes && disponibilidadAgentes.length > 0 && (
-          <ExportButton 
-            data={disponibilidadAgentes.map(ag => ({
-              'Agente': ag.nombre,
-              'Llamadas Contestadas': ag.llamadas_contestadas,
-              'Nº Sesiones': ag.num_sesiones,
-              'Tiempo Total Sesión': formatTiempo(ag.tiempo_total_sesion),
-              'Tiempo Promedio Sesión': formatTiempo(ag.tiempo_promedio_sesion),
-              'Tiempo Al Habla': formatTiempo(ag.tiempo_al_habla),
-              'Nº Pausas': ag.num_pausas,
-              'Tiempo Pausa Recreativa': formatTiempo(ag.tiempo_pausa_recreativa),
-              'Tiempo Pausa Productiva': formatTiempo(ag.tiempo_pausa_productiva),
-              'Tiempo Total Pausa': formatTiempo(ag.tiempo_total_pausa),
-              'Tiempo Promedio Pausa': formatTiempo(ag.tiempo_promedio_pausa),
-              '% Ocupación': ag.ocupacion,
-              'Primer Login': ag.primer_login,
-              'Último Logout': ag.ultimo_logout
-            }))} 
-            filename="disponibilidad_agentes_completo"
-            label="📥 Exportar Disponibilidad de Agentes"
-          />
-        )}
-      </div>
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">👥 Análisis Avanzado de Agentes</h2>
       
       {/* Resumen de Sesiones */}
       {totalSesiones && (

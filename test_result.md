@@ -206,9 +206,9 @@ backend:
 
   - task: "Fix KPI consistency - count unique calls"
     implemented: true
-    working: true
+    working: false
     file: "/app/backend/analytics/services/call_analytics.py"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
     needs_retesting: false
     status_history:
@@ -218,6 +218,21 @@ backend:
       - working: true
         agent: "testing"
         comment: "✅ TESTED: Database connection issue resolved by fixing analytics config to use active MongoDB configuration instead of localhost. Backend now connects to capresoca.iptegra.co:5432/omnileads with 17,082 call records. KPI endpoint accessible but queries are slow due to complex calculations on large dataset. The unique call counting fix is implemented correctly - performance optimization may be needed for production use."
+      - working: false
+        agent: "testing"
+        comment: "❌ KPI CONSISTENCY ISSUE FOUND: Dashboard KPIs show Llamadas Abandonadas: 684 but detailed table shows 856 abandoned calls. Atendidas match correctly (2697). There's still an inconsistency in abandoned call counting between KPI endpoint and llamadas-abandonadas endpoint."
+
+  - task: "Test agentes disponibilidad endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/analytics/services/agent_analytics.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: Agentes disponibilidad endpoint working perfectly. Returns 9 agents total with all required fields (agente_id, username, nombre, llamadas_contestadas, tmo, tasa_atencion, total_llamadas). Found main agent with 504 calls as expected. All 9 agents have llamadas_contestadas > 0. TMO values are in seconds (>0), tasa_atencion values are valid percentages (0-100%). Endpoint structure and data validation passed completely."
 
 frontend:
   - task: "Split distribution chart into two pie charts"

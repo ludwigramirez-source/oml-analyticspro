@@ -465,3 +465,101 @@ class AgentAnalyticsService:
         return resultado
 
 
+
+    def get_detalle_sesiones_agente(self, agente_id: int, filters: Dict = None) -> List[Dict]:
+        """
+        Obtiene el detalle de todas las sesiones de un agente específico
+        """
+        filters = filters or {}
+        
+        # Obtener actividades del agente
+        actividad_query = self.db.query(ActividadAgenteLog).filter(
+            ActividadAgenteLog.agente_id == agente_id
+        )
+        
+        if filters.get('fecha_inicio'):
+            actividad_query = actividad_query.filter(ActividadAgenteLog.time >= filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            actividad_query = actividad_query.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
+        
+        actividades = actividad_query.order_by(ActividadAgenteLog.time).all()
+        
+        sesiones = []
+        tiempo_login = None
+        
+        for actividad in actividades:
+            if actividad.event == 'ADDMEMBER':
+                tiempo_login = actividad.time
+            elif actividad.event == 'REMOVEMEMBER' and tiempo_login:
+                duracion_segundos = (actividad.time - tiempo_login).total_seconds()
+                horas = int(duracion_segundos // 3600)
+                minutos = int((duracion_segundos % 3600) // 60)
+                segundos = int(duracion_segundos % 60)
+                
+                sesiones.append({
+                    'fecha_inicio': tiempo_login.strftime('%Y-%m-%d %H:%M:%S'),
+                    'fecha_fin': actividad.time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'duracion': f'{horas:02d}:{minutos:02d}:{segundos:02d}',
+                    'duracion_segundos': int(duracion_segundos)
+                })
+                tiempo_login = None
+        
+        return sesiones
+    
+    def get_detalle_pausas_agente(self, agente_id: int, filters: Dict = None) -> List[Dict]:
+        """
+        Obtiene el detalle de todas las pausas de un agente específico
+        """
+        filters = filters or {}
+        
+        # Obtener actividades del agente
+        actividad_query = self.db.query(ActividadAgenteLog).filter(
+            ActividadAgenteLog.agente_id == agente_id
+        )
+        
+        if filters.get('fecha_inicio'):
+            actividad_query = actividad_query.filter(ActividadAgenteLog.time >= filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            actividad_query = actividad_query.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
+        
+        actividades = actividad_query.order_by(ActividadAgenteLog.time).all()
+        
+        # Obtener tipos de pausas
+        pausas_ids = [
+            int(act.pausa_id) for act in actividades 
+            if act.event == 'PAUSEALL' and act.pausa_id and act.pausa_id.isdigit()
+        ]
+        pausas_dict = {}
+        if pausas_ids:
+            pausas_agente = self.db.query(Pausa).filter(Pausa.id.in_(pausas_ids)).all()
+            pausas_dict = {str(p.id): {'tipo': p.tipo, 'nombre': p.nombre} for p in pausas_agente}
+        
+        pausas = []
+        tiempo_pausa_inicio = None
+        pausa_id_actual = None
+        
+        for actividad in actividades:
+            if actividad.event == 'PAUSEALL':
+                tiempo_pausa_inicio = actividad.time
+                pausa_id_actual = actividad.pausa_id
+            elif actividad.event == 'UNPAUSEALL' and tiempo_pausa_inicio:
+                duracion_segundos = (actividad.time - tiempo_pausa_inicio).total_seconds()
+                horas = int(duracion_segundos // 3600)
+                minutos = int((duracion_segundos % 3600) // 60)
+                segundos = int(duracion_segundos % 60)
+                
+                pausa_info = pausas_dict.get(pausa_id_actual, {'tipo': 'P', 'nombre': 'Desconocida'})
+                
+                pausas.append({
+                    'tipo': pausa_info['tipo'],
+                    'nombre': pausa_info['nombre'],
+                    'fecha_inicio': tiempo_pausa_inicio.strftime('%Y-%m-%d %H:%M:%S'),
+                    'fecha_fin': actividad.time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'duracion': f'{horas:02d}:{minutos:02d}:{segundos:02d}',
+                    'duracion_segundos': int(duracion_segundos)
+                })
+                tiempo_pausa_inicio = None
+                pausa_id_actual = None
+        
+        return pausas
+

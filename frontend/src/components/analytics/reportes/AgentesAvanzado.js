@@ -7,8 +7,13 @@ const AgentesAvanzado = ({ filters }) => {
   const [loading, setLoading] = useState(true);
   const [totalSesiones, setTotalSesiones] = useState(null);
   const [heatmapData, setHeatmapData] = useState(null);
-  const [disponibilidadAmpliada, setDisponibilidadAmpliada] = useState([]);
   const [disponibilidadAgentes, setDisponibilidadAgentes] = useState([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedAgente, setSelectedAgente] = useState(null);
+  const [detallesSesiones, setDetallesSesiones] = useState([]);
+  const [detallesPausas, setDetallesPausas] = useState([]);
+  const [loadingDetalles, setLoadingDetalles] = useState(false);
+  const [activeModalTab, setActiveModalTab] = useState('sesiones');
 
   useEffect(() => {
     loadData();

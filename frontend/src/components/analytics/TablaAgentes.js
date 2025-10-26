@@ -159,6 +159,8 @@ const TablaAgentes = ({ agentes, loading }) => {
             'Tiempo Promedio Sesión': formatTiempo(ag.tiempo_promedio_sesion),
             'Tiempo Al Habla': formatTiempo(ag.tiempo_al_habla),
             'Nº Pausas': ag.num_pausas,
+            'Tiempo Pausa Recreativa': formatTiempo(ag.tiempo_pausa_recreativa),
+            'Tiempo Pausa Productiva': formatTiempo(ag.tiempo_pausa_productiva),
             'Tiempo Total Pausa': formatTiempo(ag.tiempo_total_pausa),
             'Tiempo Promedio Pausa': formatTiempo(ag.tiempo_promedio_pausa),
             '% Ocupación': ag.ocupacion,

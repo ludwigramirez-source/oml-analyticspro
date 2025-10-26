@@ -18,10 +18,14 @@ import Transferencias from './reportes/Transferencias';
 import TablaDistribucionHoraria from './reportes/TablaDistribucionHoraria';
 
 const DashboardMejorado = () => {
-  // Filtros por defecto: últimos 7 días para carga más rápida
+  // Filtros por defecto: Este mes
+  const today = new Date();
+  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  
   const defaultFilters = {
-    fecha_inicio: format(subDays(new Date(), 6), 'yyyy-MM-dd'),
-    fecha_fin: format(new Date(), 'yyyy-MM-dd')
+    fecha_inicio: format(startOfMonth, 'yyyy-MM-dd'),
+    fecha_fin: format(endOfMonth, 'yyyy-MM-dd')
   };
 
   // Estados
@@ -29,6 +33,7 @@ const DashboardMejorado = () => {
   const [activeTab, setActiveTab] = useState('resumen');
   const [filters, setFilters] = useState(defaultFilters);
   const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   // Datos
   const [kpis, setKpis] = useState({});
@@ -47,26 +52,15 @@ const DashboardMejorado = () => {
   const [campanas, setCampanas] = useState([]);
   const [agentes, setAgentes] = useState([]);
 
-  // Establecer rango "Este mes" por defecto al montar el componente
+  // Cargar datos iniciales solo una vez al montar el componente
   useEffect(() => {
-    const today = new Date();
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    
-    setFilters({
-      fecha_inicio: format(startOfMonth, 'yyyy-MM-dd'),
-      fecha_fin: format(endOfMonth, 'yyyy-MM-dd')
-    });
-  }, []);
-
-  useEffect(() => {
-    // Solo cargar datos si no estamos en la pestaña de configuración
-    if (activeTab !== 'configuracion') {
+    if (!dataLoaded && activeTab !== 'configuracion') {
       loadInitialData();
-    } else {
+      setDataLoaded(true);
+    } else if (activeTab === 'configuracion') {
       setLoading(false);
     }
-  }, [activeTab]);
+  }, [activeTab, dataLoaded]);
 
   const loadInitialData = async () => {
     try {

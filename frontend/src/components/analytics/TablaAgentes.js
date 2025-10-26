@@ -181,6 +181,8 @@ const TablaAgentes = ({ agentes, loading }) => {
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tiempo Promedio Sesión</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tiempo Al Habla</th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Nº Pausas</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tiempo Pausa Recreativa</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tiempo Pausa Productiva</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tiempo Total Pausa</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tiempo Promedio Pausa</th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">% Ocupación</th>

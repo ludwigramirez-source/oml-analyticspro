@@ -267,10 +267,17 @@ async def get_disponibilidad_agentes(
 @router.get("/agentes/{agente_id}/sesiones")
 async def get_detalle_sesiones_agente(
     agente_id: int,
-    filters: dict = Depends(parse_filters),
+    fecha_inicio: str = Query(None),
+    fecha_fin: str = Query(None),
     db: Session = Depends(get_db)
 ):
     """Obtiene el detalle de sesiones de un agente específico"""
+    filters = {}
+    if fecha_inicio:
+        filters['fecha_inicio'] = fecha_inicio
+    if fecha_fin:
+        filters['fecha_fin'] = fecha_fin
+    
     service = AgentAnalyticsService(db)
     return service.get_detalle_sesiones_agente(agente_id, filters)
 
@@ -278,10 +285,17 @@ async def get_detalle_sesiones_agente(
 @router.get("/agentes/{agente_id}/pausas")
 async def get_detalle_pausas_agente(
     agente_id: int,
-    filters: dict = Depends(parse_filters),
+    fecha_inicio: str = Query(None),
+    fecha_fin: str = Query(None),
     db: Session = Depends(get_db)
 ):
     """Obtiene el detalle de pausas de un agente específico"""
+    filters = {}
+    if fecha_inicio:
+        filters['fecha_inicio'] = fecha_inicio
+    if fecha_fin:
+        filters['fecha_fin'] = fecha_fin
+    
     service = AgentAnalyticsService(db)
     return service.get_detalle_pausas_agente(agente_id, filters)
 

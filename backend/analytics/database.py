@@ -61,14 +61,14 @@ def update_database_connection(db_url: str):
         if engine:
             engine.dispose()
         
-        # Crear nuevo engine
+        # Crear nuevo engine con timeout
         engine = create_engine(
             db_url,
             pool_pre_ping=True,
             pool_recycle=3600,
             echo=False,
             connect_args={
-                "options": "-c default_transaction_read_only=on"
+                "options": "-c default_transaction_read_only=on -c statement_timeout=30000"  # 30 segundos timeout
             }
         )
         

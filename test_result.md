@@ -329,7 +329,8 @@ test_plan:
   current_focus:
     - "Fix KPI consistency - count unique calls"
     - "Replace refresh button with Iptegra logo"
-  stuck_tasks: []
+  stuck_tasks:
+    - "Fix KPI consistency - count unique calls"
   test_all: false
   test_priority: "high_first"
 

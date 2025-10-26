@@ -1,78 +1,47 @@
 <analysis>
-The AI engineer's work primarily focused on refining and expanding the OmniLeads reporting module. Initial tasks involved setting up a local PostgreSQL environment, loading a backup, and debugging backend connectivity. Key efforts included correcting KPI calculations across the dashboard, particularly for 'Llamadas Salientes' by unifying call types and using unique call IDs. A new 'Distribución Horaria Detallada' table was implemented, offering grouping by hour, day, week, and campaign, with export to Excel. The 'Ocupación' KPI formula was corrected to account for actual agent session time and recreational pauses. 'Campañas Alertas' received updated metrics and configurable color-coded thresholds (green, orange, red) with Excel export. The engineer resolved persistent external database connection issues by clearing MongoDB configuration. The most recent efforts addressed discrepancies between dashboard KPI cards and detailed report tables by ensuring all calculations use unique call IDs and correct timezone conversions (GMT-5) for Llamadas Atendidas and Llamadas Abandonadas.
+The AI engineer's work primarily focused on enhancing the OmniLeads reporting module, addressing performance and accuracy issues. Initial efforts included correcting KPI calculations and implementing new reports like 'Distribución Horaria Detallada'. A recurring challenge was persistent  errors in the frontend due to slow backend queries, despite local  tests succeeding. Multiple solutions were attempted, including internal caching, modifying database configuration handling (between  and MongoDB), and reverting problematic code. After a user-requested hard reset to the pre-fork state to regain stability, the engineer re-established a working database connection by manually updating  with MongoDB credentials. Subsequently, a new Agent Availability report was developed, which also necessitated extensive backend query optimization (timezone fixes, aggregation) and frontend updates (table, loading indicator, chart). The agent began exploring a local MongoDB caching strategy for performance, but the user requested a full rollback due to continued instability, leading to the final interaction where the agent advised on using the platform's rollback feature and sought support to guide the user.
 </analysis>
 
 <product_requirements>
-The goal is to create a comprehensive reporting module for OmniLeads, enhancing the Premium Reports functionality. The application, built with FastAPI/React, reads from OmniLeads' PostgreSQL and uses MongoDB for analytics configuration.
-
-**Key features include:**
-*   **KPIs & Reports:** General Distribution, Attended Calls (detail, service level), Unattended Calls (causes, abandoned), Agents (performance), Campaigns (metrics). New KPIs like FCR, ASA, Adherencia, Shrinkage, AHT were proposed.
-*   **Visual Design:** Clean, professional (Google Analytics style), white/light grey, #1a73e8 primary color, system fonts, DataTables, and ApexCharts.
-*   **Specific Filtering:** Precise filtering for Llamadas Atendidas and Llamadas Abandonadas based on specific events; default date ranges, call type filter (entrantes/salientes), multi-selection for campaigns and agents.
-*   **New Requirements:** Implement all reports from provided  and  documents, incorporate Power BI-based improvements, dynamic pagination (25, 50, 100 records), and a Configuración tab for PostgreSQL connection settings. Filters must apply correctly to all reports, and Excel export should be available for tables. KPI calculations must match official OmniLeads reports.
-*   **Recent Feature Enhancements:** Convert Distribución por Rango Horario to a bar chart, add Evolución por Semana with three lines (contestadas, abandonadas, agentes), implement Distribución Horaria Detallada table with grouping by hour, day, week, month, campaign, and Excel export, correct agent occupancy calculation, adjust Campañas Alertas metrics with configurable thresholds and Excel export, and ensure KPI consistency between dashboard cards and detailed reports.
+The objective is to develop a comprehensive Premium Reports module for OmniLeads using FastAPI and React, reading from PostgreSQL and using MongoDB for analytics configuration. Key features include various KPIs (General Distribution, Attended/Unattended Calls, Agents, Campaigns) with proposed additions like FCR, ASA, AHT. The design should be clean (Google Analytics style), with specific filters (date ranges, call types, multi-selection for campaigns/agents), dynamic pagination, and Excel export. Reports must align with official OmniLeads data. Recent enhancements included converting Distribución por Rango Horario to a bar chart, adding Evolución por Semana, implementing Distribución Horaria Detallada with grouping options, correcting agent occupancy, adjusting Campañas Alertas with thresholds, and ensuring KPI consistency between dashboard and detailed reports. The user also explicitly requested replacing an update button with the Iptegra logo and later, a detailed Agent Availability report with specific metrics (sessions, talk time, TMO, Tasa de Atención), a bar chart, and a loading indicator.
 </product_requirements>
 
 <key_technical_concepts>
--   **Backend:** FastAPI, Python, PostgreSQL, SQLAlchemy, Psycopg2, Pandas, Passlib, MongoDB.
+-   **Backend:** FastAPI, Python, PostgreSQL (OmniLeads - Read-only), SQLAlchemy, Psycopg2, Pandas, MongoDB (for internal config), .
 -   **Frontend:** React, JavaScript, Tailwind CSS, Yarn, ApexCharts, XLSX (for Excel export).
--   **Deployment & Ops:** Supervisor.
--   **Database Access:** Read-only to OmniLeads PostgreSQL, MongoDB for configuration.
+-   **Ops:** Supervisor, Kubernetes Ingress.
+-   **Data Handling:** Unique  for KPI consistency, GMT-5 timezone conversion, database query optimization (aggregations, indexing considerations).
 </key_technical_concepts>
 
 <code_architecture>
-The application uses a full-stack architecture with a FastAPI backend and a React frontend. The backend connects to an external PostgreSQL database (OmniLeads) in read-only mode and uses MongoDB for internal analytics configuration.
+The application employs a full-stack architecture with a FastAPI backend and a React frontend. The backend interacts with an external PostgreSQL database (OmniLeads) in read-only mode and uses MongoDB for internal analytics configuration storage.
 
 
 
 **Key Files and their importance/changes:**
-*   : Main FastAPI entry, integrates routers, configures CORS. (No direct changes in trajectory, but orchestrates API)
-*   : Manages SQLAlchemy DB connection. Modified for lazy-loading PostgreSQL engine. (No direct changes in trajectory, but part of initial setup)
-*   : Defines SQLAlchemy models for OmniLeads tables.
-    *   **Changes:** Added  model to link pause types (recreational/productive) and corrected  model import.
-*   : Contains core business logic for call analytics.
-    *   **Changes:** Implemented  for separate inbound/outbound distribution,  for weekly trends. Updated  for multi-selection and call type. Corrected  to count unique calls via subquery for KPI accuracy. Revised  to calculate agent occupancy based on actual session time minus recreational pauses. Modified  to count unique calls by  and adjusted alert thresholds (Green >=80%, Orange 60-80%, Red <60%). Corrected  and  to fetch unique calls by  and convert timestamps to GMT-5. Corrected  to use unique call IDs.
-*   : Extends  with more complex analytics.
-    *   **Changes:** Added  (renamed from ) to provide detailed metrics grouped by hour, day, week, month, or campaign. Corrected call type filtering (using 3 for inbound) and ensured all 24 hours are present. Implemented correct formatting for date/time groups and sorting. Corrected calculation of  to use  instead of .
-*   : Handles database configuration management (MongoDB).
-    *   **Changes:** Modified  to update the global database connection.  was updated to automatically activate configurations on successful test. Increased connection test timeout.
-*   : FastAPI endpoints.
-    *   **Changes:** Added new routes  and . Updated  to handle multiple campaign/agent IDs and call type. Added  endpoint.
-*   : Reusable React component for ApexCharts. (Fixed data parsing logic previously, no direct changes in trajectory)
-*   : Main dashboard component.
-    *   **Changes:** Modified to fetch and display . Added  prop to multiline charts. Configured default filters. Integrated  component. Updated rendering for  to correctly display  alerts and added an Excel download button for campaign alerts. Adjusted logic to load all pages for  and .
-*   : Component for applying filters. (Completely rewritten previously for date ranges, call type, multi-selection, no direct changes in trajectory).
-*   : Advanced distribution reports.
-    *   **Changes:** Modified Distribución por Rango Horario to a bar chart. Integrated Evolución Semanal multi-line chart.
-*   : Component for 'Llamadas Salientes' tab.
-    *   **Changes:** Removed Manuales vs Dialer distinction, adjusted KPIs to be more relevant (Total Marcadas, Contestadas, No Contestadas, Fallos Técnicos), and updated the chart.
-*    (NEW): Component for the new detailed hourly distribution table.
-    *   **Creation:** Created to display detailed call metrics (received, attended, abandoned, transferred, percentages, average times) with grouping options (Hour, Day, Week, Month, Campaign) and an Excel download button. Uses  library for export.
-*   : Displays detailed attended calls.
-    *   **Changes:** Updated to correctly display GMT-5 time and ensure all calls are loaded by fetching all pages.
-*   : Displays detailed abandoned calls.
-    *   **Changes:** Updated to correctly display GMT-5 time and ensure all calls are loaded by fetching all pages.
-*   : Frontend service for backend API calls.
-    *   **Changes:** Added , , and . Corrected  to handle URL parameters (using  after first ).
-*   : Manages frontend dependencies.
-    *   **Changes:** Added  as a dependency for Excel export.
-
+-   : Stores critical PostgreSQL credentials. **Changes:** Modified multiple times to correct connection details (from  to  with correct credentials) to establish a stable connection to the external OmniLeads database.
+-   : Handles database configuration. **Changes:** Modified to remove complex asynchronous logic, simplify database URL retrieval, and ensure robust connection via MongoDB-stored credentials, which was critical for initial connection stability after multiple reverts.
+-   : FastAPI endpoints. **Changes:** Added  for performance on , , and  endpoints. Temporarily added/removed cache based on performance issues. Removed  and  filters from  and  queries to improve performance. Added the new  endpoint.
+-   : Core call analytics logic. **Changes:** The  method was modified to ensure unique call counting by  and align with detailed reports, but was reverted due to performance impact. The  calculation was simplified for performance.  was extended to include  to accurately match KPI Llamadas Perdidas.  and  were further refined to ensure consistent filtering by  and  for accurate comparisons.
+-   : Agent-specific analytics. **Changes:** New method  was created and optimized. Initial versions had timezone errors () and performance issues (loops). It was rewritten to use database aggregations, handle timezone-aware datetimes correctly, and adjust  filters () for accurate results. It now calculates agent availability metrics including TMO and Tasa de Atención.
+-   : Main dashboard. **Changes:** Replaced an update button with the Iptegra logo. Integrated  component. Modified default filters for performance (e.g., last 7 days, later reverted). Updated loading states and data fetching for the new agent report.
+-   : Agent report table. **Changes:** Completely rewritten to display the new Disponibilidad de Agentes report with expanded columns. Added a loading indicator (spinner) and an ApexCharts bar graph to visualize calls answered by agent, with logic to handle  calls and ensure correct rendering.
+-   : Displays detailed attended calls. **Changes:** No specific changes were documented in the trajectory for this file, but its functionality for displaying data from  was verified.
+-   : Displays detailed abandoned calls. **Changes:** Updated the component's title, subtitle, and Excel export filename to Llamadas No Atendidas to reflect the inclusion of non-answered outgoing calls for consistency with KPIs.
+-   : Frontend API service. **Changes:** Added  endpoint. Corrected  logic to append filters with  instead of  if the URL already contains parameters, crucial for correct pagination and filtering. Updated  to call the new availability endpoint.
+-   : New asset. **Creation:** Iptegra logo was downloaded and added for display in the dashboard.
 </code_architecture>
 
 <pending_tasks>
-- Continue implementing the remaining reports and metrics identified from the provided documents.
-- Further analyze vital call center metrics and KPIs from web best practices.
-- Ensure all graphical visualizations load correctly across all tabs for new reports.
+-   Continue implementing the remaining reports and metrics identified from the provided documents.
+-   Further analyze vital call center metrics and KPIs from web best practices.
+-   Ensure all graphical visualizations load correctly across all tabs for new reports.
 </pending_tasks>
 
 <current_work>
-Immediately prior to this summary, the AI engineer was addressing a discrepancy between the main dashboard's KPI cards and the detailed report tables. The user reported that the sum of 'Llamadas Atendidas' and 'Llamadas Perdidas' on the dashboard cards did not match the counts in the respective detailed tables (Llamadas Atendidas and Llamadas Abandonadas). Specifically, the dashboard showed 2,511 attended and 797 lost calls, while the tables showed 2,512 attended and 660 abandoned calls.
-
-The root cause was identified in the backend's  method within . This method was counting all  events without first grouping by  to ensure unique call counts. This resulted in multiple events for a single call being counted, leading to inflated or inaccurate numbers on the dashboard KPI cards compared to the detailed tables which correctly filtered for unique calls.
-
-The AI engineer's last action was to modify  to use the same subquery pattern as other corrected methods (like  and ) to ensure it counts only unique call IDs, thereby aligning the KPI numbers across the application. The edit was logged as successful, and the backend needs to be restarted for the changes to take effect and be verified.
+Immediately prior to this summary, the AI engineer was working on integrating a bar chart into the Agent Availability report (TablaAgentes.js) to visualize calls answered per agent and a loading indicator. While the loading indicator was successfully implemented, the bar chart failed to display data despite the table showing agent data. This was initially attributed to the chart's rendering logic, specifically filtering out agents with zero calls. After correcting this, the underlying issue resurfaced:  errors on frontend API calls to  and , indicating renewed backend performance problems. The agent concluded that the backend endpoints were blocking again. The user then explicitly requested a full rollback to the exact state before the current development fork due to persistent instability. The agent acknowledged this and advised the user to use the platform's Rollback feature to revert to a stable checkpoint, and then called the  to provide specific instructions on how to find and use this feature, effectively pausing direct code modifications.
 </current_work>
 
 <optional_next_step>
-Restart the backend to apply the  fix and verify the dashboard KPI consistency.
+Wait for the user to confirm the rollback process after getting guidance from the support agent.
 </optional_next_step>

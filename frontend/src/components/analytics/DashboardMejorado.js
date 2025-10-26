@@ -156,9 +156,15 @@ const DashboardMejorado = () => {
       setCampanasConAlerta(campanasRes);
 
       // Cargar agentes
-      const agentesRes = await analyticsApi.getRendimientoAgentes(filters);
-      console.log('✅ Agentes:', agentesRes);
-      setAgentesData(agentesRes);
+      try {
+        console.log('📊 Intentando cargar agentes...');
+        const agentesRes = await analyticsApi.getRendimientoAgentes(filters);
+        console.log('✅ Agentes:', agentesRes);
+        setAgentesData(agentesRes);
+      } catch (err) {
+        console.error('❌ Error cargando agentes:', err);
+        setAgentesData([]);
+      }
 
       setLastUpdate(new Date());
       console.log('✅ Datos principales cargados - mostrando dashboard');

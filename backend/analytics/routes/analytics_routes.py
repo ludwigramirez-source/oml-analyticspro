@@ -305,8 +305,9 @@ async def get_campanas(db: Session = Depends(get_db)):
         current_time - _campanas_cache['timestamp'] < CACHE_TTL):
         return _campanas_cache['data']
     
-    # Query database (sin filtro oculto para evitar full table scan)
-    campanas = db.query(Campana).order_by(Campana.nombre).all()
+    # Query database (con LIMIT para evitar full table scan en bases de datos grandes)
+    # Solo necesitamos campañas activas para los filtros
+    campanas = db.query(Campana).order_by(Campana.nombre).limit(500).all()
     
     result = [{
         'id': c.id,

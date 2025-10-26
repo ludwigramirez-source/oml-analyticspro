@@ -462,37 +462,48 @@ const DashboardMejorado = () => {
             {/* Tab: Resumen */}
             {activeTab === 'resumen' && (
               <div className="space-y-6">
-                {/* Distribución por tipo (Dos gráficos de pie) */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <ApexChart
-                    type="pie"
-                    data={distribucionPorTipo?.entrantes ? prepareDistribucionEntrantes(distribucionPorTipo.entrantes) : []}
-                    title={`Distribución Llamadas Entrantes (Total: ${distribucionPorTipo?.entrantes?.total || 0})`}
-                    key={`entrantes-${JSON.stringify(distribucionPorTipo?.entrantes)}`}
-                  />
-                  <ApexChart
-                    type="pie"
-                    data={distribucionPorTipo?.salientes ? prepareDistribucionSalientes(distribucionPorTipo.salientes) : []}
-                    title={`Distribución Llamadas Salientes (Total: ${distribucionPorTipo?.salientes?.total || 0})`}
-                    key={`salientes-${JSON.stringify(distribucionPorTipo?.salientes)}`}
-                  />
-                </div>
-                
-                {/* Otros gráficos */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <ApexChart
-                    type="line"
-                    data={evolucionData}
-                    title="Evolución por Hora"
-                    key={`evolucion-${JSON.stringify(evolucionData)}`}
-                  />
-                  <ApexChart
-                    type="bar"
-                    data={nivelServicioData}
-                    title="Nivel de Servicio (Tiempo de Espera)"
-                    key={`nivel-${JSON.stringify(nivelServicioData)}`}
-                  />
-                </div>
+                {loading ? (
+                  <div className="flex items-center justify-center h-64">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                      <p className="text-gray-600">Cargando datos del dashboard...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Distribución por tipo (Dos gráficos de pie) */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <ApexChart
+                        type="pie"
+                        data={distribucionPorTipo?.entrantes ? prepareDistribucionEntrantes(distribucionPorTipo.entrantes) : []}
+                        title={`Distribución Llamadas Entrantes (Total: ${distribucionPorTipo?.entrantes?.total || 0})`}
+                        key={`entrantes-${JSON.stringify(distribucionPorTipo?.entrantes)}`}
+                      />
+                      <ApexChart
+                        type="pie"
+                        data={distribucionPorTipo?.salientes ? prepareDistribucionSalientes(distribucionPorTipo.salientes) : []}
+                        title={`Distribución Llamadas Salientes (Total: ${distribucionPorTipo?.salientes?.total || 0})`}
+                        key={`salientes-${JSON.stringify(distribucionPorTipo?.salientes)}`}
+                      />
+                    </div>
+                    
+                    {/* Otros gráficos */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <ApexChart
+                        type="line"
+                        data={evolucionData}
+                        title="Evolución por Hora"
+                        key={`evolucion-${JSON.stringify(evolucionData)}`}
+                      />
+                      <ApexChart
+                        type="bar"
+                        data={nivelServicioData}
+                        title="Nivel de Servicio (Tiempo de Espera)"
+                        key={`nivel-${JSON.stringify(nivelServicioData)}`}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             )}
 

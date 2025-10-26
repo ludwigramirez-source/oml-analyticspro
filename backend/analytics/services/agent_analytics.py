@@ -325,10 +325,24 @@ class AgentAnalyticsService:
         agentes_dict = {
             ag.id: {
                 'agente_id': ag.id,
+                'username': f'{ag.first_name[0]}{ag.last_name[:3]}'.lower() if ag.first_name and ag.last_name else 'user',
                 'nombre': f'{ag.first_name} {ag.last_name}',
+                'num_sesiones': 0,
+                'primer_login': '-',
+                'ultimo_logout': '-',
+                'tiempo_total_sesion': 0,
+                'tiempo_promedio_sesion': 0,
+                'tiempo_al_habla': 0,
+                'num_pausas': 0,
+                'tiempo_pausa_recreativa': 0,
+                'tiempo_pausa_productiva': 0,
+                'tiempo_promedio_pausa': 0,
+                'tiempo_total_espera': 0,
+                'ocupacion': 0,
                 'llamadas_contestadas': 0,
                 'tmo': 0,
-                'tasa_atencion': 0
+                'tasa_atencion': 0,
+                'total_llamadas': 0
             }
             for ag in agentes_info
         }

@@ -3,6 +3,13 @@ import { ExportButton } from '../../utils/excelExport';
 import ApexChart from './ApexChart';
 
 const TablaAgentes = ({ agentes, loading }) => {
+  // Log detallado para debugging
+  console.log('🔍 TablaAgentes - agentes recibidos:', agentes);
+  console.log('🔍 TablaAgentes - loading:', loading);
+  if (agentes && agentes.length > 0) {
+    console.log('🔍 TablaAgentes - Primer agente completo:', JSON.stringify(agentes[0]));
+  }
+  
   const formatTiempo = (seconds) => {
     if (!seconds || seconds === 0) return '00:00:00';
     const hours = Math.floor(seconds / 3600);

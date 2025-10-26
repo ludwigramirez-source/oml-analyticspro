@@ -424,7 +424,7 @@ class AgentAnalyticsService:
             tiempo_promedio_pausa = int(tiempo_total_pausas / num_pausas) if num_pausas > 0 else 0
             
             tiempo_al_habla = int(resultado_llamadas.tiempo_al_habla or 0)
-            tiempo_disponible = tiempo_total_sesion - tiempo_total_pausas
+            tiempo_disponible = tiempo_total_sesion - tiempo_pausas_recreativas
             ocupacion = round((tiempo_al_habla / tiempo_disponible * 100), 1) if tiempo_disponible > 0 else 0
             ocupacion = min(ocupacion, 100)  # No puede ser mayor a 100%
             
@@ -435,6 +435,8 @@ class AgentAnalyticsService:
                 'tiempo_promedio_sesion': tiempo_promedio_sesion,
                 'tiempo_al_habla': tiempo_al_habla,
                 'num_pausas': num_pausas,
+                'tiempo_pausa_recreativa': int(tiempo_pausas_recreativas),
+                'tiempo_pausa_productiva': int(tiempo_pausas_productivas),
                 'tiempo_total_pausa': int(tiempo_total_pausas),
                 'tiempo_promedio_pausa': tiempo_promedio_pausa,
                 'ocupacion': ocupacion,

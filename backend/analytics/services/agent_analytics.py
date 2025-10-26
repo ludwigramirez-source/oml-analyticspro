@@ -286,7 +286,7 @@ class AgentAnalyticsService:
         # Constantes para eventos de llamadas atendidas
         EVENTOS_ATENDIDAS = ['COMPLETEAGENT', 'COMPLETEOUTNUM', 'COMPLETE-BTOUT', 'COMPLETE-CTOUT', 'COMPLETE-CT']
         
-        # Obtener agentes con llamadas en el período (limitado a 50 para performance)
+        # Obtener agentes con llamadas en el período (TODOS los que tengan actividad)
         subquery_agentes = self.db.query(
             LlamadaLog.agente_id,
             func.count(func.distinct(LlamadaLog.callid)).label('total_llamadas')
@@ -299,11 +299,12 @@ class AgentAnalyticsService:
         if filters.get('fecha_fin'):
             subquery_agentes = subquery_agentes.filter(LlamadaLog.time <= filters['fecha_fin'])
         
+        # Obtener TODOS los agentes con llamadas, ordenados por cantidad (sin LIMIT)
         agentes_con_llamadas = subquery_agentes.group_by(
             LlamadaLog.agente_id
         ).order_by(
             func.count(func.distinct(LlamadaLog.callid)).desc()
-        ).limit(50).all()
+        ).all()
         
         if not agentes_con_llamadas:
             return []

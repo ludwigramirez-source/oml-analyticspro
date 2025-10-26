@@ -155,6 +155,30 @@ const DashboardMejorado = () => {
       console.log('✅ Campañas con alertas:', campanasRes);
       setCampanasConAlerta(campanasRes);
 
+      // Cargar agentes
+      const agentesRes = await analyticsApi.getRendimientoAgentes(filters);
+      console.log('✅ Agentes:', agentesRes);
+      setAgentesData(agentesRes);
+
+      setLastUpdate(new Date());
+      console.log('✅ Datos principales cargados - mostrando dashboard');
+      
+      // Ocultar loading para mostrar gráficos inmediatamente
+      setLoading(false);
+
+      // Cargar llamadas detalladas en segundo plano (no bloquea la UI)
+      loadDetailedCalls(filters);
+      
+    } catch (error) {
+      console.error('❌ Error loading dashboard data:', error);
+      setLoading(false);
+    }
+  };
+
+  const loadDetailedCalls = async (filters) => {
+    try {
+      console.log('📋 Cargando llamadas detalladas en segundo plano...');
+      
       // Cargar TODAS las llamadas atendidas (con paginación automática)
       const todasLlamadasAtendidas = [];
       let currentPage = 1;
@@ -194,18 +218,10 @@ const DashboardMejorado = () => {
       
       console.log('✅ Total llamadas abandonadas cargadas:', todasLlamadasAbandonadas.length);
       setLlamadasAbandonadas(todasLlamadasAbandonadas);
-
-      // Cargar agentes
-      const agentesRes = await analyticsApi.getRendimientoAgentes(filters);
-      console.log('✅ Agentes:', agentesRes);
-      setAgentesData(agentesRes);
-
-      setLastUpdate(new Date());
-      console.log('✅ ¡Todos los datos cargados!');
+      
+      console.log('✅ ¡Todas las llamadas detalladas cargadas!');
     } catch (error) {
-      console.error('❌ Error loading dashboard data:', error);
-    } finally {
-      setLoading(false);
+      console.error('❌ Error loading detailed calls:', error);
     }
   };
 

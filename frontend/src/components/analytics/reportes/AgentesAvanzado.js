@@ -8,6 +8,7 @@ const AgentesAvanzado = ({ filters }) => {
   const [totalSesiones, setTotalSesiones] = useState(null);
   const [heatmapData, setHeatmapData] = useState(null);
   const [disponibilidadAmpliada, setDisponibilidadAmpliada] = useState([]);
+  const [disponibilidadAgentes, setDisponibilidadAgentes] = useState([]);
 
   useEffect(() => {
     loadData();
@@ -16,15 +17,17 @@ const AgentesAvanzado = ({ filters }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [sesiones, heatmap, disponibilidad] = await Promise.all([
+      const [sesiones, heatmap, disponibilidad, disponibilidadCompleta] = await Promise.all([
         analyticsApi.getTotalSesionesAgentes(filters).catch(() => null),
         analyticsApi.getDisponibilidadHeatmap(filters).catch(() => null),
-        analyticsApi.getDisponibilidadAmpliada(filters).catch(() => [])
+        analyticsApi.getDisponibilidadAmpliada(filters).catch(() => []),
+        analyticsApi.getRendimientoAgentes(filters).catch(() => [])
       ]);
 
       setTotalSesiones(sesiones);
       setHeatmapData(heatmap);
       setDisponibilidadAmpliada(disponibilidad);
+      setDisponibilidadAgentes(disponibilidadCompleta);
     } catch (error) {
       console.error('Error loading agentes avanzado:', error);
     } finally {

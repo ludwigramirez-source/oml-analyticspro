@@ -632,8 +632,8 @@ class CallAnalyticsExtended:
     
     def get_analisis_transferencias(self, filters: Dict = None) -> Dict:
         """
-        Análisis completo de transferencias (funnel)
-        Eventos: CT-TRY, CT-ANSWER, BTOUT-TRY, BTOUT-ANSWER, etc.
+        Análisis completo de transferencias
+        Eventos basados en OmniLeads: BT-* (Blind Transfer/Ciego) y CT-* (Consultive Transfer/Consultivo)
         """
         filters = filters or {}
         
@@ -649,24 +649,51 @@ class CallAnalyticsExtended:
                 'total': count
             }
         
-        # Calcular métricas de funnel
+        # Calcular métricas de Transfer Ciego (BT - Blind Transfer)
+        bt_intentos = metricas.get('BT-TRY', {}).get('total', 0)
+        bt_atendidos = metricas.get('BT-ANSWER', {}).get('total', 0)
+        bt_completados = metricas.get('COMPLETE-BT', {}).get('total', 0)
+        bt_ocupados = metricas.get('BT-BUSY', {}).get('total', 0)
+        bt_sin_respuesta = metricas.get('BT-NOANSWER', {}).get('total', 0)
+        bt_no_disponible = metricas.get('BT-CHANUNAVAIL', {}).get('total', 0)
+        
+        # Calcular métricas de Transfer Consultivo (CT - Consultive Transfer)
         ct_intentos = metricas.get('CT-TRY', {}).get('total', 0)
-        ct_exitosos = metricas.get('CT-ANSWER', {}).get('total', 0)
-        bt_intentos = metricas.get('BTOUT-TRY', {}).get('total', 0)
-        bt_exitosos = metricas.get('BTOUT-ANSWER', {}).get('total', 0)
+        ct_atendidos = metricas.get('CT-ANSWER', {}).get('total', 0)
+        ct_completados = metricas.get('COMPLETE-CT', {}).get('total', 0)
+        ct_cancelados = metricas.get('CT-CANCEL', {}).get('total', 0)
+        ct_ocupados = metricas.get('CT-BUSY', {}).get('total', 0)
+        
+        # Total de transferencias exitosas
+        total_exitosas = bt_completados + ct_completados
+        total_intentos = bt_intentos + ct_intentos
+        total_ingresos_cola = metricas.get('ENTERQUEUE-TRANSFER', {}).get('total', 0)
         
         return {
             'eventos': metricas,
             'resumen': {
-                'transfer_consultivo': {
-                    'intentos': ct_intentos,
-                    'exitosos': ct_exitosos,
-                    'tasa_exito': round(ct_exitosos / ct_intentos * 100, 2) if ct_intentos > 0 else 0
-                },
                 'transfer_ciego': {
                     'intentos': bt_intentos,
-                    'exitosos': bt_exitosos,
-                    'tasa_exito': round(bt_exitosos / bt_intentos * 100, 2) if bt_intentos > 0 else 0
+                    'atendidos': bt_atendidos,
+                    'completados': bt_completados,
+                    'ocupados': bt_ocupados,
+                    'sin_respuesta': bt_sin_respuesta,
+                    'no_disponible': bt_no_disponible,
+                    'tasa_exito': round(bt_completados / bt_intentos * 100, 2) if bt_intentos > 0 else 0
+                },
+                'transfer_consultivo': {
+                    'intentos': ct_intentos,
+                    'atendidos': ct_atendidos,
+                    'completados': ct_completados,
+                    'cancelados': ct_cancelados,
+                    'ocupados': ct_ocupados,
+                    'tasa_exito': round(ct_completados / ct_intentos * 100, 2) if ct_intentos > 0 else 0
+                },
+                'totales': {
+                    'total_intentos': total_intentos,
+                    'total_exitosas': total_exitosas,
+                    'ingresos_cola': total_ingresos_cola,
+                    'tasa_exito_global': round(total_exitosas / total_intentos * 100, 2) if total_intentos > 0 else 0
                 }
             }
         }

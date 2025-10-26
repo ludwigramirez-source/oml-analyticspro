@@ -378,12 +378,14 @@ class AgentAnalyticsService:
             num_sesiones = 0
             tiempo_total_sesion = 0
             num_pausas = 0
-            tiempo_total_pausas = 0
+            tiempo_pausas_recreativas = 0
+            tiempo_pausas_productivas = 0
             primer_login = None
             ultimo_logout = None
             
             tiempo_login = None
             tiempo_pausa_inicio = None
+            pausa_id_actual = None
             
             for actividad in actividades:
                 if actividad.event == 'ADDMEMBER':
@@ -399,13 +401,25 @@ class AgentAnalyticsService:
                         tiempo_login = None
                 elif actividad.event == 'PAUSEALL':
                     tiempo_pausa_inicio = actividad.time
+                    pausa_id_actual = actividad.pausa_id
                     num_pausas += 1
                 elif actividad.event == 'UNPAUSEALL' and tiempo_pausa_inicio:
                     duracion_pausa = (actividad.time - tiempo_pausa_inicio).total_seconds()
-                    tiempo_total_pausas += duracion_pausa
+                    
+                    # Verificar tipo de pausa (R=Recreativa, P=Productiva)
+                    if pausa_id_actual and pausa_id_actual.isdigit():
+                        pausa = self.db.query(Pausa).filter(Pausa.id == int(pausa_id_actual)).first()
+                        if pausa:
+                            if pausa.tipo == 'R':
+                                tiempo_pausas_recreativas += duracion_pausa
+                            else:
+                                tiempo_pausas_productivas += duracion_pausa
+                    
                     tiempo_pausa_inicio = None
+                    pausa_id_actual = None
             
-            # Calcular promedios y ocupación
+            # Calcular totales y promedios
+            tiempo_total_pausas = tiempo_pausas_recreativas + tiempo_pausas_productivas
             tiempo_promedio_sesion = int(tiempo_total_sesion / num_sesiones) if num_sesiones > 0 else 0
             tiempo_promedio_pausa = int(tiempo_total_pausas / num_pausas) if num_pausas > 0 else 0
             

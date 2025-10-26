@@ -281,6 +281,140 @@ class BackendTester:
             if not success_abandoned:
                 print(f"      - Abandoned calls endpoint failed")
     
+    def run_agentes_disponibilidad_test(self):
+        """Test specific agentes disponibilidad endpoint as requested"""
+        print("\n" + "="*60)
+        print("🎯 AGENTES DISPONIBILIDAD TEST (SPECIFIC REQUEST)")
+        print("="*60)
+        
+        # Test with specific filters as requested
+        endpoint = '/api/analytics/agentes/disponibilidad?fecha_inicio=2025-10-01&fecha_fin=2025-10-31'
+        
+        success, response = self.test_endpoint('GET', endpoint, 
+                                             expected_status=200, 
+                                             description="Agentes disponibilidad with specific date filters")
+        
+        if success and response:
+            try:
+                data = response.json()
+                
+                print(f"\n   📊 DETAILED ANALYSIS:")
+                print(f"   📈 Response type: {type(data)}")
+                
+                if isinstance(data, list):
+                    print(f"   📋 Total agents returned: {len(data)}")
+                    
+                    # Verify structure of each agent
+                    required_fields = ['agente_id', 'username', 'nombre', 'llamadas_contestadas', 'tmo', 'tasa_atencion', 'total_llamadas']
+                    agents_with_calls = [agent for agent in data if agent.get('llamadas_contestadas', 0) > 0]
+                    
+                    print(f"   📋 Agents with llamadas_contestadas > 0: {len(agents_with_calls)}")
+                    
+                    # Check field structure
+                    if data:
+                        first_agent = data[0]
+                        missing_fields = [field for field in required_fields if field not in first_agent]
+                        
+                        if missing_fields:
+                            print(f"   ❌ Missing required fields: {missing_fields}")
+                            self.results['failed'].append({
+                                'endpoint': endpoint,
+                                'method': 'GET',
+                                'expected_status': 'All required fields present',
+                                'actual_status': f'Missing fields: {missing_fields}',
+                                'description': 'Agent structure validation failed',
+                                'response': f'First agent structure: {list(first_agent.keys())}'
+                            })
+                        else:
+                            print(f"   ✅ All required fields present: {required_fields}")
+                    
+                    # Show first 3 agents with metrics as requested
+                    print(f"\n   📊 FIRST 3 AGENTS WITH METRICS:")
+                    for i, agent in enumerate(data[:3]):
+                        print(f"   Agent {i+1}:")
+                        print(f"      - ID: {agent.get('agente_id')}")
+                        print(f"      - Username: {agent.get('username')}")
+                        print(f"      - Nombre: {agent.get('nombre')}")
+                        print(f"      - Llamadas Contestadas: {agent.get('llamadas_contestadas')}")
+                        print(f"      - TMO (segundos): {agent.get('tmo')}")
+                        print(f"      - Tasa Atención (%): {agent.get('tasa_atencion')}")
+                        print(f"      - Total Llamadas: {agent.get('total_llamadas')}")
+                        print()
+                    
+                    # Verify expected data patterns
+                    print(f"   📊 DATA VALIDATION:")
+                    
+                    # Check if we have at least 5 agents with calls
+                    if len(agents_with_calls) >= 5:
+                        print(f"   ✅ At least 5 agents with llamadas_contestadas > 0: {len(agents_with_calls)}")
+                    else:
+                        print(f"   ❌ Expected at least 5 agents with calls, got: {len(agents_with_calls)}")
+                        self.results['failed'].append({
+                            'endpoint': endpoint,
+                            'method': 'GET',
+                            'expected_status': 'At least 5 agents with calls',
+                            'actual_status': f'Only {len(agents_with_calls)} agents with calls',
+                            'description': 'Insufficient agents with call data',
+                            'response': f'Agents with calls: {len(agents_with_calls)}'
+                        })
+                    
+                    # Check for main agent with ~504 calls
+                    high_call_agents = [agent for agent in data if agent.get('llamadas_contestadas', 0) > 400]
+                    if high_call_agents:
+                        print(f"   ✅ Found agents with high call volume (>400): {len(high_call_agents)}")
+                        for agent in high_call_agents:
+                            print(f"      - {agent.get('nombre')}: {agent.get('llamadas_contestadas')} calls")
+                    else:
+                        print(f"   ⚠️  No agents found with >400 calls (expected ~504)")
+                    
+                    # Validate TMO values (should be > 0 seconds)
+                    valid_tmo_agents = [agent for agent in agents_with_calls if agent.get('tmo', 0) > 0]
+                    print(f"   📊 Agents with valid TMO (>0 seconds): {len(valid_tmo_agents)}")
+                    
+                    # Validate tasa_atencion (should be 0-100%)
+                    valid_tasa_agents = [agent for agent in agents_with_calls 
+                                       if 0 <= agent.get('tasa_atencion', -1) <= 100]
+                    print(f"   📊 Agents with valid tasa_atencion (0-100%): {len(valid_tasa_agents)}")
+                    
+                    # Overall validation
+                    if (len(data) > 0 and 
+                        len(agents_with_calls) >= 5 and 
+                        not missing_fields and
+                        len(valid_tmo_agents) > 0 and
+                        len(valid_tasa_agents) > 0):
+                        
+                        print(f"   ✅ AGENTES DISPONIBILIDAD TEST PASSED")
+                        self.results['passed'].append({
+                            'endpoint': endpoint,
+                            'method': 'GET',
+                            'status': 200,
+                            'description': f'Agentes disponibilidad test successful - {len(data)} agents, {len(agents_with_calls)} with calls'
+                        })
+                    else:
+                        print(f"   ❌ AGENTES DISPONIBILIDAD TEST FAILED - Check validation details above")
+                
+                else:
+                    print(f"   ❌ Expected array response, got: {type(data)}")
+                    self.results['failed'].append({
+                        'endpoint': endpoint,
+                        'method': 'GET',
+                        'expected_status': 'Array response',
+                        'actual_status': f'Got {type(data)}',
+                        'description': 'Response type validation failed',
+                        'response': str(data)[:500]
+                    })
+                    
+            except Exception as e:
+                print(f"   💥 ERROR parsing agentes disponibilidad response: {str(e)}")
+                self.results['errors'].append({
+                    'endpoint': endpoint,
+                    'method': 'GET',
+                    'error': f'Failed to parse response: {str(e)}',
+                    'description': 'Agentes disponibilidad response parsing failed'
+                })
+        else:
+            print(f"   ❌ Agentes disponibilidad endpoint test failed")
+
     def run_additional_analytics_tests(self):
         """Test additional analytics endpoints"""
         print("\n" + "="*60)

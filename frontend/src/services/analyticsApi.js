@@ -177,6 +177,20 @@ class AnalyticsAPI {
   }
 
   /**
+   * Obtiene detalle de sesiones de un agente
+   */
+  async getDetalleSesionesAgente(agenteId, filters = {}) {
+    return this.fetchData(`agentes/${agenteId}/sesiones`, filters);
+  }
+
+  /**
+   * Obtiene detalle de pausas de un agente
+   */
+  async getDetallePausasAgente(agenteId, filters = {}) {
+    return this.fetchData(`agentes/${agenteId}/pausas`, filters);
+  }
+
+  /**
    * Obtiene lista de campañas
    */
   async getCampanas() {

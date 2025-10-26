@@ -111,10 +111,12 @@ const DashboardMejorado = () => {
       // Cargar distribución por tipo (entrantes vs salientes)
       try {
         const distribTipoRes = await analyticsApi.getDistribucionPorTipo(filters);
-        console.log('✅ Distribución por tipo:', distribTipoRes);
+        console.log('✅ Distribución por tipo recibida:', distribTipoRes);
+        console.log('📊 Datos entrantes:', distribTipoRes?.entrantes);
+        console.log('📊 Datos salientes:', distribTipoRes?.salientes);
         setDistribucionPorTipo(distribTipoRes);
       } catch (err) {
-        console.warn('⚠️ Error en distribución por tipo:', err);
+        console.error('❌ Error en distribución por tipo:', err);
         setDistribucionPorTipo(null);
       }
 

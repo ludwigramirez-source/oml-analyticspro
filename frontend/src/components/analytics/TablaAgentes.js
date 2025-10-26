@@ -151,7 +151,20 @@ const TablaAgentes = ({ agentes, loading }) => {
           </p>
         </div>
         <ExportButton 
-          data={agentes} 
+          data={agentes.map(ag => ({
+            'Agente': ag.nombre,
+            'Llamadas Contestadas': ag.llamadas_contestadas,
+            'Nº Sesiones': ag.num_sesiones,
+            'Tiempo Total Sesión': formatTiempo(ag.tiempo_total_sesion),
+            'Tiempo Promedio Sesión': formatTiempo(ag.tiempo_promedio_sesion),
+            'Tiempo Al Habla': formatTiempo(ag.tiempo_al_habla),
+            'Nº Pausas': ag.num_pausas,
+            'Tiempo Total Pausa': formatTiempo(ag.tiempo_total_pausa),
+            'Tiempo Promedio Pausa': formatTiempo(ag.tiempo_promedio_pausa),
+            '% Ocupación': ag.ocupacion,
+            'Primer Login': ag.primer_login,
+            'Último Logout': ag.ultimo_logout
+          }))} 
           filename="disponibilidad_agentes"
           label="Exportar a Excel"
         />

@@ -23,16 +23,21 @@ class CallAnalyticsExtended:
         'CHANUNAVAIL': 'Canal no disponible'
     }
     
-    # Eventos de transferencias
+    # Eventos de transferencias (basados en datos reales de OmniLeads)
     EVENTOS_TRANSFERENCIAS = {
-        'CT-TRY': 'Intento transfer consultivo',
+        'BT-TRY': 'Intento de transfer ciego',
+        'BT-ANSWER': 'Transfer ciego atendido',
+        'BT-BUSY': 'Transfer ciego - destino ocupado',
+        'BT-NOANSWER': 'Transfer ciego - sin respuesta',
+        'BT-CHANUNAVAIL': 'Transfer ciego - canal no disponible',
+        'COMPLETE-BT': 'Llamada completada vía transfer ciego',
+        'CT-TRY': 'Intento de transfer consultivo',
         'CT-ANSWER': 'Transfer consultivo atendido',
-        'CT-BUSY': 'Transfer consultivo ocupado',
-        'CT-DISCARD': 'Transfer consultivo descartado',
-        'BTOUT-TRY': 'Intento transfer ciego',
-        'BTOUT-ANSWER': 'Transfer ciego atendido',
-        'COMPLETE-CTOUT': 'Completado transfer consultivo',
-        'COMPLETE-BTOUT': 'Completado transfer ciego'
+        'CT-CANCEL': 'Transfer consultivo cancelado',
+        'CT-BUSY': 'Transfer consultivo - destino ocupado',
+        'COMPLETE-CT': 'Llamada completada vía transfer consultivo',
+        'ENTERQUEUE-TRANSFER': 'Llamada ingresó a cola por transferencia',
+        'CONNECT': 'Conexión establecida (puede ser transfer)'
     }
     
     def __init__(self, db: Session):

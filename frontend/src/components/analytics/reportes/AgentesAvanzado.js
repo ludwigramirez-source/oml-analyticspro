@@ -17,17 +17,38 @@ const AgentesAvanzado = ({ filters }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [sesiones, heatmap, disponibilidad, disponibilidadCompleta] = await Promise.all([
-        analyticsApi.getTotalSesionesAgentes(filters).catch(() => null),
+      const [heatmap, disponibilidadCompleta] = await Promise.all([
         analyticsApi.getDisponibilidadHeatmap(filters).catch(() => null),
-        analyticsApi.getDisponibilidadAmpliada(filters).catch(() => []),
         analyticsApi.getRendimientoAgentes(filters).catch(() => [])
       ]);
 
-      setTotalSesiones(sesiones);
       setHeatmapData(heatmap);
-      setDisponibilidadAmpliada(disponibilidad);
       setDisponibilidadAgentes(disponibilidadCompleta);
+      
+      // Calcular resumen de sesiones desde los datos de disponibilidad
+      if (disponibilidadCompleta && disponibilidadCompleta.length > 0) {
+        const agentesConSesiones = disponibilidadCompleta.filter(ag => ag.num_sesiones > 0);
+        const totalAgentes = agentesConSesiones.length;
+        
+        const tiemposSesion = agentesConSesiones.map(ag => ag.tiempo_total_sesion);
+        const tiempoTotal = tiemposSesion.reduce((sum, t) => sum + t, 0);
+        const tiempoPromedio = totalAgentes > 0 ? Math.floor(tiempoTotal / totalAgentes) : 0;
+        const tiempoMinimo = tiemposSesion.length > 0 ? Math.min(...tiemposSesion) : 0;
+        const tiempoMaximo = tiemposSesion.length > 0 ? Math.max(...tiemposSesion) : 0;
+        
+        setTotalSesiones({
+          total_agentes: totalAgentes,
+          tiempo_promedio: tiempoPromedio,
+          tiempo_minimo: tiempoMinimo,
+          tiempo_maximo: tiempoMaximo,
+          tiempo_total: tiempoTotal
+        });
+      } else {
+        setTotalSesiones(null);
+      }
+      
+      // La tabla ampliada no la usaremos más
+      setDisponibilidadAmpliada([]);
     } catch (error) {
       console.error('Error loading agentes avanzado:', error);
     } finally {

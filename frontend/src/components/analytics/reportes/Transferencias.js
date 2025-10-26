@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import analyticsApi from '../../../services/analyticsApi';
 import KPICard from '../KPICard';
+import { ExportButton } from '../../../utils/excelExport';
 
 const Transferencias = ({ filters }) => {
   const [loading, setLoading] = useState(true);
@@ -40,75 +41,154 @@ const Transferencias = ({ filters }) => {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">🔄 Análisis de Transferencias</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">🔄 Análisis de Transferencias</h2>
+        {analisis.eventos && (
+          <ExportButton 
+            data={Object.entries(analisis.eventos)
+              .filter(([_, data]) => data.total > 0)
+              .map(([evento, data]) => ({
+                'Evento': evento,
+                'Descripción': data.descripcion,
+                'Total': data.total
+              }))} 
+            filename="transferencias_detalle"
+            label="Exportar Detalle"
+          />
+        )}
+      </div>
       
-      {/* Resumen de Transferencias */}
+      {/* KPIs Generales */}
+      {analisis.resumen?.totales && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <KPICard
+            title="Total Intentos"
+            value={analisis.resumen.totales.total_intentos}
+            icon="📤"
+            bgColor="bg-blue-50"
+          />
+          <KPICard
+            title="Total Exitosas"
+            value={analisis.resumen.totales.total_exitosas}
+            icon="✅"
+            bgColor="bg-green-50"
+          />
+          <KPICard
+            title="Tasa de Éxito Global"
+            value={`${analisis.resumen.totales.tasa_exito_global}%`}
+            icon="📊"
+            bgColor="bg-purple-50"
+          />
+          <KPICard
+            title="Ingresos a Cola"
+            value={analisis.resumen.totales.ingresos_cola}
+            icon="⏳"
+            bgColor="bg-yellow-50"
+          />
+        </div>
+      )}
+      
+      {/* Resumen por Tipo de Transferencia */}
       {analisis.resumen && (
-        <div className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Transfer Consultivo */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">
-                📞 Transfer Consultivo
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <KPICard
-                  title="Intentos"
-                  value={analisis.resumen.transfer_consultivo.intentos}
-                  icon="🔵"
-                />
-                <KPICard
-                  title="Exitosos"
-                  value={analisis.resumen.transfer_consultivo.exitosos}
-                  icon="✅"
-                />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Transfer Ciego */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+              <span className="mr-2">⚡</span>
+              Transfer Ciego (Blind Transfer)
+            </h3>
+            
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="bg-blue-50 p-3 rounded">
+                <div className="text-xs text-gray-600">Intentos</div>
+                <div className="text-2xl font-bold text-blue-600">{analisis.resumen.transfer_ciego.intentos}</div>
               </div>
-              <div className="mt-4">
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-700">Tasa de Éxito</span>
-                  <span className="font-bold text-green-600">
-                    {analisis.resumen.transfer_consultivo.tasa_exito}%
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className="bg-green-600 h-3 rounded-full"
-                    style={{ width: `${analisis.resumen.transfer_consultivo.tasa_exito}%` }}
-                  ></div>
-                </div>
+              <div className="bg-green-50 p-3 rounded">
+                <div className="text-xs text-gray-600">Completados</div>
+                <div className="text-2xl font-bold text-green-600">{analisis.resumen.transfer_ciego.completados}</div>
               </div>
             </div>
 
-            {/* Transfer Ciego */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">
-                ⚡ Transfer Ciego
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <KPICard
-                  title="Intentos"
-                  value={analisis.resumen.transfer_ciego.intentos}
-                  icon="🔵"
-                />
-                <KPICard
-                  title="Exitosos"
-                  value={analisis.resumen.transfer_ciego.exitosos}
-                  icon="✅"
-                />
+            <div className="space-y-2 mb-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Atendidos</span>
+                <span className="font-medium">{analisis.resumen.transfer_ciego.atendidos}</span>
               </div>
-              <div className="mt-4">
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-700">Tasa de Éxito</span>
-                  <span className="font-bold text-green-600">
-                    {analisis.resumen.transfer_ciego.tasa_exito}%
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className="bg-green-600 h-3 rounded-full"
-                    style={{ width: `${analisis.resumen.transfer_ciego.tasa_exito}%` }}
-                  ></div>
-                </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Ocupados</span>
+                <span className="font-medium text-orange-600">{analisis.resumen.transfer_ciego.ocupados}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Sin respuesta</span>
+                <span className="font-medium text-red-600">{analisis.resumen.transfer_ciego.sin_respuesta}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">No disponible</span>
+                <span className="font-medium text-red-600">{analisis.resumen.transfer_ciego.no_disponible}</span>
+              </div>
+            </div>
+            
+            <div className="pt-3 border-t">
+              <div className="flex justify-between mb-2">
+                <span className="text-gray-700 font-medium">Tasa de Éxito</span>
+                <span className="font-bold text-green-600 text-lg">
+                  {analisis.resumen.transfer_ciego.tasa_exito}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div
+                  className="bg-green-600 h-3 rounded-full transition-all"
+                  style={{ width: `${analisis.resumen.transfer_ciego.tasa_exito}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Transfer Consultivo */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+              <span className="mr-2">📞</span>
+              Transfer Consultivo (Consultive Transfer)
+            </h3>
+            
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="bg-blue-50 p-3 rounded">
+                <div className="text-xs text-gray-600">Intentos</div>
+                <div className="text-2xl font-bold text-blue-600">{analisis.resumen.transfer_consultivo.intentos}</div>
+              </div>
+              <div className="bg-green-50 p-3 rounded">
+                <div className="text-xs text-gray-600">Completados</div>
+                <div className="text-2xl font-bold text-green-600">{analisis.resumen.transfer_consultivo.completados}</div>
+              </div>
+            </div>
+
+            <div className="space-y-2 mb-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Atendidos</span>
+                <span className="font-medium">{analisis.resumen.transfer_consultivo.atendidos}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Cancelados</span>
+                <span className="font-medium text-orange-600">{analisis.resumen.transfer_consultivo.cancelados}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Ocupados</span>
+                <span className="font-medium text-red-600">{analisis.resumen.transfer_consultivo.ocupados}</span>
+              </div>
+            </div>
+            
+            <div className="pt-3 border-t">
+              <div className="flex justify-between mb-2">
+                <span className="text-gray-700 font-medium">Tasa de Éxito</span>
+                <span className="font-bold text-green-600 text-lg">
+                  {analisis.resumen.transfer_consultivo.tasa_exito}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div
+                  className="bg-green-600 h-3 rounded-full transition-all"
+                  style={{ width: `${analisis.resumen.transfer_consultivo.tasa_exito}%` }}
+                ></div>
               </div>
             </div>
           </div>
@@ -119,7 +199,7 @@ const Transferencias = ({ filters }) => {
       {analisis.eventos && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-bold text-gray-800 mb-4">
-            Detalle de Eventos de Transferencia
+            📋 Detalle de Eventos de Transferencia
           </h3>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -127,17 +207,18 @@ const Transferencias = ({ filters }) => {
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Evento</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descripción</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Total</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {Object.entries(analisis.eventos)
-                  .filter(([evento, data]) => data.total > 0)
+                  .filter(([_, data]) => data.total > 0)
+                  .sort(([_, a], [__, b]) => b.total - a.total)
                   .map(([evento, data]) => (
-                    <tr key={evento}>
-                      <td className="px-4 py-3 text-sm font-mono text-gray-900">{evento}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{data.descripcion}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{data.total}</td>
+                    <tr key={evento} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-mono text-blue-600 font-medium">{evento}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{data.descripcion}</td>
+                      <td className="px-4 py-3 text-sm text-center font-bold text-gray-900">{data.total}</td>
                     </tr>
                   ))}
               </tbody>

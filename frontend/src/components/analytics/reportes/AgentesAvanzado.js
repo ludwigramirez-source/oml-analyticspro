@@ -195,49 +195,65 @@ const AgentesAvanzado = ({ filters }) => {
         </div>
       )}
 
-      {/* Tabla de Disponibilidad Ampliada */}
+      {/* Tabla de Disponibilidad de Agentes Completa */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-bold text-gray-800">
-            Métricas Detalladas por Agente
+            Disponibilidad Detallada por Agente
           </h3>
           <ExportButton 
-            data={disponibilidadAmpliada} 
-            filename="agentes_metricas_detalladas"
+            data={disponibilidadAgentes.map(ag => ({
+              'Agente': ag.nombre,
+              'Llamadas Contestadas': ag.llamadas_contestadas,
+              'Nº Sesiones': ag.num_sesiones,
+              'Tiempo Total Sesión': formatTiempo(ag.tiempo_total_sesion),
+              'Tiempo Al Habla': formatTiempo(ag.tiempo_al_habla),
+              'Tiempo Total Pausa': formatTiempo(ag.tiempo_total_pausa),
+              '% Ocupación': ag.ocupacion,
+              'Primer Login': ag.primer_login,
+              'Último Logout': ag.ultimo_logout
+            }))} 
+            filename="disponibilidad_agentes_detallada"
             label="Exportar a Excel"
           />
         </div>
         
-        {disponibilidadAmpliada && disponibilidadAmpliada.length > 0 ? (
+        {disponibilidadAgentes && disponibilidadAgentes.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agente</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sesiones</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">T. Sesión</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">T. Llamadas</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ocupación</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prom. Sesión</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Llamadas Contestadas</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Sesiones</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tiempo Total Sesión</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tiempo Al Habla</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tiempo Total Pausa</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">% Ocupación</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Primer Login</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Último Logout</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {disponibilidadAmpliada.map((agente, idx) => (
-                  <tr key={idx}>
-                    <td className="px-4 py-3 text-sm text-gray-900">{agente.agente}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{agente.num_sesiones}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{formatTime(agente.tiempo_sesion)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{formatTime(agente.tiempo_llamadas)}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <span className={`px-2 py-1 rounded font-semibold ${
+                {disponibilidadAgentes.map((agente, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{agente.nombre}</td>
+                    <td className="px-4 py-3 text-sm text-center text-green-600 font-bold">{agente.llamadas_contestadas}</td>
+                    <td className="px-4 py-3 text-sm text-center text-gray-900">{agente.num_sesiones}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900">{formatTime(agente.tiempo_total_sesion)}</td>
+                    <td className="px-4 py-3 text-sm text-blue-600 font-medium">{formatTime(agente.tiempo_al_habla)}</td>
+                    <td className="px-4 py-3 text-sm text-orange-600">{formatTime(agente.tiempo_total_pausa)}</td>
+                    <td className="px-4 py-3 text-sm text-center">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         agente.ocupacion >= 80 ? 'bg-green-100 text-green-800' :
-                        agente.ocupacion >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                        agente.ocupacion >= 50 ? 'bg-yellow-100 text-yellow-800' :
                         'bg-red-100 text-red-800'
                       }`}>
                         {agente.ocupacion}%
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{formatTime(agente.promedio_sesion)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900">{agente.primer_login}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900">{agente.ultimo_logout}</td>
                   </tr>
                 ))}
               </tbody>

@@ -6,6 +6,9 @@ import { ExportButton } from '../../../utils/excelExport';
 const Transferencias = ({ filters }) => {
   const [loading, setLoading] = useState(true);
   const [analisis, setAnalisis] = useState(null);
+  const [detalleLlamadas, setDetalleLlamadas] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   useEffect(() => {
     loadData();
@@ -14,13 +17,56 @@ const Transferencias = ({ filters }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const data = await analyticsApi.getAnalisisTransferencias(filters);
-      setAnalisis(data);
+      const [dataAnalisis, dataDetalle] = await Promise.all([
+        analyticsApi.getAnalisisTransferencias(filters),
+        analyticsApi.getDetalleTransferencias(filters)
+      ]);
+      setAnalisis(dataAnalisis);
+      setDetalleLlamadas(dataDetalle);
     } catch (error) {
       console.error('Error loading transferencias:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatDuracion = (seconds) => {
+    const min = Math.floor(seconds / 60);
+    const sec = seconds % 60;
+    return `${min}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  const getEventoBadge = (evento) => {
+    const badges = {
+      'BT-TRY': 'bg-blue-100 text-blue-800',
+      'BT-ANSWER': 'bg-green-100 text-green-800',
+      'BT-BUSY': 'bg-orange-100 text-orange-800',
+      'BT-NOANSWER': 'bg-red-100 text-red-800',
+      'COMPLETE-BT': 'bg-green-100 text-green-800',
+      'CT-TRY': 'bg-purple-100 text-purple-800',
+      'CT-ANSWER': 'bg-green-100 text-green-800',
+      'CT-CANCEL': 'bg-yellow-100 text-yellow-800',
+      'COMPLETE-CT': 'bg-green-100 text-green-800',
+      'ENTERQUEUE-TRANSFER': 'bg-indigo-100 text-indigo-800'
+    };
+    return badges[evento] || 'bg-gray-100 text-gray-800';
+  };
+
+  // Paginación
+  const totalPages = Math.ceil((detalleLlamadas?.length || 0) / pageSize);
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    return detalleLlamadas?.slice(start, end) || [];
+  }, [detalleLlamadas, currentPage, pageSize]);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (size) => {
+    setPageSize(size);
+    setCurrentPage(1);
   };
 
   if (loading) {

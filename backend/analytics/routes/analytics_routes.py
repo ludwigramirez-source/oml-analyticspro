@@ -541,6 +541,16 @@ async def get_analisis_transferencias(
     return service_ext.get_analisis_transferencias(filters)
 
 
+@router.get("/transferencias/detalle")
+async def get_detalle_transferencias(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Detalle de llamadas con eventos de transferencia"""
+    service_ext = CallAnalyticsExtended(db)
+    return service_ext.get_detalle_transferencias(filters)
+
+
 @router.get("/nivel-servicio-detallado")
 async def get_nivel_servicio_detallado(
     filters: dict = Depends(parse_filters),

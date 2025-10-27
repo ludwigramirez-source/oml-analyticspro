@@ -415,6 +415,196 @@ class BackendTester:
         else:
             print(f"   ❌ Agentes disponibilidad endpoint test failed")
 
+    def run_transferencias_detalle_test(self):
+        """Test Transferencias detailed table endpoint for callid grouping (CRITICAL)"""
+        print("\n" + "="*60)
+        print("🎯 TRANSFERENCIAS DETAILED TABLE GROUPING TEST (CRITICAL)")
+        print("="*60)
+        
+        # Test the detailed table endpoint
+        endpoint = '/api/analytics/transferencias/detalle?fecha_inicio=2025-10-01&fecha_fin=2025-10-31'
+        
+        success, response = self.test_endpoint('GET', endpoint, 
+                                             expected_status=200, 
+                                             description="Transferencias detailed table with callid grouping")
+        
+        if success and response:
+            try:
+                data = response.json()
+                
+                print(f"\n   📊 TRANSFERENCIAS DETALLE ANALYSIS:")
+                print(f"   📈 Response type: {type(data)}")
+                
+                if isinstance(data, list):
+                    print(f"   📋 Total objects returned: {len(data)}")
+                    
+                    if len(data) > 0:
+                        # Validate structure of first object
+                        first_call = data[0]
+                        required_fields = ['callid', 'fecha', 'hora_inicio', 'campana', 'agente', 'numero', 'duracion', 'espera', 'contacto_id', 'eventos']
+                        
+                        print(f"\n   🔍 STRUCTURE VALIDATION:")
+                        missing_fields = [field for field in required_fields if field not in first_call]
+                        
+                        if missing_fields:
+                            print(f"   ❌ Missing required fields: {missing_fields}")
+                            self.results['failed'].append({
+                                'endpoint': endpoint,
+                                'method': 'GET',
+                                'expected_status': 'All required fields present',
+                                'actual_status': f'Missing fields: {missing_fields}',
+                                'description': 'Call structure validation failed',
+                                'response': f'Available fields: {list(first_call.keys())}'
+                            })
+                        else:
+                            print(f"   ✅ All required fields present: {required_fields}")
+                        
+                        # Validate eventos array structure
+                        if 'eventos' in first_call and isinstance(first_call['eventos'], list):
+                            print(f"   ✅ 'eventos' field is an array")
+                            
+                            if len(first_call['eventos']) > 0:
+                                first_event = first_call['eventos'][0]
+                                event_required_fields = ['evento', 'evento_descripcion', 'hora', 'duracion']
+                                event_missing_fields = [field for field in event_required_fields if field not in first_event]
+                                
+                                if event_missing_fields:
+                                    print(f"   ❌ Missing event fields: {event_missing_fields}")
+                                    self.results['failed'].append({
+                                        'endpoint': endpoint,
+                                        'method': 'GET',
+                                        'expected_status': 'All event fields present',
+                                        'actual_status': f'Missing event fields: {event_missing_fields}',
+                                        'description': 'Event structure validation failed',
+                                        'response': f'Available event fields: {list(first_event.keys())}'
+                                    })
+                                else:
+                                    print(f"   ✅ All event fields present: {event_required_fields}")
+                            else:
+                                print(f"   ⚠️  First call has no events (may be expected)")
+                        else:
+                            print(f"   ❌ 'eventos' field is not an array")
+                            self.results['failed'].append({
+                                'endpoint': endpoint,
+                                'method': 'GET',
+                                'expected_status': 'eventos field as array',
+                                'actual_status': f'eventos type: {type(first_call.get("eventos", "missing"))}',
+                                'description': 'eventos field validation failed',
+                                'response': f'eventos value: {first_call.get("eventos", "missing")}'
+                            })
+                        
+                        # Show sample data structure
+                        print(f"\n   📊 SAMPLE CALL STRUCTURE:")
+                        print(f"      - CallID: {first_call.get('callid', 'N/A')}")
+                        print(f"      - Fecha: {first_call.get('fecha', 'N/A')}")
+                        print(f"      - Hora Inicio: {first_call.get('hora_inicio', 'N/A')}")
+                        print(f"      - Campaña: {first_call.get('campana', 'N/A')}")
+                        print(f"      - Agente: {first_call.get('agente', 'N/A')}")
+                        print(f"      - Número: {first_call.get('numero', 'N/A')}")
+                        print(f"      - Eventos Count: {len(first_call.get('eventos', []))}")
+                        
+                        if first_call.get('eventos') and len(first_call['eventos']) > 0:
+                            print(f"\n   📊 SAMPLE EVENTS:")
+                            for i, evento in enumerate(first_call['eventos'][:3]):  # Show first 3 events
+                                print(f"      Event {i+1}:")
+                                print(f"         - Evento: {evento.get('evento', 'N/A')}")
+                                print(f"         - Descripción: {evento.get('evento_descripcion', 'N/A')}")
+                                print(f"         - Hora: {evento.get('hora', 'N/A')}")
+                                print(f"         - Duración: {evento.get('duracion', 'N/A')}")
+                        
+                        # Validate callid uniqueness
+                        callids = [call.get('callid') for call in data if call.get('callid')]
+                        unique_callids = set(callids)
+                        
+                        print(f"\n   🔍 CALLID UNIQUENESS VALIDATION:")
+                        print(f"      - Total objects: {len(data)}")
+                        print(f"      - Total callids: {len(callids)}")
+                        print(f"      - Unique callids: {len(unique_callids)}")
+                        
+                        if len(callids) == len(unique_callids):
+                            print(f"   ✅ All callids are unique - one object per call")
+                        else:
+                            print(f"   ❌ Duplicate callids found - {len(callids) - len(unique_callids)} duplicates")
+                            self.results['failed'].append({
+                                'endpoint': endpoint,
+                                'method': 'GET',
+                                'expected_status': 'Unique callids',
+                                'actual_status': f'{len(callids) - len(unique_callids)} duplicates',
+                                'description': 'Callid uniqueness validation failed',
+                                'response': f'Total: {len(callids)}, Unique: {len(unique_callids)}'
+                            })
+                        
+                        # Check for calls with multiple events (the main fix)
+                        calls_with_multiple_events = [call for call in data if len(call.get('eventos', [])) > 1]
+                        print(f"\n   🔍 MULTIPLE EVENTS VALIDATION:")
+                        print(f"      - Calls with multiple events: {len(calls_with_multiple_events)}")
+                        
+                        if len(calls_with_multiple_events) > 0:
+                            print(f"   ✅ Found calls with multiple events - grouping is working")
+                            
+                            # Show example of grouped events
+                            example_call = calls_with_multiple_events[0]
+                            print(f"\n   📊 EXAMPLE GROUPED CALL:")
+                            print(f"      - CallID: {example_call.get('callid')}")
+                            print(f"      - Events count: {len(example_call.get('eventos', []))}")
+                            print(f"      - Event types: {[e.get('evento') for e in example_call.get('eventos', [])]}")
+                        else:
+                            print(f"   ⚠️  No calls with multiple events found (may be expected for this date range)")
+                        
+                        # Overall validation
+                        validation_passed = (
+                            not missing_fields and
+                            len(callids) == len(unique_callids) and
+                            isinstance(first_call.get('eventos'), list)
+                        )
+                        
+                        if validation_passed:
+                            print(f"\n   ✅ TRANSFERENCIAS DETALLE TEST PASSED")
+                            print(f"      - Structure: ✅ Correct")
+                            print(f"      - Grouping: ✅ One object per callid")
+                            print(f"      - Events: ✅ Array format with required fields")
+                            
+                            self.results['passed'].append({
+                                'endpoint': endpoint,
+                                'method': 'GET',
+                                'status': 200,
+                                'description': f'Transferencias detalle grouping working - {len(data)} unique calls, {len(calls_with_multiple_events)} with multiple events'
+                            })
+                        else:
+                            print(f"\n   ❌ TRANSFERENCIAS DETALLE TEST FAILED - Check validation details above")
+                    
+                    else:
+                        print(f"   ⚠️  No transfer data found in date range (2025-10-01 to 2025-10-31)")
+                        print(f"   ℹ️  This may be expected if no transfers occurred in this period")
+                        self.results['passed'].append({
+                            'endpoint': endpoint,
+                            'method': 'GET',
+                            'status': 200,
+                            'description': 'Transferencias detalle endpoint working - no data in test period (expected)'
+                        })
+                
+                else:
+                    print(f"   ❌ Expected array response, got: {type(data)}")
+                    self.results['failed'].append({
+                        'endpoint': endpoint,
+                        'method': 'GET',
+                        'expected_status': 'Array response',
+                        'actual_status': f'Got {type(data)}',
+                        'description': 'Response type validation failed',
+                        'response': str(data)[:500]
+                    })
+                    
+            except Exception as e:
+                print(f"   💥 ERROR parsing transferencias detalle response: {str(e)}")
+                self.results['errors'].append({
+                    'endpoint': endpoint,
+                    'method': 'GET',
+                    'error': f'Failed to parse response: {str(e)}',
+                    'description': 'Transferencias detalle response parsing failed'
+                })
+        else:
+            print(f"   ❌ Transferencias detalle endpoint test failed")
+
     def run_transferencias_test(self):
         """Test Transferencias endpoint for unique call counting (CRITICAL)"""
         print("\n" + "="*60)

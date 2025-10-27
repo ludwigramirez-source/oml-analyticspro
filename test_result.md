@@ -235,6 +235,18 @@ backend:
         agent: "testing"
         comment: "✅ TESTED: Agentes disponibilidad endpoint working perfectly. Returns 9 agents total with all required fields (agente_id, username, nombre, llamadas_contestadas, tmo, tasa_atencion, total_llamadas). Found main agent with 504 calls as expected. All 9 agents have llamadas_contestadas > 0. TMO values are in seconds (>0), tasa_atencion values are valid percentages (0-100%). Endpoint structure and data validation passed completely."
 
+  - task: "Fix Transferencias report unique call counting"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/analytics/services/call_analytics_extended.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Fixed get_analisis_transferencias to count unique calls (callid) instead of individual events. Created helper function count_unique_calls_with_event() using func.count(distinct(LlamadaLog.callid)) to ensure each call is counted once regardless of how many transfer events it has. For example, a call with BT-TRY -> BT-ANSWER -> COMPLETE-BT now counts as 1 unique call for each event type, not 3. Backend restarted successfully."
+
 frontend:
   - task: "Split distribution chart into two pie charts"
     implemented: true

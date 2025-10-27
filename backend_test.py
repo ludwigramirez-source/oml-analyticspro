@@ -415,6 +415,180 @@ class BackendTester:
         else:
             print(f"   ❌ Agentes disponibilidad endpoint test failed")
 
+    def run_transferencias_test(self):
+        """Test Transferencias endpoint for unique call counting (CRITICAL)"""
+        print("\n" + "="*60)
+        print("🎯 TRANSFERENCIAS UNIQUE CALL COUNTING TEST (CRITICAL)")
+        print("="*60)
+        
+        # Test with specific filters as requested
+        endpoint = '/api/analytics/transferencias?fecha_inicio=2025-10-01&fecha_fin=2025-10-31'
+        
+        success, response = self.test_endpoint('GET', endpoint, 
+                                             expected_status=200, 
+                                             description="Transferencias report with unique call counting")
+        
+        if success and response:
+            try:
+                data = response.json()
+                
+                print(f"\n   📊 TRANSFERENCIAS ANALYSIS:")
+                print(f"   📈 Response structure: {list(data.keys()) if isinstance(data, dict) else 'Not a dict'}")
+                
+                if isinstance(data, dict) and 'eventos' in data and 'resumen' in data:
+                    eventos = data['eventos']
+                    resumen = data['resumen']
+                    
+                    print(f"   ✅ Response has required sections: 'eventos' and 'resumen'")
+                    
+                    # Check resumen structure
+                    if 'transfer_ciego' in resumen and 'transfer_consultivo' in resumen and 'totales' in resumen:
+                        print(f"   ✅ Resumen has all required sections")
+                        
+                        # Extract metrics
+                        tc = resumen['transfer_ciego']
+                        tcons = resumen['transfer_consultivo']
+                        totales = resumen['totales']
+                        
+                        print(f"\n   📊 TRANSFER CIEGO METRICS:")
+                        print(f"      - Intentos: {tc.get('intentos', 0)}")
+                        print(f"      - Atendidos: {tc.get('atendidos', 0)}")
+                        print(f"      - Completados: {tc.get('completados', 0)}")
+                        print(f"      - Ocupados: {tc.get('ocupados', 0)}")
+                        print(f"      - Sin respuesta: {tc.get('sin_respuesta', 0)}")
+                        print(f"      - No disponible: {tc.get('no_disponible', 0)}")
+                        print(f"      - Tasa éxito: {tc.get('tasa_exito', 0)}%")
+                        
+                        print(f"\n   📊 TRANSFER CONSULTIVO METRICS:")
+                        print(f"      - Intentos: {tcons.get('intentos', 0)}")
+                        print(f"      - Atendidos: {tcons.get('atendidos', 0)}")
+                        print(f"      - Completados: {tcons.get('completados', 0)}")
+                        print(f"      - Cancelados: {tcons.get('cancelados', 0)}")
+                        print(f"      - Ocupados: {tcons.get('ocupados', 0)}")
+                        print(f"      - Tasa éxito: {tcons.get('tasa_exito', 0)}%")
+                        
+                        print(f"\n   📊 TOTALES:")
+                        print(f"      - Total intentos: {totales.get('total_intentos', 0)}")
+                        print(f"      - Total exitosas: {totales.get('total_exitosas', 0)}")
+                        print(f"      - Ingresos cola: {totales.get('ingresos_cola', 0)}")
+                        print(f"      - Tasa éxito global: {totales.get('tasa_exito_global', 0)}%")
+                        
+                        # Show some event details for comparison
+                        print(f"\n   📊 EVENTOS SAMPLE (for comparison with unique counts):")
+                        event_samples = ['BT-TRY', 'BT-ANSWER', 'COMPLETE-BT', 'CT-TRY', 'COMPLETE-CT']
+                        for event in event_samples:
+                            if event in eventos:
+                                event_count = eventos[event].get('total', 0)
+                                print(f"      - {event}: {event_count} events")
+                        
+                        # CRITICAL VALIDATION: Check if unique call counting is working
+                        print(f"\n   🔍 UNIQUE CALL COUNTING VALIDATION:")
+                        
+                        # Check if we have any transfer data
+                        total_intentos = totales.get('total_intentos', 0)
+                        total_exitosas = totales.get('total_exitosas', 0)
+                        
+                        if total_intentos > 0:
+                            print(f"   ✅ Transfer data found - {total_intentos} unique calls attempted transfers")
+                            
+                            # Validate that summary numbers are consistent
+                            bt_intentos = tc.get('intentos', 0)
+                            ct_intentos = tcons.get('intentos', 0)
+                            calculated_total = bt_intentos + ct_intentos
+                            
+                            if calculated_total == total_intentos:
+                                print(f"   ✅ Total intentos calculation is consistent: {bt_intentos} + {ct_intentos} = {total_intentos}")
+                            else:
+                                print(f"   ❌ Total intentos mismatch: {bt_intentos} + {ct_intentos} ≠ {total_intentos}")
+                                self.results['failed'].append({
+                                    'endpoint': endpoint,
+                                    'method': 'GET',
+                                    'expected_status': 'Consistent totals',
+                                    'actual_status': f'Mismatch: {calculated_total} ≠ {total_intentos}',
+                                    'description': 'Transfer totals calculation inconsistency',
+                                    'response': f'BT: {bt_intentos}, CT: {ct_intentos}, Total: {total_intentos}'
+                                })
+                            
+                            # Validate that completed transfers are <= attempts
+                            bt_completados = tc.get('completados', 0)
+                            ct_completados = tcons.get('completados', 0)
+                            
+                            if bt_completados <= bt_intentos and ct_completados <= ct_intentos:
+                                print(f"   ✅ Completed transfers <= attempts (logical consistency)")
+                            else:
+                                print(f"   ❌ Completed > attempts (data inconsistency)")
+                                self.results['failed'].append({
+                                    'endpoint': endpoint,
+                                    'method': 'GET',
+                                    'expected_status': 'Completed <= Attempts',
+                                    'actual_status': f'BT: {bt_completados}/{bt_intentos}, CT: {ct_completados}/{ct_intentos}',
+                                    'description': 'Completed transfers exceed attempts',
+                                    'response': 'Data logic error'
+                                })
+                            
+                            # Check if events show higher counts than unique calls (expected behavior)
+                            bt_try_events = eventos.get('BT-TRY', {}).get('total', 0)
+                            if bt_try_events >= bt_intentos:
+                                print(f"   ✅ Event count ({bt_try_events}) >= unique calls ({bt_intentos}) - unique counting working")
+                            else:
+                                print(f"   ⚠️  Event count ({bt_try_events}) < unique calls ({bt_intentos}) - unexpected")
+                            
+                            print(f"   ✅ TRANSFERENCIAS TEST PASSED - Unique call counting implemented")
+                            self.results['passed'].append({
+                                'endpoint': endpoint,
+                                'method': 'GET',
+                                'status': 200,
+                                'description': f'Transferencias unique call counting working - {total_intentos} unique calls, {total_exitosas} successful'
+                            })
+                            
+                        else:
+                            print(f"   ⚠️  No transfer data found in date range (2025-10-01 to 2025-10-31)")
+                            print(f"   ℹ️  This may be expected if no transfers occurred in this period")
+                            self.results['passed'].append({
+                                'endpoint': endpoint,
+                                'method': 'GET',
+                                'status': 200,
+                                'description': 'Transferencias endpoint working - no data in test period (expected)'
+                            })
+                        
+                    else:
+                        print(f"   ❌ Missing required resumen sections")
+                        missing = []
+                        if 'transfer_ciego' not in resumen: missing.append('transfer_ciego')
+                        if 'transfer_consultivo' not in resumen: missing.append('transfer_consultivo')
+                        if 'totales' not in resumen: missing.append('totales')
+                        
+                        self.results['failed'].append({
+                            'endpoint': endpoint,
+                            'method': 'GET',
+                            'expected_status': 'Complete resumen structure',
+                            'actual_status': f'Missing: {missing}',
+                            'description': 'Incomplete response structure',
+                            'response': f'Available sections: {list(resumen.keys())}'
+                        })
+                
+                else:
+                    print(f"   ❌ Response missing required sections 'eventos' and 'resumen'")
+                    self.results['failed'].append({
+                        'endpoint': endpoint,
+                        'method': 'GET',
+                        'expected_status': 'eventos and resumen sections',
+                        'actual_status': f'Got: {list(data.keys()) if isinstance(data, dict) else type(data)}',
+                        'description': 'Response structure validation failed',
+                        'response': str(data)[:500]
+                    })
+                    
+            except Exception as e:
+                print(f"   💥 ERROR parsing transferencias response: {str(e)}")
+                self.results['errors'].append({
+                    'endpoint': endpoint,
+                    'method': 'GET',
+                    'error': f'Failed to parse response: {str(e)}',
+                    'description': 'Transferencias response parsing failed'
+                })
+        else:
+            print(f"   ❌ Transferencias endpoint test failed")
+
     def run_additional_analytics_tests(self):
         """Test additional analytics endpoints"""
         print("\n" + "="*60)

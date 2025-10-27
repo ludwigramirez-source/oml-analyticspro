@@ -320,6 +320,13 @@ class AnalyticsAPI {
   async getAnalisisTransferencias(filters = {}) {
     return this.fetchData('transferencias', filters);
   }
+
+  /**
+   * Detalle de llamadas con transferencias
+   */
+  async getDetalleTransferencias(filters = {}) {
+    return this.fetchData('transferencias/detalle', filters);
+  }
   
   /**
    * Nivel de servicio detallado

@@ -954,3 +954,72 @@ class CallAnalyticsExtended:
         
         return datos
 
+
+    def get_detalle_transferencias(self, filters: Dict = None) -> List[Dict]:
+        """
+        Obtiene el detalle de todas las llamadas con eventos de transferencia
+        Similar a llamadas atendidas pero solo con eventos de transferencia
+        """
+        filters = filters or {}
+        
+        # Lista de eventos de transferencia
+        eventos_transferencia = list(self.EVENTOS_TRANSFERENCIAS.keys())
+        
+        # Query base
+        query = self.db.query(
+            LlamadaLog.callid,
+            LlamadaLog.time,
+            LlamadaLog.event,
+            LlamadaLog.campana_id,
+            LlamadaLog.agente_id,
+            LlamadaLog.numero_marcado,
+            LlamadaLog.duracion_llamada,
+            LlamadaLog.bridge_wait_time,
+            LlamadaLog.contacto_id,
+            Campana.nombre.label('campana_nombre'),
+            User.first_name,
+            User.last_name
+        ).outerjoin(
+            Campana, LlamadaLog.campana_id == Campana.id
+        ).outerjoin(
+            AgenteProfile, LlamadaLog.agente_id == AgenteProfile.id
+        ).outerjoin(
+            User, AgenteProfile.user_id == User.id
+        ).filter(
+            LlamadaLog.event.in_(eventos_transferencia)
+        )
+        
+        # Aplicar filtros
+        if filters.get('fecha_inicio'):
+            query = query.filter(LlamadaLog.time >= filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            query = query.filter(LlamadaLog.time <= filters['fecha_fin'])
+        if filters.get('campana_ids'):
+            query = query.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
+        if filters.get('agente_ids'):
+            query = query.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
+        
+        query = query.order_by(LlamadaLog.time.desc())
+        
+        llamadas = query.all()
+        
+        resultado = []
+        for llamada in llamadas:
+            agente_nombre = f'{llamada.first_name} {llamada.last_name}' if llamada.first_name else 'Sin Agente'
+            
+            resultado.append({
+                'callid': llamada.callid,
+                'fecha': llamada.time.strftime('%Y-%m-%d'),
+                'hora': llamada.time.strftime('%H:%M:%S'),
+                'evento': llamada.event,
+                'evento_descripcion': self.EVENTOS_TRANSFERENCIAS.get(llamada.event, llamada.event),
+                'campana': llamada.campana_nombre or 'Sin Campaña',
+                'agente': agente_nombre,
+                'numero': llamada.numero_marcado or 'N/A',
+                'duracion': int(llamada.duracion_llamada or 0),
+                'espera': int(llamada.bridge_wait_time or 0),
+                'contacto_id': llamada.contacto_id
+            })
+        
+        return resultado
+

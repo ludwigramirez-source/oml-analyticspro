@@ -272,6 +272,112 @@ const Transferencias = ({ filters }) => {
           </div>
         </div>
       )}
+
+      {/* Tabla de Detalle de Llamadas Transferidas */}
+      {detalleLlamadas && detalleLlamadas.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-bold text-gray-800">
+              📋 Detalle de Llamadas Transferidas ({detalleLlamadas.length})
+            </h3>
+            <ExportButton 
+              data={detalleLlamadas.map(l => ({
+                'Call ID': l.callid,
+                'Fecha': l.fecha,
+                'Hora': l.hora,
+                'Evento': l.evento,
+                'Descripción': l.evento_descripcion,
+                'Campaña': l.campana,
+                'Agente': l.agente,
+                'Número': l.numero,
+                'Duración (seg)': l.duracion,
+                'Espera (seg)': l.espera
+              }))} 
+              filename="transferencias_detalle_llamadas"
+              label="Exportar Llamadas"
+            />
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hora</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Evento</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Campaña</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agente</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Número</th>
+                  <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Duración</th>
+                  <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Espera</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Call ID</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {paginatedData.map((llamada, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50">
+                    <td className="px-3 py-3 text-sm text-gray-900">{llamada.fecha}</td>
+                    <td className="px-3 py-3 text-sm text-gray-900">{llamada.hora}</td>
+                    <td className="px-3 py-3 text-sm">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${getEventoBadge(llamada.evento)}`}>
+                        {llamada.evento}
+                      </span>
+                      <div className="text-xs text-gray-500 mt-1">{llamada.evento_descripcion}</div>
+                    </td>
+                    <td className="px-3 py-3 text-sm text-gray-700">{llamada.campana}</td>
+                    <td className="px-3 py-3 text-sm text-gray-700">{llamada.agente}</td>
+                    <td className="px-3 py-3 text-sm text-gray-900 font-mono">{llamada.numero}</td>
+                    <td className="px-3 py-3 text-sm text-center text-blue-600 font-medium">
+                      {formatDuracion(llamada.duracion)}
+                    </td>
+                    <td className="px-3 py-3 text-sm text-center text-gray-600">
+                      {formatDuracion(llamada.espera)}
+                    </td>
+                    <td className="px-3 py-3 text-sm text-gray-500 font-mono text-xs">{llamada.callid}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Paginación */}
+          <div className="flex items-center justify-between mt-4 px-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-700">Filas por página:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                className="border border-gray-300 rounded px-2 py-1 text-sm"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              >
+                Anterior
+              </button>
+              <span className="text-sm text-gray-700">
+                Página {currentPage} de {totalPages}
+              </span>
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -652,45 +652,32 @@ class CallAnalyticsExtended:
         # Contar LLAMADAS ÚNICAS por tipo de transferencia
         # Una llamada con BT-TRY -> BT-ANSWER -> COMPLETE-BT cuenta como 1 llamada de transfer ciego exitosa
         
+        # Helper function para contar callids únicos con un evento específico
+        def count_unique_calls_with_event(event_name):
+            base_query = self.db.query(func.count(distinct(LlamadaLog.callid)))
+            base_query = self._apply_filters(base_query, filters)
+            return base_query.filter(LlamadaLog.event == event_name).scalar() or 0
+        
         # Transfer Ciego: Llamadas con eventos BT-*
-        eventos_bt = ['BT-TRY', 'BT-ANSWER', 'BT-BUSY', 'BT-NOANSWER', 'BT-CHANUNAVAIL', 'COMPLETE-BT']
-        llamadas_bt = self.db.query(LlamadaLog.callid.distinct()).filter(
-            LlamadaLog.event.in_(eventos_bt)
-        )
-        llamadas_bt = self._apply_filters(llamadas_bt, filters)
-        
-        # Llamadas BT que tienen al menos un intento
-        bt_intentos = llamadas_bt.filter(LlamadaLog.event == 'BT-TRY').count()
-        
-        # Llamadas BT que completaron exitosamente
-        bt_completados = llamadas_bt.filter(LlamadaLog.event == 'COMPLETE-BT').count()
-        
-        # Llamadas BT que fueron atendidas
-        bt_atendidos = llamadas_bt.filter(LlamadaLog.event == 'BT-ANSWER').count()
-        
-        # Llamadas BT con problemas
-        bt_ocupados = llamadas_bt.filter(LlamadaLog.event == 'BT-BUSY').count()
-        bt_sin_respuesta = llamadas_bt.filter(LlamadaLog.event == 'BT-NOANSWER').count()
-        bt_no_disponible = llamadas_bt.filter(LlamadaLog.event == 'BT-CHANUNAVAIL').count()
+        bt_intentos = count_unique_calls_with_event('BT-TRY')
+        bt_completados = count_unique_calls_with_event('COMPLETE-BT')
+        bt_atendidos = count_unique_calls_with_event('BT-ANSWER')
+        bt_ocupados = count_unique_calls_with_event('BT-BUSY')
+        bt_sin_respuesta = count_unique_calls_with_event('BT-NOANSWER')
+        bt_no_disponible = count_unique_calls_with_event('BT-CHANUNAVAIL')
         
         # Transfer Consultivo: Llamadas con eventos CT-*
-        eventos_ct = ['CT-TRY', 'CT-ANSWER', 'CT-CANCEL', 'CT-BUSY', 'COMPLETE-CT']
-        llamadas_ct = self.db.query(LlamadaLog.callid.distinct()).filter(
-            LlamadaLog.event.in_(eventos_ct)
-        )
-        llamadas_ct = self._apply_filters(llamadas_ct, filters)
-        
-        ct_intentos = llamadas_ct.filter(LlamadaLog.event == 'CT-TRY').count()
-        ct_completados = llamadas_ct.filter(LlamadaLog.event == 'COMPLETE-CT').count()
-        ct_atendidos = llamadas_ct.filter(LlamadaLog.event == 'CT-ANSWER').count()
-        ct_cancelados = llamadas_ct.filter(LlamadaLog.event == 'CT-CANCEL').count()
-        ct_ocupados = llamadas_ct.filter(LlamadaLog.event == 'CT-BUSY').count()
+        ct_intentos = count_unique_calls_with_event('CT-TRY')
+        ct_completados = count_unique_calls_with_event('COMPLETE-CT')
+        ct_atendidos = count_unique_calls_with_event('CT-ANSWER')
+        ct_cancelados = count_unique_calls_with_event('CT-CANCEL')
+        ct_ocupados = count_unique_calls_with_event('CT-BUSY')
         
         # Total de transferencias exitosas y intentos
         total_exitosas = bt_completados + ct_completados
         total_intentos = bt_intentos + ct_intentos
         
-        # Ingresos a cola por transferencia
+        # Ingresos a cola por transferencia (eventos, no llamadas únicas)
         total_ingresos_cola = query.filter(LlamadaLog.event == 'ENTERQUEUE-TRANSFER').count()
         
         return {

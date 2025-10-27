@@ -121,6 +121,7 @@ user_problem_statement: |
      - Modified get_kpis to count unique calls by callid
      - Backend restarted to apply fix
   7. Replace refresh button with Iptegra logo in header
+  8. Fix Transferencias report to count unique calls (callid) instead of individual events (NEEDS TESTING)
   
 backend:
   - task: "Fix database lazy loading"

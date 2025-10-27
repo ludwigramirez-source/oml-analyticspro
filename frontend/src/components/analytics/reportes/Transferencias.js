@@ -9,6 +9,7 @@ const Transferencias = ({ filters }) => {
   const [detalleLlamadas, setDetalleLlamadas] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [expandedRows, setExpandedRows] = useState({});
 
   useEffect(() => {
     loadData();

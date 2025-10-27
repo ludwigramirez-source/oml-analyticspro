@@ -875,6 +875,7 @@ def main():
     tester.run_health_tests()
     tester.run_config_tests()
     tester.run_analytics_tests()
+    tester.run_transferencias_detalle_test()  # NEW: Critical Transferencias detailed table grouping test
     tester.run_transferencias_test()  # NEW: Critical Transferencias unique call counting test
     tester.run_agentes_disponibilidad_test()  # NEW: Specific agentes disponibilidad test
     tester.run_kpi_consistency_tests()  # NEW: Critical KPI consistency test

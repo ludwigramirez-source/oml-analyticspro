@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import analyticsApi from '../../../services/analyticsApi';
 import KPICard from '../KPICard';
 import { ExportButton } from '../../../utils/excelExport';

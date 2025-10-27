@@ -632,44 +632,69 @@ class CallAnalyticsExtended:
     def get_analisis_transferencias(self, filters: Dict = None) -> Dict:
         """
         Análisis completo de transferencias
-        Eventos basados en OmniLeads: BT-* (Blind Transfer/Ciego) y CT-* (Consultive Transfer/Consultivo)
+        Cuenta LLAMADAS ÚNICAS (por callid), no eventos individuales
         """
         filters = filters or {}
         
+        # Obtener base de datos de llamadas con transferencias
         query = self.db.query(LlamadaLog)
         query = self._apply_filters(query, filters)
         
-        # Contar por tipo de evento de transferencia
-        metricas = {}
+        # Contar eventos individuales para el detalle
+        metricas_eventos = {}
         for evento, descripcion in self.EVENTOS_TRANSFERENCIAS.items():
             count = query.filter(LlamadaLog.event == evento).count()
-            metricas[evento] = {
+            metricas_eventos[evento] = {
                 'descripcion': descripcion,
                 'total': count
             }
         
-        # Calcular métricas de Transfer Ciego (BT - Blind Transfer)
-        bt_intentos = metricas.get('BT-TRY', {}).get('total', 0)
-        bt_atendidos = metricas.get('BT-ANSWER', {}).get('total', 0)
-        bt_completados = metricas.get('COMPLETE-BT', {}).get('total', 0)
-        bt_ocupados = metricas.get('BT-BUSY', {}).get('total', 0)
-        bt_sin_respuesta = metricas.get('BT-NOANSWER', {}).get('total', 0)
-        bt_no_disponible = metricas.get('BT-CHANUNAVAIL', {}).get('total', 0)
+        # Contar LLAMADAS ÚNICAS por tipo de transferencia
+        # Una llamada con BT-TRY -> BT-ANSWER -> COMPLETE-BT cuenta como 1 llamada de transfer ciego exitosa
         
-        # Calcular métricas de Transfer Consultivo (CT - Consultive Transfer)
-        ct_intentos = metricas.get('CT-TRY', {}).get('total', 0)
-        ct_atendidos = metricas.get('CT-ANSWER', {}).get('total', 0)
-        ct_completados = metricas.get('COMPLETE-CT', {}).get('total', 0)
-        ct_cancelados = metricas.get('CT-CANCEL', {}).get('total', 0)
-        ct_ocupados = metricas.get('CT-BUSY', {}).get('total', 0)
+        # Transfer Ciego: Llamadas con eventos BT-*
+        eventos_bt = ['BT-TRY', 'BT-ANSWER', 'BT-BUSY', 'BT-NOANSWER', 'BT-CHANUNAVAIL', 'COMPLETE-BT']
+        llamadas_bt = self.db.query(LlamadaLog.callid.distinct()).filter(
+            LlamadaLog.event.in_(eventos_bt)
+        )
+        llamadas_bt = self._apply_filters(llamadas_bt, filters)
         
-        # Total de transferencias exitosas
+        # Llamadas BT que tienen al menos un intento
+        bt_intentos = llamadas_bt.filter(LlamadaLog.event == 'BT-TRY').count()
+        
+        # Llamadas BT que completaron exitosamente
+        bt_completados = llamadas_bt.filter(LlamadaLog.event == 'COMPLETE-BT').count()
+        
+        # Llamadas BT que fueron atendidas
+        bt_atendidos = llamadas_bt.filter(LlamadaLog.event == 'BT-ANSWER').count()
+        
+        # Llamadas BT con problemas
+        bt_ocupados = llamadas_bt.filter(LlamadaLog.event == 'BT-BUSY').count()
+        bt_sin_respuesta = llamadas_bt.filter(LlamadaLog.event == 'BT-NOANSWER').count()
+        bt_no_disponible = llamadas_bt.filter(LlamadaLog.event == 'BT-CHANUNAVAIL').count()
+        
+        # Transfer Consultivo: Llamadas con eventos CT-*
+        eventos_ct = ['CT-TRY', 'CT-ANSWER', 'CT-CANCEL', 'CT-BUSY', 'COMPLETE-CT']
+        llamadas_ct = self.db.query(LlamadaLog.callid.distinct()).filter(
+            LlamadaLog.event.in_(eventos_ct)
+        )
+        llamadas_ct = self._apply_filters(llamadas_ct, filters)
+        
+        ct_intentos = llamadas_ct.filter(LlamadaLog.event == 'CT-TRY').count()
+        ct_completados = llamadas_ct.filter(LlamadaLog.event == 'COMPLETE-CT').count()
+        ct_atendidos = llamadas_ct.filter(LlamadaLog.event == 'CT-ANSWER').count()
+        ct_cancelados = llamadas_ct.filter(LlamadaLog.event == 'CT-CANCEL').count()
+        ct_ocupados = llamadas_ct.filter(LlamadaLog.event == 'CT-BUSY').count()
+        
+        # Total de transferencias exitosas y intentos
         total_exitosas = bt_completados + ct_completados
         total_intentos = bt_intentos + ct_intentos
-        total_ingresos_cola = metricas.get('ENTERQUEUE-TRANSFER', {}).get('total', 0)
+        
+        # Ingresos a cola por transferencia
+        total_ingresos_cola = query.filter(LlamadaLog.event == 'ENTERQUEUE-TRANSFER').count()
         
         return {
-            'eventos': metricas,
+            'eventos': metricas_eventos,  # Detalle de eventos individuales
             'resumen': {
                 'transfer_ciego': {
                     'intentos': bt_intentos,

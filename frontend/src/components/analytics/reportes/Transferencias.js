@@ -281,26 +281,28 @@ const Transferencias = ({ filters }) => {
         </div>
       )}
 
-      {/* Tabla de Detalle de Llamadas Transferidas */}
+      {/* Tabla de Detalle de Llamadas Transferidas - Agrupadas por CallID */}
       {detalleLlamadas && detalleLlamadas.length > 0 && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-gray-800">
-              📋 Detalle de Llamadas Transferidas ({detalleLlamadas.length})
+              📋 Detalle de Llamadas Transferidas ({detalleLlamadas.length} llamadas únicas)
             </h3>
             <ExportButton 
-              data={detalleLlamadas.map(l => ({
-                'Call ID': l.callid,
-                'Fecha': l.fecha,
-                'Hora': l.hora,
-                'Evento': l.evento,
-                'Descripción': l.evento_descripcion,
-                'Campaña': l.campana,
-                'Agente': l.agente,
-                'Número': l.numero,
-                'Duración (seg)': l.duracion,
-                'Espera (seg)': l.espera
-              }))} 
+              data={detalleLlamadas.flatMap(l => 
+                l.eventos.map(evento => ({
+                  'Call ID': l.callid,
+                  'Fecha': l.fecha,
+                  'Hora Inicio': l.hora_inicio,
+                  'Evento': evento.evento,
+                  'Descripción': evento.evento_descripcion,
+                  'Hora Evento': evento.hora,
+                  'Campaña': l.campana,
+                  'Agente': l.agente,
+                  'Número': l.numero,
+                  'Duración (seg)': evento.duracion
+                }))
+              )} 
               filename="transferencias_detalle_llamadas"
               label="Exportar Llamadas"
             />
@@ -310,39 +312,97 @@ const Transferencias = ({ filters }) => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-10"></th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hora</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Evento</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hora Inicio</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Eventos</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Campaña</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agente</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Número</th>
-                  <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Duración</th>
-                  <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Espera</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Call ID</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {paginatedData.map((llamada, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50">
-                    <td className="px-3 py-3 text-sm text-gray-900">{llamada.fecha}</td>
-                    <td className="px-3 py-3 text-sm text-gray-900">{llamada.hora}</td>
-                    <td className="px-3 py-3 text-sm">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${getEventoBadge(llamada.evento)}`}>
-                        {llamada.evento}
-                      </span>
-                      <div className="text-xs text-gray-500 mt-1">{llamada.evento_descripcion}</div>
-                    </td>
-                    <td className="px-3 py-3 text-sm text-gray-700">{llamada.campana}</td>
-                    <td className="px-3 py-3 text-sm text-gray-700">{llamada.agente}</td>
-                    <td className="px-3 py-3 text-sm text-gray-900 font-mono">{llamada.numero}</td>
-                    <td className="px-3 py-3 text-sm text-center text-blue-600 font-medium">
-                      {formatDuracion(llamada.duracion)}
-                    </td>
-                    <td className="px-3 py-3 text-sm text-center text-gray-600">
-                      {formatDuracion(llamada.espera)}
-                    </td>
-                    <td className="px-3 py-3 text-sm text-gray-500 font-mono text-xs">{llamada.callid}</td>
-                  </tr>
+                  <React.Fragment key={llamada.callid}>
+                    {/* Fila Principal - Agrupada */}
+                    <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleRow(llamada.callid)}>
+                      <td className="px-3 py-3 text-center">
+                        <button 
+                          className="text-blue-600 hover:text-blue-800 font-bold text-lg focus:outline-none"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleRow(llamada.callid);
+                          }}
+                        >
+                          {expandedRows[llamada.callid] ? '−' : '+'}
+                        </button>
+                      </td>
+                      <td className="px-3 py-3 text-sm text-gray-900">{llamada.fecha}</td>
+                      <td className="px-3 py-3 text-sm text-gray-900 font-medium">{llamada.hora_inicio}</td>
+                      <td className="px-3 py-3 text-sm">
+                        <div className="flex flex-wrap gap-1">
+                          {llamada.eventos.slice(0, 3).map((evento, i) => (
+                            <span 
+                              key={i}
+                              className={`px-2 py-1 rounded text-xs font-medium ${getEventoBadge(evento.evento)}`}
+                            >
+                              {evento.evento}
+                            </span>
+                          ))}
+                          {llamada.eventos.length > 3 && (
+                            <span className="px-2 py-1 text-xs text-gray-500">
+                              +{llamada.eventos.length - 3}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {llamada.eventos.length} evento{llamada.eventos.length > 1 ? 's' : ''}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-sm text-gray-700">{llamada.campana}</td>
+                      <td className="px-3 py-3 text-sm text-gray-700">{llamada.agente}</td>
+                      <td className="px-3 py-3 text-sm text-gray-900 font-mono">{llamada.numero}</td>
+                      <td className="px-3 py-3 text-sm text-gray-500 font-mono text-xs">{llamada.callid}</td>
+                    </tr>
+                    
+                    {/* Fila Expandida - Detalle de Eventos */}
+                    {expandedRows[llamada.callid] && (
+                      <tr>
+                        <td colSpan="8" className="px-3 py-2 bg-blue-50">
+                          <div className="ml-8">
+                            <h4 className="text-xs font-bold text-gray-700 mb-2 uppercase">Eventos de esta llamada:</h4>
+                            <table className="min-w-full text-sm">
+                              <thead>
+                                <tr className="bg-blue-100">
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-600">Hora</th>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-600">Evento</th>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-600">Descripción</th>
+                                  <th className="px-3 py-2 text-center text-xs font-medium text-gray-600">Duración</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {llamada.eventos.map((evento, i) => (
+                                  <tr key={i} className="border-b border-blue-200 hover:bg-blue-100">
+                                    <td className="px-3 py-2 text-gray-900 font-medium">{evento.hora}</td>
+                                    <td className="px-3 py-2">
+                                      <span className={`px-2 py-1 rounded text-xs font-medium ${getEventoBadge(evento.evento)}`}>
+                                        {evento.evento}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-2 text-gray-700">{evento.evento_descripcion}</td>
+                                    <td className="px-3 py-2 text-center text-blue-600 font-medium">
+                                      {formatDuracion(evento.duracion)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

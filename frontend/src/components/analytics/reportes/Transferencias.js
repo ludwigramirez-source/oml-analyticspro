@@ -70,6 +70,13 @@ const Transferencias = ({ filters }) => {
     setCurrentPage(1);
   };
 
+  const toggleRow = (callid) => {
+    setExpandedRows(prev => ({
+      ...prev,
+      [callid]: !prev[callid]
+    }));
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">

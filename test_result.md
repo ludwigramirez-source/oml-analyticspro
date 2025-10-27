@@ -342,9 +342,9 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "Fix Transferencias report unique call counting"
-  stuck_tasks: []
+  current_focus: []
+  stuck_tasks: 
+    - "Fix KPI consistency - count unique calls"
   test_all: false
   test_priority: "high_first"
 

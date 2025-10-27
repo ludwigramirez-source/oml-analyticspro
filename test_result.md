@@ -250,6 +250,18 @@ backend:
         agent: "testing"
         comment: "✅ TRANSFERENCIAS FIX VERIFIED: Endpoint /api/analytics/transferencias working correctly with unique call counting. Test data shows BT-TRY events: 214 (individual events) vs BT intentos: 202 (unique calls) - proving the fix works. Response structure correct with 'eventos' and 'resumen' sections. Data consistency validated: totals calculation correct (202+1=203), completed transfers ≤ attempts. The fix successfully addresses user's concern about inflated counts from multiple events per call. Transfer ciego: 202 unique calls attempted, 89 completed (44.06% success rate). Transfer consultivo: 1 unique call attempted, 0 completed."
 
+  - task: "Group Transferencias detailed table by callid"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/analytics/services/call_analytics_extended.py, /app/frontend/src/components/analytics/reportes/Transferencias.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Modified get_detalle_transferencias() to group transfer events by callid. Now returns one row per unique call with all its events in an 'eventos' array. Updated frontend Transferencias.js to display grouped rows with expandable '+' button that shows all events for each call. This makes the table count match the summary count of unique calls. User can now see that a single call has multiple events (e.g., BT-TRY, BT-ANSWER, COMPLETE-BT) instead of showing 3 separate rows."
+
 frontend:
   - task: "Split distribution chart into two pie charts"
     implemented: true

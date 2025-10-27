@@ -970,7 +970,7 @@ class CallAnalyticsExtended:
     def get_detalle_transferencias(self, filters: Dict = None) -> List[Dict]:
         """
         Obtiene el detalle de todas las llamadas con eventos de transferencia
-        Similar a llamadas atendidas pero solo con eventos de transferencia
+        AGRUPADAS POR CALLID - Una fila por llamada con sus múltiples eventos
         """
         filters = filters or {}
         
@@ -1011,27 +1011,42 @@ class CallAnalyticsExtended:
         if filters.get('agente_ids'):
             query = query.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
         
-        query = query.order_by(LlamadaLog.time.desc())
+        query = query.order_by(LlamadaLog.time.asc())  # Ordenar por tiempo ascendente para agrupar
         
         llamadas = query.all()
         
-        resultado = []
+        # Agrupar por callid
+        llamadas_agrupadas = {}
         for llamada in llamadas:
-            agente_nombre = f'{llamada.first_name} {llamada.last_name}' if llamada.first_name else 'Sin Agente'
+            callid = llamada.callid
             
-            resultado.append({
-                'callid': llamada.callid,
-                'fecha': llamada.time.strftime('%Y-%m-%d'),
-                'hora': llamada.time.strftime('%H:%M:%S'),
+            if callid not in llamadas_agrupadas:
+                agente_nombre = f'{llamada.first_name} {llamada.last_name}' if llamada.first_name else 'Sin Agente'
+                
+                llamadas_agrupadas[callid] = {
+                    'callid': callid,
+                    'fecha': llamada.time.strftime('%Y-%m-%d'),
+                    'hora_inicio': llamada.time.strftime('%H:%M:%S'),
+                    'campana': llamada.campana_nombre or 'Sin Campaña',
+                    'agente': agente_nombre,
+                    'numero': llamada.numero_marcado or 'N/A',
+                    'duracion': int(llamada.duracion_llamada or 0),
+                    'espera': int(llamada.bridge_wait_time or 0),
+                    'contacto_id': llamada.contacto_id,
+                    'eventos': []
+                }
+            
+            # Agregar evento a la lista de eventos de esta llamada
+            llamadas_agrupadas[callid]['eventos'].append({
                 'evento': llamada.event,
                 'evento_descripcion': self.EVENTOS_TRANSFERENCIAS.get(llamada.event, llamada.event),
-                'campana': llamada.campana_nombre or 'Sin Campaña',
-                'agente': agente_nombre,
-                'numero': llamada.numero_marcado or 'N/A',
-                'duracion': int(llamada.duracion_llamada or 0),
-                'espera': int(llamada.bridge_wait_time or 0),
-                'contacto_id': llamada.contacto_id
+                'hora': llamada.time.strftime('%H:%M:%S'),
+                'duracion': int(llamada.duracion_llamada or 0)
             })
+        
+        # Convertir a lista y ordenar por fecha descendente
+        resultado = list(llamadas_agrupadas.values())
+        resultado.sort(key=lambda x: x['fecha'] + x['hora_inicio'], reverse=True)
         
         return resultado
 

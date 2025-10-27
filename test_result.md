@@ -116,12 +116,13 @@ user_problem_statement: |
      - Display final call results instead of intermediate events (FIXED ✅)
      - Change chart from pie to bar for better visualization (FIXED ✅)
   
-  Current tasks (IN PROGRESS):
+  Current tasks (COMPLETED ✅):
   6. Fix KPI consistency between dashboard cards and detailed tables
      - Modified get_kpis to count unique calls by callid
      - Backend restarted to apply fix
   7. Replace refresh button with Iptegra logo in header
-  8. Fix Transferencias report to count unique calls (callid) instead of individual events (NEEDS TESTING)
+  8. Fix Transferencias report to count unique calls (callid) instead of individual events (COMPLETED ✅)
+  9. Group Transferencias detailed table by callid with expandable events (NEEDS TESTING)
   
 backend:
   - task: "Fix database lazy loading"

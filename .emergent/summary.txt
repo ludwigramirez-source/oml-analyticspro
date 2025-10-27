@@ -1,47 +1,91 @@
 <analysis>
-The AI engineer's work primarily focused on enhancing the OmniLeads reporting module, addressing performance and accuracy issues. Initial efforts included correcting KPI calculations and implementing new reports like 'Distribución Horaria Detallada'. A recurring challenge was persistent  errors in the frontend due to slow backend queries, despite local  tests succeeding. Multiple solutions were attempted, including internal caching, modifying database configuration handling (between  and MongoDB), and reverting problematic code. After a user-requested hard reset to the pre-fork state to regain stability, the engineer re-established a working database connection by manually updating  with MongoDB credentials. Subsequently, a new Agent Availability report was developed, which also necessitated extensive backend query optimization (timezone fixes, aggregation) and frontend updates (table, loading indicator, chart). The agent began exploring a local MongoDB caching strategy for performance, but the user requested a full rollback due to continued instability, leading to the final interaction where the agent advised on using the platform's rollback feature and sought support to guide the user.
+The AI engineer's work progressed through several critical phases following a user-requested rollback. Initially, the focus was on stabilizing the application and resolving persistent  errors by diagnosing and optimizing slow backend queries (e.g., , ) and database configurations. After establishing a baseline, the engineer tackled the Agent Availability report, optimizing its backend query for performance, adding a loading indicator, and refining frontend display. A significant part of the work involved iterating on this report to ensure correct data display, correct column inclusion (as per user requests), and accurate metric calculation (sessions, pause times). Subsequently, the Transferencias report was addressed. This involved identifying and correcting event types, refining backend queries for unique call counting, and enhancing the frontend with detailed call tables and export functionality. The trajectory concludes with the engineer addressing a data inconsistency in the Transferencias report due to non-unique call counting, indicating a need for further refinement.
 </analysis>
 
 <product_requirements>
-The objective is to develop a comprehensive Premium Reports module for OmniLeads using FastAPI and React, reading from PostgreSQL and using MongoDB for analytics configuration. Key features include various KPIs (General Distribution, Attended/Unattended Calls, Agents, Campaigns) with proposed additions like FCR, ASA, AHT. The design should be clean (Google Analytics style), with specific filters (date ranges, call types, multi-selection for campaigns/agents), dynamic pagination, and Excel export. Reports must align with official OmniLeads data. Recent enhancements included converting Distribución por Rango Horario to a bar chart, adding Evolución por Semana, implementing Distribución Horaria Detallada with grouping options, correcting agent occupancy, adjusting Campañas Alertas with thresholds, and ensuring KPI consistency between dashboard and detailed reports. The user also explicitly requested replacing an update button with the Iptegra logo and later, a detailed Agent Availability report with specific metrics (sessions, talk time, TMO, Tasa de Atención), a bar chart, and a loading indicator.
+The overarching goal is to develop a Premium Reports module for OmniLeads, featuring a clean, Google Analytics-inspired design with FastAPI (PostgreSQL read-only, MongoDB for config) and React. Core requirements include displaying various KPIs (General Distribution, Attended/Unattended Calls, Agents, Campaigns) with proposed additions like FCR, ASA, AHT. Reports need date range filters, call type, multi-selection for campaigns/agents, dynamic pagination, and Excel export, while aligning with official OmniLeads data.
+Specific enhancements included:
+- Converting Distribución por Rango Horario to a bar chart.
+- Adding Evolución por Semana.
+- Implementing Distribución Horaria Detallada with grouping.
+- Correcting agent occupancy.
+- Adjusting Campañas Alertas with thresholds.
+- Ensuring KPI consistency across dashboard and detailed reports.
+- Replacing an update button with the Iptegra logo.
+- Developing a detailed Agent Availability report with metrics like sessions, talk time, TMO, Tasa de Atención, a bar chart (later removed), and a loading indicator.
+- Enhancing the Agentes Avanzado report with specific columns (Agente, Nº de sesiones, Tiempo total sesión, Nº Pausas, Tiempo total pausas recreativas, Tiempo total pausas productivas, Tiempo total pausa) and a modal for detailed sessions/pauses.
+- Correcting the Transferencias report to use specific events (excluding CONNECT) and adding a detailed call table with event information and export functionality. The most recent request involves correcting data inconsistency in the Transferencias report to count unique calls, not events.
 </product_requirements>
 
 <key_technical_concepts>
--   **Backend:** FastAPI, Python, PostgreSQL (OmniLeads - Read-only), SQLAlchemy, Psycopg2, Pandas, MongoDB (for internal config), .
--   **Frontend:** React, JavaScript, Tailwind CSS, Yarn, ApexCharts, XLSX (for Excel export).
--   **Ops:** Supervisor, Kubernetes Ingress.
--   **Data Handling:** Unique  for KPI consistency, GMT-5 timezone conversion, database query optimization (aggregations, indexing considerations).
+-   **Backend:** FastAPI, Python, SQLAlchemy (PostgreSQL read-only), Psycopg2, MongoDB (for config), Pandas, ,  for data validation, timezone-aware datetime handling.
+-   **Frontend:** React, JavaScript, , ,  hooks, Tailwind CSS, ApexCharts, XLSX for Excel export.
+-   **Performance:** Query optimization (SQL aggregations), API endpoint caching, handling  errors, database timeouts.
+-   **Data Processing:** Unique call identification (), precise metric calculation (sessions, pauses, talk time), timezone conversion (GMT-5).
 </key_technical_concepts>
 
 <code_architecture>
-The application employs a full-stack architecture with a FastAPI backend and a React frontend. The backend interacts with an external PostgreSQL database (OmniLeads) in read-only mode and uses MongoDB for internal analytics configuration storage.
+The application uses a full-stack architecture with a FastAPI backend and a React frontend. The backend reads from an external PostgreSQL database (OmniLeads) and uses MongoDB for analytics configuration.
 
 
 
 **Key Files and their importance/changes:**
--   : Stores critical PostgreSQL credentials. **Changes:** Modified multiple times to correct connection details (from  to  with correct credentials) to establish a stable connection to the external OmniLeads database.
--   : Handles database configuration. **Changes:** Modified to remove complex asynchronous logic, simplify database URL retrieval, and ensure robust connection via MongoDB-stored credentials, which was critical for initial connection stability after multiple reverts.
--   : FastAPI endpoints. **Changes:** Added  for performance on , , and  endpoints. Temporarily added/removed cache based on performance issues. Removed  and  filters from  and  queries to improve performance. Added the new  endpoint.
--   : Core call analytics logic. **Changes:** The  method was modified to ensure unique call counting by  and align with detailed reports, but was reverted due to performance impact. The  calculation was simplified for performance.  was extended to include  to accurately match KPI Llamadas Perdidas.  and  were further refined to ensure consistent filtering by  and  for accurate comparisons.
--   : Agent-specific analytics. **Changes:** New method  was created and optimized. Initial versions had timezone errors () and performance issues (loops). It was rewritten to use database aggregations, handle timezone-aware datetimes correctly, and adjust  filters () for accurate results. It now calculates agent availability metrics including TMO and Tasa de Atención.
--   : Main dashboard. **Changes:** Replaced an update button with the Iptegra logo. Integrated  component. Modified default filters for performance (e.g., last 7 days, later reverted). Updated loading states and data fetching for the new agent report.
--   : Agent report table. **Changes:** Completely rewritten to display the new Disponibilidad de Agentes report with expanded columns. Added a loading indicator (spinner) and an ApexCharts bar graph to visualize calls answered by agent, with logic to handle  calls and ensure correct rendering.
--   : Displays detailed attended calls. **Changes:** No specific changes were documented in the trajectory for this file, but its functionality for displaying data from  was verified.
--   : Displays detailed abandoned calls. **Changes:** Updated the component's title, subtitle, and Excel export filename to Llamadas No Atendidas to reflect the inclusion of non-answered outgoing calls for consistency with KPIs.
--   : Frontend API service. **Changes:** Added  endpoint. Corrected  logic to append filters with  instead of  if the URL already contains parameters, crucial for correct pagination and filtering. Updated  to call the new availability endpoint.
--   : New asset. **Creation:** Iptegra logo was downloaded and added for display in the dashboard.
+-   : Stores PostgreSQL credentials. **Changes:** Verified to point to the correct external database, ensuring stability after rollback issues.
+-   : Handles database configuration. **Changes:** Added  to the engine configuration () to prevent blocking during slow connections.
+-   : FastAPI endpoints. **Changes:**
+    -   Optimized  and  endpoints by refining queries (removing / filters and adding ) to prevent .
+    -   Added  and  endpoints for detailed agent activity.
+    -   Corrected parameter parsing for path parameters in new agent detail routes (from  to ).
+    -   Added  endpoint to get granular call data related to transfers.
+-   : Agent-specific analytics. **Changes:**
+    -   : Significantly refactored for performance. Initial iterative queries were replaced with efficient SQL aggregations. It was updated to return comprehensive agent metrics (sessions, total session time, total talk time, pause counts, total/productive/recreative pause times, occupation, login/logout times) to match frontend requirements. Logic for identifying  (After Call Work) pauses () was added. The  was removed to return all agents.
+    -   New methods  and  were added to retrieve detailed session and pause events for a specific agent.
+-   : Extended call analytics logic. **Changes:**
+    -   : Updated to include specific transfer-related events (, , , , , , ) and exclude .
+    -   : Modified to correctly identify and count transfer events.
+    -   New method  was added to fetch detailed information about individual transferred calls, including their associated event. This method was later refined to count unique s instead of raw events.
+-   : Main dashboard. **Changes:**
+    -   Refactored  dependencies and data loading logic to prevent infinite loops and improve initial dashboard load performance.
+    -   Temporarily disabled  call to avoid blocking the main dashboard loading due to its performance issues.
+-   : Agent report table. **Changes:**
+    -   Integrated new detailed agent metrics from backend.
+    -   Removed the bar chart component as per user request to simplify.
+    -   Restored and aligned column definitions with user requirements, displaying metrics like Nº de sesiones, Tiempo total sesión, Tiempo total pausas recreativas, Tiempo total pausas productivas, Tiempo total pausa.
+    -   Added a Ver Detalles button for each agent row to trigger a modal.
+-   : Advanced agent report. **Changes:**
+    -   Modified to display the same comprehensive agent availability data as .
+    -   Added a dedicated Excel export button for agent availability data.
+    -   Updated Resumen de Sesiones KPIs to derive data from the comprehensive agent availability data instead of a separate, possibly non-functional endpoint.
+    -   Implemented a new modal structure for Detalle de Agente with tabs for Sesiones and Pausas and export options.
+-   : Transfer report. **Changes:**
+    -   Updated to process the corrected .
+    -   Added a new table () below the events summary to display detailed information about individual transferred calls, including the transfer event.
+-   : Frontend API service. **Changes:**
+    -   Added , , , and  endpoints.
+    -   Updated existing endpoints to use correct parameters and error handling.
+-   : Excel export utility. **Changes:**
+    -   Improved  function to handle time formatting (e.g., seconds to HH:MM:SS) and create more readable column headers, especially for agent activity data.
+
 </code_architecture>
 
 <pending_tasks>
 -   Continue implementing the remaining reports and metrics identified from the provided documents.
 -   Further analyze vital call center metrics and KPIs from web best practices.
 -   Ensure all graphical visualizations load correctly across all tabs for new reports.
+-   Address the ongoing issue with the Transferencias report where total counts are based on events instead of unique s. (In progress at trajectory end)
 </pending_tasks>
 
 <current_work>
-Immediately prior to this summary, the AI engineer was working on integrating a bar chart into the Agent Availability report (TablaAgentes.js) to visualize calls answered per agent and a loading indicator. While the loading indicator was successfully implemented, the bar chart failed to display data despite the table showing agent data. This was initially attributed to the chart's rendering logic, specifically filtering out agents with zero calls. After correcting this, the underlying issue resurfaced:  errors on frontend API calls to  and , indicating renewed backend performance problems. The agent concluded that the backend endpoints were blocking again. The user then explicitly requested a full rollback to the exact state before the current development fork due to persistent instability. The agent acknowledged this and advised the user to use the platform's Rollback feature to revert to a stable checkpoint, and then called the  to provide specific instructions on how to find and use this feature, effectively pausing direct code modifications.
+Immediately prior to this summary, the AI engineer was working on resolving a data inconsistency in the Transferencias report. The user identified that changing date ranges led to incorrect counts, which was diagnosed as the report counting individual transfer events rather than unique calls (). The detailed analysis of a provided CSV confirmed that a single call could have multiple transfer events, leading to inflated counts in the summary section, while the detailed table (incorrectly) reflected unique successful transfers. The engineer concluded that the backend's  method needed modification to count unique s for transfers. The last action in the trajectory was modifying the backend method in  to fix this counting logic and then attempting to restart the backend.
+
+The state of the product is that:
+- The main dashboard () loads, displaying KPIs and basic analytics.
+- The Agentes tab () is functional, showing detailed agent activity (sessions, pause times, talk time, etc.) in a table format with an Excel export option. The graph for agents was removed.
+- The Agentes Avanzado tab () is also functional, displaying agent availability data consistently with the Agentes tab and providing an Excel export button. It also includes Resumen de Sesiones KPIs and a modal for agent details (sessions and pauses).
+- The Transferencias report () displays a summary of transfer events and a detailed table of transferred calls. However, the summary counts are currently inconsistent due to counting individual events rather than unique calls.
+- The backend API endpoints for agents and transfers are in the process of being updated to resolve the counting issue.
 </current_work>
 
 <optional_next_step>
-Wait for the user to confirm the rollback process after getting guidance from the support agent.
+Restart the backend to apply changes and then verify the Transferencias report.
 </optional_next_step>

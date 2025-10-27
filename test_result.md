@@ -358,9 +358,9 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "Group Transferencias detailed table by callid"
-  stuck_tasks: []
+  current_focus: []
+  stuck_tasks: 
+    - "Fix KPI consistency - count unique calls"
   test_all: false
   test_priority: "high_first"
 

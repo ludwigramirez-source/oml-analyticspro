@@ -237,15 +237,18 @@ backend:
 
   - task: "Fix Transferencias report unique call counting"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/analytics/services/call_analytics_extended.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Fixed get_analisis_transferencias to count unique calls (callid) instead of individual events. Created helper function count_unique_calls_with_event() using func.count(distinct(LlamadaLog.callid)) to ensure each call is counted once regardless of how many transfer events it has. For example, a call with BT-TRY -> BT-ANSWER -> COMPLETE-BT now counts as 1 unique call for each event type, not 3. Backend restarted successfully."
+      - working: true
+        agent: "testing"
+        comment: "✅ TRANSFERENCIAS FIX VERIFIED: Endpoint /api/analytics/transferencias working correctly with unique call counting. Test data shows BT-TRY events: 214 (individual events) vs BT intentos: 202 (unique calls) - proving the fix works. Response structure correct with 'eventos' and 'resumen' sections. Data consistency validated: totals calculation correct (202+1=203), completed transfers ≤ attempts. The fix successfully addresses user's concern about inflated counts from multiple events per call. Transfer ciego: 202 unique calls attempted, 89 completed (44.06% success rate). Transfer consultivo: 1 unique call attempted, 0 completed."
 
 frontend:
   - task: "Split distribution chart into two pie charts"

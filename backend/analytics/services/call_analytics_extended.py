@@ -1044,8 +1044,16 @@ class CallAnalyticsExtended:
                 'duracion': int(llamada.duracion_llamada or 0)
             })
         
-        # Convertir a lista y ordenar por fecha descendente
-        resultado = list(llamadas_agrupadas.values())
+        # Convertir a lista y filtrar llamadas que SOLO tienen ENTERQUEUE-TRANSFER
+        # Estas son llamadas transferidas a cola, no a agentes, y no deben contarse
+        resultado = []
+        for llamada in llamadas_agrupadas.values():
+            # Si la llamada solo tiene 1 evento y es ENTERQUEUE-TRANSFER, la excluimos
+            if len(llamada['eventos']) == 1 and llamada['eventos'][0]['evento'] == 'ENTERQUEUE-TRANSFER':
+                continue
+            resultado.append(llamada)
+        
+        # Ordenar por fecha descendente
         resultado.sort(key=lambda x: x['fecha'] + x['hora_inicio'], reverse=True)
         
         return resultado

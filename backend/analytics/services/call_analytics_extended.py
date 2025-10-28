@@ -633,6 +633,7 @@ class CallAnalyticsExtended:
         """
         Análisis completo de transferencias
         Cuenta LLAMADAS ÚNICAS (por callid), no eventos individuales
+        Excluye llamadas que SOLO tienen ENTERQUEUE-TRANSFER
         """
         filters = filters or {}
         
@@ -677,8 +678,39 @@ class CallAnalyticsExtended:
         total_exitosas = bt_completados + ct_completados
         total_intentos = bt_intentos + ct_intentos
         
-        # Ingresos a cola por transferencia (eventos, no llamadas únicas)
-        total_ingresos_cola = query.filter(LlamadaLog.event == 'ENTERQUEUE-TRANSFER').count()
+        # Ingresos a cola por transferencia - CONTAR LLAMADAS ÚNICAS, no eventos
+        # Obtener todos los callids que tienen ENTERQUEUE-TRANSFER
+        callids_con_enterqueue = self.db.query(LlamadaLog.callid.distinct()).filter(
+            LlamadaLog.event == 'ENTERQUEUE-TRANSFER'
+        )
+        callids_con_enterqueue = self._apply_filters(callids_con_enterqueue, filters)
+        total_ingresos_cola = callids_con_enterqueue.count()
+        
+        # Calcular llamadas que SOLO tienen ENTERQUEUE-TRANSFER (para restar del total)
+        # Estas son las que excluimos del detalle
+        eventos_transferencia = list(self.EVENTOS_TRANSFERENCIAS.keys())
+        
+        # Obtener todos los callids con eventos de transferencia
+        query_todos = self.db.query(
+            LlamadaLog.callid,
+            LlamadaLog.event
+        ).filter(
+            LlamadaLog.event.in_(eventos_transferencia)
+        )
+        query_todos = self._apply_filters(query_todos, filters)
+        
+        # Agrupar por callid y contar eventos
+        llamadas_por_callid = {}
+        for record in query_todos.all():
+            if record.callid not in llamadas_por_callid:
+                llamadas_por_callid[record.callid] = []
+            llamadas_por_callid[record.callid].append(record.event)
+        
+        # Contar cuántas llamadas SOLO tienen ENTERQUEUE-TRANSFER
+        llamadas_solo_enterqueue = sum(
+            1 for eventos in llamadas_por_callid.values() 
+            if len(eventos) == 1 and eventos[0] == 'ENTERQUEUE-TRANSFER'
+        )
         
         return {
             'eventos': metricas_eventos,  # Detalle de eventos individuales
@@ -703,7 +735,8 @@ class CallAnalyticsExtended:
                 'totales': {
                     'total_intentos': total_intentos,
                     'total_exitosas': total_exitosas,
-                    'ingresos_cola': total_ingresos_cola,
+                    'ingresos_cola': total_ingresos_cola,  # Llamadas únicas con ENTERQUEUE-TRANSFER
+                    'solo_ingresos_cola': llamadas_solo_enterqueue,  # Llamadas que SOLO tienen este evento
                     'tasa_exito_global': round(total_exitosas / total_intentos * 100, 2) if total_intentos > 0 else 0
                 }
             }

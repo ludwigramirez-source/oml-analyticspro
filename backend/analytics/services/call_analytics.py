@@ -3,14 +3,23 @@ Servicio de análisis de llamadas y métricas
 """
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
+
+from sqlalchemy import and_, case, extract, func, or_
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_, case, extract
-from ..models.omnileads_models import LlamadaLog, Campana, AgenteProfile, User, ActividadAgenteLog, Pausa
+
+from ..models.omnileads_models import (
+    ActividadAgenteLog,
+    AgenteProfile,
+    Campana,
+    LlamadaLog,
+    Pausa,
+    User,
+)
 
 
 class CallAnalyticsService:
     """Servicio para análisis de llamadas"""
-    
+
     # Eventos que indican llamadas atendidas (conectadas con agente)
     EVENTOS_ATENDIDAS = [
         'COMPLETEAGENT',      # Agente cuelga
@@ -19,14 +28,14 @@ class CallAnalyticsService:
         'COMPLETE-CTOUT',     # Transfer consultivo completado
         'COMPLETE-CT'         # Transfer consultivo
     ]
-    
+
     # Eventos de llamadas ABANDONADAS (cliente abandona)
     EVENTOS_ABANDONADAS = [
         'ABANDON',            # Abandono en cola
         'ABANDON-CTOUT',      # Abandono durante transfer consultivo
         'ABANDONWEL'          # Abandono durante audio de bienvenida
     ]
-    
+
     # Otros eventos de llamadas NO atendidas
     EVENTOS_NO_ATENDIDAS = [
         'EXITWITHTIMEOUT',    # Timeout en cola
@@ -35,7 +44,7 @@ class CallAnalyticsService:
         'CHANUNAVAIL',        # Canal no disponible
         'NONDIALPLAN'         # Sin ruta de marcado
     ]
-    
+
     # EVENTOS FINALES: Solo estos cuentan como "llamadas" en los totales
     # Basado en la tabla oficial de eventos de OmniLeads y análisis de datos reales
     EVENTOS_FINALES = [
@@ -46,13 +55,13 @@ class CallAnalyticsService:
         'COMPLETE-CTOUT',     # Transfer consultivo completado
         'COMPLETE-CT',        # Transfer consultivo por agente
         'COMPLETE-CAMPT',     # Transfer a campaña (encontrado en datos reales)
-        
+
         # Llamadas abandonadas
         'ABANDON',            # Abandono en cola
         'ABANDONWEL',         # Abandono en bienvenida
         'ABANDON-CTOUT',      # Abandono durante transfer
         'EXITWITHTIMEOUT',    # Timeout/Expirada
-        
+
         # Salientes no atendidas
         'NOANSWER',           # No contestada
         'CANCEL',             # Cancelada
@@ -60,82 +69,82 @@ class CallAnalyticsService:
         'CHANUNAVAIL',        # Canal no disponible
         'NONDIALPLAN'         # Sin ruta
     ]
-    
+
     # Tipos de llamada (basado en estructura real de OmniLeads)
     TIPO_SALIENTE = 1      # Llamadas manuales salientes
     TIPO_ENTRANTE = 3      # Llamadas entrantes (inbound)
-    
+
     # Umbrales estándar de la industria
     SLA_THRESHOLD_60 = 60  # Nivel de servicio < 60 segundos
     SLA_THRESHOLD_20 = 20  # Nivel de servicio < 20 segundos
     ABANDONMENT_THRESHOLD = 0.05  # 5% tasa de abandono aceptable
     NIVEL_ATENCION_CRITICO = 80  # Nivel de atención crítico < 80%
-    
+
     def __init__(self, db: Session):
         self.db = db
-    
+
     def _apply_filters(self, query, filters: Dict):
         """Aplica filtros comunes a las consultas"""
         if filters.get('fecha_inicio'):
             query = query.filter(LlamadaLog.time >= filters['fecha_inicio'])
-        
+
         if filters.get('fecha_fin'):
             # Agregar 1 día para incluir todo el día final
             fecha_fin = filters['fecha_fin'] + timedelta(days=1)
             query = query.filter(LlamadaLog.time < fecha_fin)
-        
+
         # Campañas: soportar una sola o múltiples
         if filters.get('campana_ids'):
             query = query.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
         elif filters.get('campana_id'):
             query = query.filter(LlamadaLog.campana_id == filters['campana_id'])
-        
+
         if filters.get('tipo_campana'):
             query = query.filter(LlamadaLog.tipo_campana == filters['tipo_campana'])
-        
+
         # Agentes: soportar uno solo o múltiples
         if filters.get('agente_ids'):
             query = query.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
         elif filters.get('agente_id'):
             query = query.filter(LlamadaLog.agente_id == filters['agente_id'])
-        
+
         # Tipo de llamada: entrantes o salientes
         if filters.get('tipo_llamada'):
             if filters['tipo_llamada'] == 'entrantes':
                 query = query.filter(LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE)
             elif filters['tipo_llamada'] == 'salientes':
                 query = query.filter(LlamadaLog.tipo_llamada == self.TIPO_SALIENTE)
-        
+
         return query
-    
+
     def get_kpis(self, filters: Dict = None) -> Dict:
         """
         Obtiene los KPIs principales del call center
         """
         filters = filters or {}
-        
+
         # Query base - SOLO EVENTOS FINALES y SOLO tipo_llamada 1 y 3
         query = self.db.query(LlamadaLog)
         query = self._apply_filters(query, filters)
         query = query.filter(LlamadaLog.event.in_(self.EVENTOS_FINALES))
         query = query.filter(LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE]))
-        
+
         # Total de llamadas (SOLO EVENTOS FINALES, SOLO tipo 1 y 3)
         total_llamadas = query.count()
-        
+
         # Subquery para obtener último evento ATENDIDO de cada llamada
         # SOLO tipo_llamada 1 (entrantes) y 3 (salientes) y SOLO eventos atendidos
         subquery_atendidas = self.db.query(
             LlamadaLog.callid,
             func.max(LlamadaLog.time).label('ultimo_tiempo')
         )
-        
+
         # Aplicar filtros de tipo_llamada y eventos atendidos
         subquery_atendidas = subquery_atendidas.filter(
             LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE]),
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
         )
-        
+
         if filters.get('fecha_inicio'):
             subquery_atendidas = subquery_atendidas.filter(LlamadaLog.time >= filters['fecha_inicio'])
         if filters.get('fecha_fin'):
@@ -144,12 +153,12 @@ class CallAnalyticsService:
             subquery_atendidas = subquery_atendidas.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
         if filters.get('agente_ids'):
             subquery_atendidas = subquery_atendidas.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
-        
+
         subquery_atendidas = subquery_atendidas.group_by(LlamadaLog.callid).subquery()
-        
+
         # Contar llamadas atendidas únicas directamente del subquery
         llamadas_atendidas = self.db.query(func.count(subquery_atendidas.c.callid)).scalar() or 0
-        
+
         # Subquery para llamadas abandonadas únicas
         subquery_abandonadas = self.db.query(
             LlamadaLog.callid,
@@ -166,10 +175,10 @@ class CallAnalyticsService:
             subquery_abandonadas = subquery_abandonadas.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
         if filters.get('agente_ids'):
             subquery_abandonadas = subquery_abandonadas.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
-        
+
         subquery_abandonadas = subquery_abandonadas.group_by(LlamadaLog.callid).subquery()
         llamadas_abandonadas = self.db.query(func.count(subquery_abandonadas.c.callid)).scalar() or 0
-        
+
         # Subquery para otras llamadas no atendidas únicas
         subquery_no_atendidas = self.db.query(
             LlamadaLog.callid,
@@ -186,13 +195,13 @@ class CallAnalyticsService:
             subquery_no_atendidas = subquery_no_atendidas.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
         if filters.get('agente_ids'):
             subquery_no_atendidas = subquery_no_atendidas.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
-        
+
         subquery_no_atendidas = subquery_no_atendidas.group_by(LlamadaLog.callid).subquery()
         llamadas_no_atendidas_otras = self.db.query(func.count(subquery_no_atendidas.c.callid)).scalar() or 0
-        
+
         # Total no atendidas = abandonadas + otras
         llamadas_no_atendidas_total = llamadas_abandonadas + llamadas_no_atendidas_otras
-        
+
         # TMO (Tiempo Medio de Operación) - solo llamadas atendidas únicas
         # Usar la query base con filtros para calcular promedios
         tmo_result = query.filter(
@@ -201,9 +210,9 @@ class CallAnalyticsService:
         ).with_entities(
             func.avg(LlamadaLog.duracion_llamada).label('tmo_promedio')
         ).first()
-        
+
         tmo_promedio = int(tmo_result.tmo_promedio) if tmo_result.tmo_promedio else 0
-        
+
         # Tiempo de espera promedio
         espera_result = query.filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
@@ -211,80 +220,80 @@ class CallAnalyticsService:
         ).with_entities(
             func.avg(LlamadaLog.bridge_wait_time).label('espera_promedio')
         ).first()
-        
+
         espera_promedio = int(espera_result.espera_promedio) if espera_result.espera_promedio else 0
-        
+
         # Service Level < 60 segundos (estándar industria)
         llamadas_en_sla_60 = query.filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
             LlamadaLog.bridge_wait_time <= self.SLA_THRESHOLD_60
         ).count()
-        
+
         service_level_60 = round((llamadas_en_sla_60 / llamadas_atendidas * 100), 2) if llamadas_atendidas > 0 else 0
-        
+
         # Service Level < 20 segundos (alto rendimiento)
         llamadas_en_sla_20 = query.filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
             LlamadaLog.bridge_wait_time <= self.SLA_THRESHOLD_20
         ).count()
-        
+
         service_level_20 = round((llamadas_en_sla_20 / llamadas_atendidas * 100), 2) if llamadas_atendidas > 0 else 0
-        
+
         # Agentes activos (únicos con llamadas en el período)
         agentes_activos = query.filter(
             LlamadaLog.agente_id.isnot(None)
         ).with_entities(
             func.count(func.distinct(LlamadaLog.agente_id))
         ).scalar() or 0
-        
+
         # Ocupación - Cálculo simplificado basado en tiempo de llamadas
         # Ocupación = Tiempo total en llamadas / Tiempo disponible de agentes
         # Tiempo disponible estimado = Agentes activos × Duración del período en segundos
-        
+
         tiempo_total_llamadas = query.filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
             LlamadaLog.duracion_llamada.isnot(None)
         ).with_entities(
             func.sum(LlamadaLog.duracion_llamada)
         ).scalar() or 0
-        
+
         # Calcular duración del período en segundos
         if filters.get('fecha_inicio') and filters.get('fecha_fin'):
             # Si hay filtros de fecha, usar esos
             fecha_inicio = filters['fecha_inicio']
             fecha_fin = filters['fecha_fin']
-            
+
             # Convertir a datetime si son date
             if not isinstance(fecha_inicio, datetime):
                 fecha_inicio = datetime.combine(fecha_inicio, datetime.min.time())
             if not isinstance(fecha_fin, datetime):
                 fecha_fin = datetime.combine(fecha_fin, datetime.max.time())
-            
+
             duracion_periodo_segundos = (fecha_fin - fecha_inicio).total_seconds()
         else:
             # Sin filtros, asumir 1 día laboral (8 horas)
             duracion_periodo_segundos = 8 * 3600
-        
+
         # Tiempo disponible = agentes activos × duración del período
         tiempo_disponible = agentes_activos * duracion_periodo_segundos
-        
+
         # Calcular ocupación
         ocupacion = round((tiempo_total_llamadas / tiempo_disponible * 100), 2) if tiempo_disponible > 0 else 0
         ocupacion = min(ocupacion, 100)  # Cap al 100%
-        
+
         # Calcular métricas adicionales
         # FCR (First Call Resolution) - Simplificado
         fcr = round((llamadas_atendidas / total_llamadas * 100), 2) if total_llamadas > 0 else 0
-        
+
         # Abandonment Rate (solo abandonadas, no todas las no atendidas)
         abandonment_rate = round((llamadas_abandonadas / total_llamadas * 100), 2) if total_llamadas > 0 else 0
-        
+
         # ASA (Average Speed of Answer) - usando bridge_wait_time
         asa = espera_promedio
-        
+
         # AHT (Average Handle Time) - igual que TMO
         aht = tmo_promedio
-        
+
         return {
             'llamadas_totales': {
                 'valor': total_llamadas,
@@ -374,9 +383,9 @@ class CallAnalyticsService:
                 'icono': '📊'
             }
         }
-    
+
     # Método get_llamadas_por_tipo removido - duplicado más abajo
-    
+
     def get_distribucion_llamadas(self, filters: Dict = None) -> Dict:
         """
         Obtiene la distribución de llamadas por estado
@@ -384,16 +393,16 @@ class CallAnalyticsService:
         filters = filters or {}
         query = self.db.query(LlamadaLog)
         query = self._apply_filters(query, filters)
-        
+
         atendidas = query.filter(LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)).count()
         abandonadas = query.filter(LlamadaLog.event == 'ABANDON').count()
         no_atendidas = query.filter(
             LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS),
             LlamadaLog.event != 'ABANDON'
         ).count()
-        
+
         total = atendidas + abandonadas + no_atendidas
-        
+
         return {
             'labels': ['Atendidas', 'Abandonadas', 'No Atendidas'],
             'data': [atendidas, abandonadas, no_atendidas],
@@ -403,42 +412,42 @@ class CallAnalyticsService:
                 round(no_atendidas / total * 100, 1) if total > 0 else 0
             ]
         }
-    
+
     def get_distribucion_por_tipo(self, filters: Dict = None) -> Dict:
         """
         Obtiene la distribución de llamadas separada por tipo (entrantes vs salientes)
         Para mostrar dos gráficos de pie separados
         """
         filters = filters or {}
-        
+
         # Consulta para llamadas entrantes
         query_entrantes = self.db.query(LlamadaLog)
         query_entrantes = self._apply_filters(query_entrantes, filters)
         query_entrantes = query_entrantes.filter(LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE)
-        
+
         entrantes_atendidas = query_entrantes.filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
         ).count()
         entrantes_abandonadas = query_entrantes.filter(
             LlamadaLog.event.in_(self.EVENTOS_ABANDONADAS)
         ).count()
-        
+
         total_entrantes = entrantes_atendidas + entrantes_abandonadas
-        
+
         # Consulta para llamadas salientes
         query_salientes = self.db.query(LlamadaLog)
         query_salientes = self._apply_filters(query_salientes, filters)
         query_salientes = query_salientes.filter(LlamadaLog.tipo_llamada == self.TIPO_SALIENTE)
-        
+
         salientes_conectadas = query_salientes.filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
         ).count()
         salientes_no_conectadas = query_salientes.filter(
             LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS)
         ).count()
-        
+
         total_salientes = salientes_conectadas + salientes_no_conectadas
-        
+
         return {
             'entrantes': {
                 'labels': ['Atendidas', 'Abandonadas'],
@@ -459,7 +468,7 @@ class CallAnalyticsService:
                 'total': total_salientes
             }
         }
-    
+
     def get_distribucion_horaria_detallada(self, filters: Dict = None) -> Dict:
         """
         Distribución horaria separando entrantes, salientes y abandonadas
@@ -468,7 +477,7 @@ class CallAnalyticsService:
         filters = filters or {}
         query = self.db.query(LlamadaLog)
         query = self._apply_filters(query, filters)
-        
+
         # Obtener datos agrupados
         resultados = query.with_entities(
             extract('hour', LlamadaLog.time).label('hora'),
@@ -476,13 +485,13 @@ class CallAnalyticsService:
             LlamadaLog.event,
             func.count(LlamadaLog.id).label('total')
         ).group_by('hora', LlamadaLog.tipo_llamada, LlamadaLog.event).all()
-        
+
         # Inicializar arrays de 24 horas
         horas = list(range(24))
         entrantes = [0] * 24
         salientes = [0] * 24
         abandonadas = [0] * 24
-        
+
         for r in resultados:
             hora_idx = int(r.hora)
             if r.tipo_llamada == self.TIPO_ENTRANTE:
@@ -491,14 +500,14 @@ class CallAnalyticsService:
                     abandonadas[hora_idx] += r.total
             elif r.tipo_llamada == self.TIPO_SALIENTE:
                 salientes[hora_idx] += r.total
-        
+
         return {
             'labels': [f'{h:02d}:00' for h in horas],
             'entrantes': entrantes,
             'salientes': salientes,
             'abandonadas': abandonadas
         }
-    
+
     def get_evolucion_por_hora(self, filters: Dict = None) -> Dict:
         """
         Obtiene la evolución de llamadas por hora
@@ -506,26 +515,26 @@ class CallAnalyticsService:
         filters = filters or {}
         query = self.db.query(LlamadaLog)
         query = self._apply_filters(query, filters)
-        
+
         # Agrupar por hora
         resultados = query.with_entities(
             extract('hour', LlamadaLog.time).label('hora'),
             func.count(LlamadaLog.id).label('total')
         ).group_by('hora').order_by('hora').all()
-        
+
         # Crear arrays de 24 horas
         horas = list(range(24))
         datos = [0] * 24
-        
+
         for resultado in resultados:
             hora_idx = int(resultado.hora)
             datos[hora_idx] = resultado.total
-        
+
         return {
             'labels': [f'{h:02d}:00' for h in horas],
             'data': datos
         }
-    
+
     def get_nivel_servicio_detallado(self, filters: Dict = None) -> Dict:
         """
         Obtiene distribución del nivel de servicio por rangos de tiempo
@@ -537,7 +546,7 @@ class CallAnalyticsService:
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
             LlamadaLog.bridge_wait_time.isnot(None)
         )
-        
+
         # Definir rangos
         rangos = [
             ('0-10s', 0, 10),
@@ -546,7 +555,7 @@ class CallAnalyticsService:
             ('31-60s', 31, 60),
             ('>60s', 61, 999999)
         ]
-        
+
         resultados = []
         for label, min_val, max_val in rangos:
             count = query.filter(
@@ -556,12 +565,12 @@ class CallAnalyticsService:
                 )
             ).count()
             resultados.append(count)
-        
+
         return {
             'labels': [r[0] for r in rangos],
             'data': resultados
         }
-    
+
     def get_causas_no_atencion(self, filters: Dict = None) -> Dict:
         """
         Obtiene las causas de llamadas no atendidas
@@ -570,12 +579,12 @@ class CallAnalyticsService:
         query = self.db.query(LlamadaLog)
         query = self._apply_filters(query, filters)
         query = query.filter(LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS))
-        
+
         resultados = query.with_entities(
             LlamadaLog.event,
             func.count(LlamadaLog.id).label('total')
         ).group_by(LlamadaLog.event).order_by(func.count(LlamadaLog.id).desc()).all()
-        
+
         # Mapeo de eventos a nombres legibles
         evento_nombres = {
             'ABANDON': 'Abandonada',
@@ -589,12 +598,12 @@ class CallAnalyticsService:
             'RINGNOANSWER': 'Timbró sin respuesta',
             'CONGESTION': 'Congestión'
         }
-        
+
         return {
             'labels': [evento_nombres.get(r.event, r.event) for r in resultados],
             'data': [r.total for r in resultados]
         }
-    
+
     def get_llamadas_abandonadas(self, filters: Dict = None, page: int = 1, per_page: int = 50) -> Dict:
         """
         Obtiene lista detallada de llamadas NO ATENDIDAS con paginación
@@ -603,13 +612,14 @@ class CallAnalyticsService:
         - NOANSWER, CANCEL, BUSY, etc. (no atendidas salientes)
         Convierte timezone a GMT-5 (America/Bogota)
         """
-        from datetime import timezone as dt_timezone, timedelta
-        
+        from datetime import timedelta
+        from datetime import timezone as dt_timezone
+
         filters = filters or {}
-        
+
         # Combinar eventos abandonadas + no atendidas
         eventos_no_atendidas_todas = self.EVENTOS_ABANDONADAS + self.EVENTOS_NO_ATENDIDAS
-        
+
         # Subquery para obtener el último evento de cada llamada no atendida
         # SOLO tipo_llamada 1 (entrantes) y 3 (salientes)
         subquery = self.db.query(
@@ -619,7 +629,7 @@ class CallAnalyticsService:
             LlamadaLog.event.in_(eventos_no_atendidas_todas),
             LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE])
         )
-        
+
         if filters.get('fecha_inicio'):
             subquery = subquery.filter(LlamadaLog.time >= filters['fecha_inicio'])
         if filters.get('fecha_fin'):
@@ -628,9 +638,9 @@ class CallAnalyticsService:
             subquery = subquery.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
         if filters.get('agente_ids'):
             subquery = subquery.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
-        
+
         subquery = subquery.group_by(LlamadaLog.callid).subquery()
-        
+
         # Query principal con JOIN a subquery para obtener solo últimos eventos
         query = self.db.query(
             LlamadaLog,
@@ -650,24 +660,24 @@ class CallAnalyticsService:
         ).outerjoin(
             User, AgenteProfile.user_id == User.id
         )
-        
+
         # Total de registros
         total = query.count()
-        
+
         # Paginación
         offset = (page - 1) * per_page
         resultados = query.order_by(LlamadaLog.time.desc()).offset(offset).limit(per_page).all()
-        
+
         # Timezone GMT-5 (America/Bogota)
         gmt_minus_5 = dt_timezone(timedelta(hours=-5))
-        
+
         llamadas = []
         for r in resultados:
             llamada = r.LlamadaLog
-            
+
             # Convertir tiempo a GMT-5
             time_gmt5 = llamada.time.astimezone(gmt_minus_5)
-            
+
             # Mapear tipo de abandono
             tipo_abandono = {
                 'ABANDON': 'En Cola',
@@ -675,7 +685,7 @@ class CallAnalyticsService:
                 'EXITWITHTIMEOUT': 'Timeout',
                 'ABANDON-CTOUT': 'Durante Transferencia'
             }.get(llamada.event, llamada.event)
-            
+
             llamadas.append({
                 'id': llamada.id,
                 'callid': llamada.callid,
@@ -688,7 +698,7 @@ class CallAnalyticsService:
                 'evento': llamada.event,
                 'tipo_abandono': tipo_abandono
             })
-        
+
         return {
             'data': llamadas,
             'total': total,
@@ -696,17 +706,18 @@ class CallAnalyticsService:
             'per_page': per_page,
             'total_pages': (total + per_page - 1) // per_page
         }
-    
+
     def get_llamadas_detalladas(self, filters: Dict = None, page: int = 1, per_page: int = 50) -> Dict:
         """
         Obtiene lista detallada de llamadas ATENDIDAS con paginación
         Solo eventos finales: COMPLETEAGENT, COMPLETEOUTNUM
         Convierte timezone a GMT-5 (America/Bogota)
         """
-        from datetime import timezone as dt_timezone, timedelta
-        
+        from datetime import timedelta
+        from datetime import timezone as dt_timezone
+
         filters = filters or {}
-        
+
         # Subquery para obtener el último evento de cada llamada atendida
         # SOLO tipo_llamada 1 (entrantes) y 3 (salientes)
         subquery = self.db.query(
@@ -716,7 +727,7 @@ class CallAnalyticsService:
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
             LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE])
         )
-        
+
         if filters.get('fecha_inicio'):
             subquery = subquery.filter(LlamadaLog.time >= filters['fecha_inicio'])
         if filters.get('fecha_fin'):
@@ -725,9 +736,9 @@ class CallAnalyticsService:
             subquery = subquery.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
         if filters.get('agente_ids'):
             subquery = subquery.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
-        
+
         subquery = subquery.group_by(LlamadaLog.callid).subquery()
-        
+
         # Query principal con JOIN a subquery para obtener solo últimos eventos
         query = self.db.query(
             LlamadaLog,
@@ -747,27 +758,27 @@ class CallAnalyticsService:
         ).outerjoin(
             User, AgenteProfile.user_id == User.id
         )
-        
+
         # Total de registros
         total = query.count()
-        
+
         # Paginación
         offset = (page - 1) * per_page
         resultados = query.order_by(LlamadaLog.time.desc()).offset(offset).limit(per_page).all()
-        
+
         # Timezone GMT-5 (America/Bogota)
         gmt_minus_5 = dt_timezone(timedelta(hours=-5))
-        
+
         llamadas = []
         for r in resultados:
             llamada = r.LlamadaLog
-            
+
             # Convertir tiempo a GMT-5
             time_gmt5 = llamada.time.astimezone(gmt_minus_5)
-            
+
             # Determinar quién colgó
             quien_colgo = 'Agente' if llamada.event == 'COMPLETEAGENT' else 'Cliente'
-            
+
             llamadas.append({
                 'id': llamada.id,
                 'callid': llamada.callid,
@@ -782,7 +793,7 @@ class CallAnalyticsService:
                 'quien_colgo': quien_colgo,
                 'grabacion': llamada.archivo_grabacion or ''
             })
-        
+
         return {
             'data': llamadas,
             'total': total,
@@ -790,7 +801,7 @@ class CallAnalyticsService:
             'per_page': per_page,
             'total_pages': (total + per_page - 1) // per_page
         }
-    
+
     def get_nivel_atencion_por_campana(self, filters: Dict = None) -> List[Dict]:
         """
         Nivel de atención por campaña con alertas (como Power BI)
@@ -798,7 +809,7 @@ class CallAnalyticsService:
         Cuenta solo llamadas únicas (por callid, último evento)
         """
         filters = filters or {}
-        
+
         # Subquery para obtener el último evento de cada llamada
         subquery = self.db.query(
             LlamadaLog.callid,
@@ -806,14 +817,14 @@ class CallAnalyticsService:
         ).filter(
             LlamadaLog.tipo_llamada == 3  # Solo entrantes
         )
-        
+
         if filters.get('fecha_inicio'):
             subquery = subquery.filter(LlamadaLog.time >= filters['fecha_inicio'])
         if filters.get('fecha_fin'):
             subquery = subquery.filter(LlamadaLog.time <= filters['fecha_fin'])
-        
+
         subquery = subquery.group_by(LlamadaLog.callid).subquery()
-        
+
         # Query principal con llamadas únicas
         query = self.db.query(
             Campana.nombre,
@@ -840,20 +851,20 @@ class CallAnalyticsService:
         ).outerjoin(
             AgenteProfile, LlamadaLog.agente_id == AgenteProfile.id
         )
-        
+
         if filters.get('campana_ids'):
             query = query.filter(Campana.id.in_(filters['campana_ids']))
         if filters.get('agente_ids'):
             query = query.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
-        
+
         resultados = query.group_by(Campana.nombre, Campana.id).order_by(
             func.count(func.distinct(LlamadaLog.callid)).desc()
         ).all()
-        
+
         campanias = []
         for r in resultados:
             nivel_atencion = round((r.atendidas / r.total_llamadas * 100), 2) if r.total_llamadas > 0 else 0
-            
+
             # Determinar estado y color según nivel
             # Verde (OK): 80% - 100%
             # Naranja (Advertencia): 60% - 80%
@@ -870,7 +881,7 @@ class CallAnalyticsService:
                 estado = 'critico'
                 color = 'red'
                 alerta = True  # Requiere atención inmediata
-            
+
             campanias.append({
                 'campana_id': r.id,
                 'campana': r.nombre,
@@ -884,9 +895,9 @@ class CallAnalyticsService:
                 'color': color,
                 'alerta': alerta
             })
-        
+
         return campanias
-    
+
     def get_distribucion_por_campana(self, filters: Dict = None) -> List[Dict]:
         """
         Obtiene distribución de llamadas por campaña
@@ -904,11 +915,11 @@ class CallAnalyticsService:
         ).join(
             LlamadaLog, Campana.id == LlamadaLog.campana_id
         )
-        
+
         query = self._apply_filters(query, filters)
-        
+
         resultados = query.group_by(Campana.nombre).order_by(func.count(LlamadaLog.id).desc()).all()
-        
+
         return [{
             'campana': r.nombre,
             'total': r.total,
@@ -916,7 +927,7 @@ class CallAnalyticsService:
             'no_atendidas': r.no_atendidas or 0,
             'tasa_atencion': round((r.atendidas or 0) / r.total * 100, 2) if r.total > 0 else 0
         } for r in resultados]
-    
+
     def get_llamadas_por_tipo(self, filters: Dict = None) -> Dict:
         """
         Distribución de llamadas separando ENTRANTES y SALIENTES
@@ -926,7 +937,7 @@ class CallAnalyticsService:
         query = self.db.query(LlamadaLog)
         query = self._apply_filters(query, filters)
         query = query.filter(LlamadaLog.event.in_(self.EVENTOS_FINALES))  # SOLO EVENTOS FINALES
-        
+
         # Llamadas ENTRANTES (tipo_llamada = 3)
         entrantes_total = query.filter(LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE).count()
         entrantes_atendidas = query.filter(
@@ -937,7 +948,7 @@ class CallAnalyticsService:
             LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE,
             LlamadaLog.event.in_(self.EVENTOS_ABANDONADAS)
         ).count()
-        
+
         # Llamadas SALIENTES (tipo_llamada = 1)
         salientes_total = query.filter(LlamadaLog.tipo_llamada == self.TIPO_SALIENTE).count()
         salientes_atendidas = query.filter(
@@ -949,11 +960,11 @@ class CallAnalyticsService:
             LlamadaLog.tipo_llamada == self.TIPO_SALIENTE,
             LlamadaLog.event.in_(['CANCEL', 'NOANSWER', 'BUSY', 'CHANUNAVAIL', 'NONDIALPLAN'])
         ).count()
-        
+
         # Calcular tasas
         tasa_abandono_entrantes = round(entrantes_abandonadas / entrantes_total * 100, 2) if entrantes_total > 0 else 0
         tasa_no_atencion_salientes = round(salientes_no_atendidas / salientes_total * 100, 2) if salientes_total > 0 else 0
-        
+
         return {
             'entrantes': {
                 'total': entrantes_total,
@@ -970,7 +981,7 @@ class CallAnalyticsService:
                 'tasa_no_atencion': tasa_no_atencion_salientes
             }
         }
-    
+
     def get_evolucion_semanal(self, filters: Dict = None) -> Dict:
         """
         Obtiene evolución semanal de llamadas con 3 series:
@@ -979,7 +990,7 @@ class CallAnalyticsService:
         - Agentes activos
         """
         filters = filters or {}
-        
+
         # Consultar llamadas agrupadas por semana
         query = self.db.query(
             func.date_trunc('week', LlamadaLog.time).label('semana'),
@@ -991,35 +1002,35 @@ class CallAnalyticsService:
                 case((LlamadaLog.event.in_(self.EVENTOS_ABANDONADAS), 1), else_=0)
             ).label('abandonadas')
         )
-        
+
         query = self._apply_filters(query, filters)
         query = query.filter(LlamadaLog.event.in_(self.EVENTOS_FINALES))
-        
+
         resultados = query.group_by('semana').order_by('semana').all()
-        
+
         # Consultar agentes activos por semana
         agentes_query = self.db.query(
             func.date_trunc('week', LlamadaLog.time).label('semana'),
             func.count(func.distinct(LlamadaLog.agente_id)).label('agentes_activos')
         )
-        
+
         agentes_query = self._apply_filters(agentes_query, filters)
         agentes_query = agentes_query.filter(
             LlamadaLog.agente_id.isnot(None),
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
         )
-        
+
         agentes_resultados = agentes_query.group_by('semana').order_by('semana').all()
-        
+
         # Crear diccionario de agentes por semana
         agentes_por_semana = {r.semana: r.agentes_activos for r in agentes_resultados}
-        
+
         # Preparar respuesta
         semanas = []
         contestadas = []
         abandonadas = []
         agentes = []
-        
+
         for r in resultados:
             # Formatear semana como "Semana del DD/MM"
             fecha_semana = r.semana.strftime('%d/%m')
@@ -1027,7 +1038,7 @@ class CallAnalyticsService:
             contestadas.append(r.contestadas or 0)
             abandonadas.append(r.abandonadas or 0)
             agentes.append(agentes_por_semana.get(r.semana, 0))
-        
+
         return {
             'labels': semanas,
             'series': [

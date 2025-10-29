@@ -1,0 +1,98 @@
+version: '3.9'
+
+services:
+  # Backend Service
+  backend:
+    build:
+      context: .
+      dockerfile: ./compose/dev/backend/backend.dev.dockerfile
+    container_name: oml-backend-dev
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - DB_NAME=${DB_NAME:-omnileads_analytics}
+      - OMNILEADS_DB_HOST=${OMNILEADS_DB_HOST:-postgres-omnileads}
+      - OMNILEADS_DB_PORT=${OMNILEADS_DB_PORT:-5432}
+      - OMNILEADS_DB_USER=${OMNILEADS_DB_USER:-postgres}
+      - OMNILEADS_DB_PASSWORD=${OMNILEADS_DB_PASSWORD:-postgres}
+      - OMNILEADS_DB_NAME=${OMNILEADS_DB_NAME:-omnileads}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key-change-in-production}
+      - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+    depends_on:
+      - postgres-omnileads
+    networks:
+      - oml-network
+    restart: unless-stopped
+    command: uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+
+  # Frontend Service
+  frontend:
+    build:
+      context: .
+      dockerfile: ./compose/dev/frontend/frontend.dev.dockerfile
+    container_name: oml-frontend-dev
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:8000/api}
+      - NODE_ENV=development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - oml-network
+    restart: unless-stopped
+
+  # PostgreSQL Service (OmniLeads Database)
+  postgres-omnileads:
+    image: postgres:16-alpine
+    container_name: oml-postgres-omnileads-dev
+    ports:
+      - "${OMNILEADS_DB_PORT:-5432}:5432"
+    environment:
+      - POSTGRES_USER=${OMNILEADS_DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${OMNILEADS_DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${OMNILEADS_DB_NAME:-omnileads}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8
+    volumes:
+      - postgres-omnileads-data:/var/lib/postgresql/data
+    networks:
+      - oml-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${OMNILEADS_DB_USER:-postgres}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # pgAdmin for database management (development only)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: oml-pgadmin-dev
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL:-admin@example.com}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD:-admin}
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      - postgres-omnileads
+    networks:
+      - oml-network
+    restart: unless-stopped
+
+networks:
+  oml-network:
+    driver: bridge
+
+volumes:
+  postgres-omnileads-data:
+  pgadmin-data:

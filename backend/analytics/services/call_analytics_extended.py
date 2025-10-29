@@ -4,14 +4,23 @@ Métodos adicionales para reportes premium
 """
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
+
+from sqlalchemy import and_, case, distinct, extract, func, or_
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_, case, extract, distinct
-from ..models.omnileads_models import LlamadaLog, Campana, AgenteProfile, User, ActividadAgenteLog, Pausa
+
+from ..models.omnileads_models import (
+    ActividadAgenteLog,
+    AgenteProfile,
+    Campana,
+    LlamadaLog,
+    Pausa,
+    User,
+)
 
 
 class CallAnalyticsExtended:
     """Servicio extendido para reportes premium"""
-    
+
     # Eventos de llamadas salientes
     EVENTOS_SALIENTES = {
         'DIAL': 'Marcación iniciada',
@@ -22,7 +31,7 @@ class CallAnalyticsExtended:
         'CONGESTION': 'Congestión',
         'CHANUNAVAIL': 'Canal no disponible'
     }
-    
+
     # Eventos de transferencias (basados en datos reales de OmniLeads)
     EVENTOS_TRANSFERENCIAS = {
         'BT-TRY': 'Intento de transfer ciego',
@@ -38,139 +47,139 @@ class CallAnalyticsExtended:
         'COMPLETE-CT': 'Llamada completada vía transfer consultivo',
         'ENTERQUEUE-TRANSFER': 'Llamada ingresó a cola por transferencia'
     }
-    
+
     def __init__(self, db: Session):
         self.db = db
-    
+
     def _apply_filters(self, query, filters: Dict):
         """Aplica filtros comunes a las consultas"""
         if not filters:
             return query
-        
+
         if filters.get('fecha_inicio'):
             query = query.filter(LlamadaLog.time >= filters['fecha_inicio'])
-        
+
         if filters.get('fecha_fin'):
             query = query.filter(LlamadaLog.time <= filters['fecha_fin'])
-        
+
         if filters.get('campana_id'):
             query = query.filter(LlamadaLog.campana_id == filters['campana_id'])
-        
+
         if filters.get('agente_id'):
             query = query.filter(LlamadaLog.agente_id == filters['agente_id'])
-        
+
         return query
-    
+
     # ==================== DISTRIBUCIÓN AVANZADA ====================
-    
+
     def get_distribucion_por_campana(self, filters: Dict = None) -> List[Dict]:
         """
         Distribución de llamadas por campaña (Pie Chart)
         Retorna nombre, total y porcentaje por campaña
         """
         filters = filters or {}
-        
+
         query = self.db.query(
             Campana.nombre,
             func.count(LlamadaLog.id).label('total')
         ).join(
             LlamadaLog, Campana.id == LlamadaLog.campana_id
         )
-        
+
         query = self._apply_filters(query, filters)
-        
+
         resultados = query.group_by(Campana.nombre).all()
-        
+
         # Calcular total general
         total_general = sum(r.total for r in resultados)
-        
+
         return [{
             'campana': r.nombre,
             'total': r.total,
             'porcentaje': round(r.total / total_general * 100, 2) if total_general > 0 else 0
         } for r in resultados]
-    
+
     def get_distribucion_por_dia_semana(self, filters: Dict = None) -> List[Dict]:
         """
         Distribución de llamadas por día de la semana
         0=Lunes, 6=Domingo
         """
         filters = filters or {}
-        
+
         query = self.db.query(
             extract('dow', LlamadaLog.time).label('dia_semana'),
             func.count(LlamadaLog.id).label('total')
         )
-        
+
         query = self._apply_filters(query, filters)
-        
+
         resultados = query.group_by('dia_semana').all()
-        
+
         dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
-        
+
         # Crear array con todos los días inicializados en 0
         distribucion = {i: 0 for i in range(7)}
         for r in resultados:
             distribucion[int(r.dia_semana)] = r.total
-        
+
         # Calcular promedio
         total_llamadas = sum(distribucion.values())
         promedio = total_llamadas / 7 if total_llamadas > 0 else 0
-        
+
         return [{
             'dia': dias[i],
             'total': distribucion[i],
             'promedio': round(promedio, 2),
             'es_pico': distribucion[i] > promedio
         } for i in range(7)]
-    
+
     def get_distribucion_por_mes(self, anio: int = None, filters: Dict = None) -> List[Dict]:
         """
         Distribución de llamadas por mes
         """
         filters = filters or {}
-        
+
         query = self.db.query(
             extract('month', LlamadaLog.time).label('mes'),
             func.count(LlamadaLog.id).label('total')
         )
-        
+
         if anio:
             query = query.filter(extract('year', LlamadaLog.time) == anio)
-        
+
         query = self._apply_filters(query, filters)
-        
+
         resultados = query.group_by('mes').all()
-        
+
         meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-        
+
         # Crear array con todos los meses inicializados en 0
         distribucion = {i: 0 for i in range(1, 13)}
         for r in resultados:
             distribucion[int(r.mes)] = r.total
-        
+
         return [{
             'mes': meses[i-1],
             'mes_numero': i,
             'total': distribucion[i]
         } for i in range(1, 13)]
-    
+
     def get_distribucion_por_rango_horario(self, filters: Dict = None) -> List[Dict]:
         """
         Distribución por rangos horarios configurables
         Rangos: 0-6, 6-12, 12-18, 18-24
         """
         filters = filters or {}
-        
+
         query = self.db.query(
             extract('hour', LlamadaLog.time).label('hora'),
             func.count(LlamadaLog.id).label('total')
         )
-        
+
         query = self._apply_filters(query, filters)
-        
+
         resultados = query.group_by('hora').all()
-        
+
         # Definir rangos horarios
         rangos = {
             '00:00 - 06:00': (0, 6),
@@ -178,32 +187,32 @@ class CallAnalyticsExtended:
             '12:00 - 18:00': (12, 18),
             '18:00 - 24:00': (18, 24)
         }
-        
+
         distribucion_rangos = {rango: 0 for rango in rangos}
-        
+
         for r in resultados:
             hora = int(r.hora)
             for nombre_rango, (inicio, fin) in rangos.items():
                 if inicio <= hora < fin:
                     distribucion_rangos[nombre_rango] += r.total
-        
+
         total = sum(distribucion_rangos.values())
-        
+
         return [{
             'rango': nombre,
             'total': total_llamadas,
             'porcentaje': round(total_llamadas / total * 100, 2) if total > 0 else 0
         } for nombre, total_llamadas in distribucion_rangos.items()]
-    
+
     # ==================== LLAMADAS SALIENTES ====================
-    
+
     def get_llamadas_salientes_dashboard(self, filters: Dict = None) -> Dict:
         """
         Dashboard completo de llamadas salientes
         Categorías basadas en el evento final de cada llamada única
         """
         filters = filters or {}
-        
+
         # Subquery para obtener el último evento de cada llamada (por callid)
         subquery = self.db.query(
             LlamadaLog.callid,
@@ -211,7 +220,7 @@ class CallAnalyticsExtended:
         ).filter(
             LlamadaLog.tipo_llamada == 1  # Salientes = 1
         )
-        
+
         if filters.get('fecha_inicio'):
             subquery = subquery.filter(LlamadaLog.time >= filters['fecha_inicio'])
         if filters.get('fecha_fin'):
@@ -220,9 +229,9 @@ class CallAnalyticsExtended:
             subquery = subquery.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
         if filters.get('agente_ids'):
             subquery = subquery.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
-        
+
         subquery = subquery.group_by(LlamadaLog.callid).subquery()
-        
+
         # Query principal: unir para obtener el evento final de cada llamada
         query = self.db.query(LlamadaLog).join(
             subquery,
@@ -231,36 +240,36 @@ class CallAnalyticsExtended:
                 LlamadaLog.time == subquery.c.ultimo_tiempo
             )
         )
-        
+
         # Contar llamadas únicas por categoría basada en evento final
         total_llamadas = query.count()
-        
+
         # Exitosas: las que terminaron con COMPLETE (fueron contestadas y terminaron)
         contestadas = query.filter(
             LlamadaLog.event.in_(['COMPLETEAGENT', 'COMPLETEOUTNUM'])
         ).count()
-        
+
         # No contestadas/Canceladas: terminaron con CANCEL o NOANSWER
         no_contestadas = query.filter(
             LlamadaLog.event.in_(['NOANSWER', 'CANCEL'])
         ).count()
-        
+
         # Ocupadas
         ocupadas = query.filter(LlamadaLog.event == 'BUSY').count()
-        
+
         # Fallos técnicos
         fallos = query.filter(
             LlamadaLog.event.in_(['CONGESTION', 'NONDIALPLAN', 'CHANUNAVAIL'])
         ).count()
-        
+
         # Transferencias y otros
         otros = query.filter(
             LlamadaLog.event.in_(['BT-TRY', 'BT-BUSY', 'CAMPT-COMPLETE', 'CAMPT-TRY'])
         ).count()
-        
+
         # Calcular tasa de contactación
         tasa_contactacion = round(contestadas / total_llamadas * 100, 2) if total_llamadas > 0 else 0
-        
+
         # Preparar eventos para el gráfico
         eventos = {
             'CONTESTADAS': {
@@ -284,7 +293,7 @@ class CallAnalyticsExtended:
                 'total': otros
             }
         }
-        
+
         return {
             'eventos': eventos,
             'metricas': {
@@ -296,25 +305,25 @@ class CallAnalyticsExtended:
                 'tasa_contactacion': tasa_contactacion
             }
         }
-    
+
     def get_llamadas_manuales_vs_dialer(self, filters: Dict = None) -> Dict:
         """
         Comparativa de llamadas manuales vs dialer
         Basado en tipo_campana: 1 = Manual, 3 = Dialer (según ejemplos)
         """
         filters = filters or {}
-        
+
         query = self.db.query(LlamadaLog)
         query = query.filter(LlamadaLog.tipo_llamada == 1)  # Salientes = 1
         query = self._apply_filters(query, filters)
-        
+
         # Contar por tipo_campana
         # tipo_campana: 1 = Manual, 3 = Dialer (basado en ejemplos reales)
         manuales = query.filter(LlamadaLog.tipo_campana == 1).count()
         dialer = query.filter(LlamadaLog.tipo_campana == 3).count()
-        
+
         total = manuales + dialer
-        
+
         return {
             'manuales': {
                 'total': manuales,
@@ -325,57 +334,57 @@ class CallAnalyticsExtended:
                 'porcentaje': round(dialer / total * 100, 2) if total > 0 else 0
             }
         }
-    
+
     # ==================== CAUSAS DETALLADAS ====================
-    
+
     def get_causas_desconexion_detalladas(self, filters: Dict = None) -> List[Dict]:
         """
         Análisis detallado de causas de desconexión
         Incluye eventos de transferencias
         """
         filters = filters or {}
-        
+
         eventos_desconexion = [
             'COMPLETEAGENT',
             'COMPLETEOUTNUM',
             'COMPLETE-CTOUT',
             'COMPLETE-BTOUT'
         ]
-        
+
         query = self.db.query(
             LlamadaLog.event,
             func.count(LlamadaLog.id).label('total')
         ).filter(
             LlamadaLog.event.in_(eventos_desconexion)
         )
-        
+
         query = self._apply_filters(query, filters)
-        
+
         resultados = query.group_by(LlamadaLog.event).all()
-        
+
         total = sum(r.total for r in resultados)
-        
+
         descripciones = {
             'COMPLETEAGENT': 'Agente colgó',
             'COMPLETEOUTNUM': 'Cliente colgó',
             'COMPLETE-CTOUT': 'Transfer consultivo',
             'COMPLETE-BTOUT': 'Transfer ciego'
         }
-        
+
         return [{
             'evento': r.event,
             'descripcion': descripciones.get(r.event, r.event),
             'total': r.total,
             'porcentaje': round(r.total / total * 100, 2) if total > 0 else 0
         } for r in resultados]
-    
+
     def get_causas_no_conexion_completas(self, filters: Dict = None) -> List[Dict]:
         """
         Análisis completo de causas de no conexión
         Incluye todos los eventos: ABANDON, EXITWITHTIMEOUT, CONGESTION, etc.
         """
         filters = filters or {}
-        
+
         eventos_no_conexion = [
             'ABANDON',
             'ABANDONWEL',
@@ -387,20 +396,20 @@ class CallAnalyticsExtended:
             'NOANSWER',
             'CANCEL'
         ]
-        
+
         query = self.db.query(
             LlamadaLog.event,
             func.count(LlamadaLog.id).label('total')
         ).filter(
             LlamadaLog.event.in_(eventos_no_conexion)
         )
-        
+
         query = self._apply_filters(query, filters)
-        
+
         resultados = query.group_by(LlamadaLog.event).all()
-        
+
         total = sum(r.total for r in resultados)
-        
+
         descripciones = {
             'ABANDON': 'Abandono en cola',
             'ABANDONWEL': 'Abandono en bienvenida',
@@ -412,25 +421,25 @@ class CallAnalyticsExtended:
             'NOANSWER': 'No contestada',
             'CANCEL': 'Cancelada'
         }
-        
+
         return [{
             'evento': r.event,
             'descripcion': descripciones.get(r.event, r.event),
             'total': r.total,
             'porcentaje': round(r.total / total * 100, 2) if total > 0 else 0
         } for r in resultados]
-    
+
     def get_sin_conexion_por_agente(self, filters: Dict = None) -> List[Dict]:
         """
         Llamadas sin conexión desglosadas por agente
         """
         filters = filters or {}
-        
+
         eventos_sin_conexion = [
             'ABANDON', 'ABANDONWEL', 'EXITWITHTIMEOUT',
             'NOANSWER', 'CANCEL', 'CHANUNAVAIL'
         ]
-        
+
         query = self.db.query(
             User.first_name,
             User.last_name,
@@ -443,33 +452,33 @@ class CallAnalyticsExtended:
         ).filter(
             LlamadaLog.event.in_(eventos_sin_conexion)
         )
-        
+
         query = self._apply_filters(query, filters)
-        
+
         resultados = query.group_by(
             User.first_name, User.last_name, User.email
         ).all()
-        
+
         total_general = sum(r.total for r in resultados)
-        
+
         return [{
             'agente': f'{r.first_name} {r.last_name}',
             'email': r.email,
             'total': r.total,
             'porcentaje': round(r.total / total_general * 100, 2) if total_general > 0 else 0
         } for r in resultados]
-    
+
     def get_sin_conexion_por_campana(self, filters: Dict = None) -> List[Dict]:
         """
         Llamadas sin conexión desglosadas por campaña
         """
         filters = filters or {}
-        
+
         eventos_sin_conexion = [
             'ABANDON', 'ABANDONWEL', 'EXITWITHTIMEOUT',
             'NOANSWER', 'CANCEL', 'CHANUNAVAIL'
         ]
-        
+
         query = self.db.query(
             Campana.nombre,
             func.count(LlamadaLog.id).label('total')
@@ -478,41 +487,41 @@ class CallAnalyticsExtended:
         ).filter(
             LlamadaLog.event.in_(eventos_sin_conexion)
         )
-        
+
         query = self._apply_filters(query, filters)
-        
+
         resultados = query.group_by(Campana.nombre).all()
-        
+
         total_general = sum(r.total for r in resultados)
-        
+
         return [{
             'campana': r.nombre,
             'total': r.total,
             'porcentaje': round(r.total / total_general * 100, 2) if total_general > 0 else 0
         } for r in resultados]
-    
+
     # ==================== AGENTES AVANZADOS ====================
-    
+
     def get_total_sesiones_agentes(self, filters: Dict = None) -> Dict:
         """
         Resumen de sesiones de todos los agentes
         Métricas globales: N° agentes, número total de actividades
         """
         filters = filters or {}
-        
+
         query = self.db.query(
             ActividadAgenteLog.agente_id,
             func.count(ActividadAgenteLog.id).label('num_actividades')
         )
-        
+
         # Aplicar filtros de fecha si existen
         if filters.get('fecha_inicio'):
             query = query.filter(ActividadAgenteLog.time >= filters['fecha_inicio'])
         if filters.get('fecha_fin'):
             query = query.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
-        
+
         resultados = query.group_by(ActividadAgenteLog.agente_id).all()
-        
+
         if not resultados:
             return {
                 'total_agentes': 0,
@@ -521,9 +530,9 @@ class CallAnalyticsExtended:
                 'actividades_maximas': 0,
                 'actividades_total': 0
             }
-        
+
         actividades = [r.num_actividades for r in resultados if r.num_actividades]
-        
+
         return {
             'total_agentes': len(resultados),
             'actividades_promedio': round(sum(actividades) / len(actividades) if actividades else 0, 2),
@@ -531,50 +540,50 @@ class CallAnalyticsExtended:
             'actividades_maximas': max(actividades) if actividades else 0,
             'actividades_total': sum(actividades) if actividades else 0
         }
-    
+
     def get_agentes_por_dia_hora(self, filters: Dict = None) -> List[Dict]:
         """
         Número de agentes disponibles por día y hora (para heatmap)
         Retorna matriz día x hora con cantidad de agentes
         """
         filters = filters or {}
-        
+
         query = self.db.query(
             extract('dow', ActividadAgenteLog.time).label('dia'),
             extract('hour', ActividadAgenteLog.time).label('hora'),
             func.count(distinct(ActividadAgenteLog.agente_id)).label('num_agentes')
         )
-        
+
         if filters.get('fecha_inicio'):
             query = query.filter(ActividadAgenteLog.time >= filters['fecha_inicio'])
         if filters.get('fecha_fin'):
             query = query.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
-        
+
         resultados = query.group_by('dia', 'hora').all()
-        
+
         # Crear matriz 7 días x 24 horas
         matriz = [[0 for _ in range(24)] for _ in range(7)]
-        
+
         for r in resultados:
             dia = int(r.dia)
             hora = int(r.hora)
             matriz[dia][hora] = r.num_agentes
-        
+
         dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
-        
+
         return {
             'dias': dias,
             'horas': list(range(24)),
             'matriz': matriz
         }
-    
+
     def get_disponibilidad_agentes_ampliada(self, filters: Dict = None) -> List[Dict]:
         """
         Disponibilidad de agentes con métricas ampliadas
         Basado en actividades y llamadas registradas
         """
         filters = filters or {}
-        
+
         # Query de llamadas por agente
         query = self.db.query(
             AgenteProfile.id,
@@ -587,19 +596,19 @@ class CallAnalyticsExtended:
         ).join(
             User, AgenteProfile.user_id == User.id
         )
-        
+
         if filters.get('fecha_inicio'):
             query = query.filter(LlamadaLog.time >= filters['fecha_inicio'])
         if filters.get('fecha_fin'):
             query = query.filter(LlamadaLog.time <= filters['fecha_fin'])
-        
+
         resultados = query.group_by(
             AgenteProfile.id, User.first_name, User.last_name
         ).all()
-        
+
         # Preparar métricas
         agentes_metricas = []
-        
+
         for r in resultados:
             # Contar actividades
             actividades_query = self.db.query(
@@ -607,15 +616,15 @@ class CallAnalyticsExtended:
             ).filter(
                 ActividadAgenteLog.agente_id == r.id
             )
-            
+
             if filters.get('fecha_inicio'):
                 actividades_query = actividades_query.filter(ActividadAgenteLog.time >= filters['fecha_inicio'])
             if filters.get('fecha_fin'):
                 actividades_query = actividades_query.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
-            
+
             num_actividades = actividades_query.scalar() or 0
             tiempo_promedio = round(r.tiempo_llamadas / r.num_llamadas, 2) if r.num_llamadas > 0 else 0
-            
+
             agentes_metricas.append({
                 'agente': f'{r.first_name} {r.last_name}',
                 'num_sesiones': num_actividades,
@@ -624,11 +633,11 @@ class CallAnalyticsExtended:
                 'ocupacion': 100,  # 100% si está procesando llamadas
                 'promedio_sesion': tiempo_promedio
             })
-        
+
         return agentes_metricas
-    
+
     # ==================== TRANSFERENCIAS ====================
-    
+
     def get_analisis_transferencias(self, filters: Dict = None) -> Dict:
         """
         Análisis completo de transferencias
@@ -636,12 +645,11 @@ class CallAnalyticsExtended:
         Excluye llamadas que SOLO tienen ENTERQUEUE-TRANSFER
         """
         filters = filters or {}
-        
-        # Obtener base de datos de llamadas con transferencias
+
         query = self.db.query(LlamadaLog)
         query = self._apply_filters(query, filters)
-        
-        # Contar eventos individuales para el detalle
+
+        # Contar por tipo de evento de transferencia
         metricas_eventos = {}
         for evento, descripcion in self.EVENTOS_TRANSFERENCIAS.items():
             count = query.filter(LlamadaLog.event == evento).count()
@@ -649,16 +657,16 @@ class CallAnalyticsExtended:
                 'descripcion': descripcion,
                 'total': count
             }
-        
+
         # Contar LLAMADAS ÚNICAS por tipo de transferencia
         # Una llamada con BT-TRY -> BT-ANSWER -> COMPLETE-BT cuenta como 1 llamada de transfer ciego exitosa
-        
+
         # Helper function para contar callids únicos con un evento específico
         def count_unique_calls_with_event(event_name):
             base_query = self.db.query(func.count(distinct(LlamadaLog.callid)))
             base_query = self._apply_filters(base_query, filters)
             return base_query.filter(LlamadaLog.event == event_name).scalar() or 0
-        
+
         # Transfer Ciego: Llamadas con eventos BT-*
         bt_intentos = count_unique_calls_with_event('BT-TRY')
         bt_completados = count_unique_calls_with_event('COMPLETE-BT')
@@ -666,18 +674,18 @@ class CallAnalyticsExtended:
         bt_ocupados = count_unique_calls_with_event('BT-BUSY')
         bt_sin_respuesta = count_unique_calls_with_event('BT-NOANSWER')
         bt_no_disponible = count_unique_calls_with_event('BT-CHANUNAVAIL')
-        
+
         # Transfer Consultivo: Llamadas con eventos CT-*
         ct_intentos = count_unique_calls_with_event('CT-TRY')
         ct_completados = count_unique_calls_with_event('COMPLETE-CT')
         ct_atendidos = count_unique_calls_with_event('CT-ANSWER')
         ct_cancelados = count_unique_calls_with_event('CT-CANCEL')
         ct_ocupados = count_unique_calls_with_event('CT-BUSY')
-        
+
         # Total de transferencias exitosas y intentos
         total_exitosas = bt_completados + ct_completados
         total_intentos = bt_intentos + ct_intentos
-        
+
         # Ingresos a cola por transferencia - CONTAR LLAMADAS ÚNICAS, no eventos
         # Obtener todos los callids que tienen ENTERQUEUE-TRANSFER
         callids_con_enterqueue = self.db.query(LlamadaLog.callid.distinct()).filter(
@@ -685,11 +693,11 @@ class CallAnalyticsExtended:
         )
         callids_con_enterqueue = self._apply_filters(callids_con_enterqueue, filters)
         total_ingresos_cola = callids_con_enterqueue.count()
-        
+
         # Calcular llamadas que SOLO tienen ENTERQUEUE-TRANSFER (para restar del total)
         # Estas son las que excluimos del detalle
         eventos_transferencia = list(self.EVENTOS_TRANSFERENCIAS.keys())
-        
+
         # Obtener todos los callids con eventos de transferencia
         query_todos = self.db.query(
             LlamadaLog.callid,
@@ -698,20 +706,20 @@ class CallAnalyticsExtended:
             LlamadaLog.event.in_(eventos_transferencia)
         )
         query_todos = self._apply_filters(query_todos, filters)
-        
+
         # Agrupar por callid y contar eventos
         llamadas_por_callid = {}
         for record in query_todos.all():
             if record.callid not in llamadas_por_callid:
                 llamadas_por_callid[record.callid] = []
             llamadas_por_callid[record.callid].append(record.event)
-        
+
         # Contar cuántas llamadas SOLO tienen ENTERQUEUE-TRANSFER
         llamadas_solo_enterqueue = sum(
-            1 for eventos in llamadas_por_callid.values() 
+            1 for eventos in llamadas_por_callid.values()
             if len(eventos) == 1 and eventos[0] == 'ENTERQUEUE-TRANSFER'
         )
-        
+
         return {
             'eventos': metricas_eventos,  # Detalle de eventos individuales
             'resumen': {
@@ -741,25 +749,25 @@ class CallAnalyticsExtended:
                 }
             }
         }
-    
+
     # ==================== NIVEL DE SERVICIO ====================
-    
+
     def get_nivel_servicio_detallado(self, filters: Dict = None) -> List[Dict]:
         """
         Nivel de servicio con bloques configurables
         Bloques: 0-10s, 11-20s, 21-30s, 31-60s, 61-120s, >120s
         """
         filters = filters or {}
-        
+
         # Obtener todas las llamadas atendidas con tiempo de espera
         query = self.db.query(LlamadaLog).filter(
             LlamadaLog.event.in_(['COMPLETEAGENT', 'COMPLETEOUTNUM'])
         )
-        
+
         query = self._apply_filters(query, filters)
-        
+
         llamadas = query.all()
-        
+
         # Definir bloques
         bloques = [
             (0, 10, '0-10 seg'),
@@ -769,19 +777,19 @@ class CallAnalyticsExtended:
             (61, 120, '61-120 seg'),
             (121, float('inf'), '>120 seg')
         ]
-        
+
         distribucion = {bloque[2]: 0 for bloque in bloques}
-        
+
         for llamada in llamadas:
             tiempo_espera = llamada.bridge_wait_time or 0
             for minimo, maximo, etiqueta in bloques:
                 if minimo <= tiempo_espera <= maximo:
                     distribucion[etiqueta] += 1
                     break
-        
+
         total = len(llamadas)
         acumulado = 0
-        
+
         resultado = []
         for minimo, maximo, etiqueta in bloques:
             cantidad = distribucion[etiqueta]
@@ -793,29 +801,29 @@ class CallAnalyticsExtended:
                 'acumulado': acumulado,
                 'porcentaje_acumulado': round(acumulado / total * 100, 2) if total > 0 else 0
             })
-        
+
         return resultado
 
     # ==================== DISTRIBUCIÓN HORARIA DETALLADA ====================
-    
+
     def get_distribucion_horaria_detallada(self, filters: Dict = None, agrupar_por: str = 'hora') -> List[Dict]:
         """
         Distribución horaria detallada SOLO para llamadas ENTRANTES con múltiples métricas
-        
+
         Args:
             filters: Filtros estándar (fecha_inicio, fecha_fin, campana_ids, agente_ids)
             agrupar_por: 'hora', 'semana', 'mes', 'campana'
-        
+
         Returns:
             Lista de diccionarios con métricas detalladas por grupo
         """
         filters = filters or {}
-        
+
         # Definir eventos
         eventos_atendidas = ['COMPLETEAGENT', 'COMPLETEOUTNUM']
         eventos_abandonadas = ['ABANDON', 'ABANDONWEL', 'EXITWITHTIMEOUT']
         eventos_transferencias = ['COMPLETE-CTOUT', 'COMPLETE-BTOUT', 'CT-ANSWER', 'BTOUT-ANSWER']
-        
+
         # Base query con subquery para obtener última ocurrencia de cada llamada
         subquery = self.db.query(
             LlamadaLog.callid,
@@ -823,7 +831,7 @@ class CallAnalyticsExtended:
         ).filter(
             LlamadaLog.tipo_llamada == 3  # Solo entrantes
         )
-        
+
         if filters.get('fecha_inicio'):
             subquery = subquery.filter(LlamadaLog.time >= filters['fecha_inicio'])
         if filters.get('fecha_fin'):
@@ -832,9 +840,9 @@ class CallAnalyticsExtended:
             subquery = subquery.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
         if filters.get('agente_ids'):
             subquery = subquery.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
-        
+
         subquery = subquery.group_by(LlamadaLog.callid).subquery()
-        
+
         # Query principal uniendo con última ocurrencia
         base_query = self.db.query(LlamadaLog).join(
             subquery,
@@ -843,7 +851,7 @@ class CallAnalyticsExtended:
                 LlamadaLog.time == subquery.c.ultimo_tiempo
             )
         )
-        
+
         # Determinar campo de agrupación
         if agrupar_por == 'hora':
             group_field = extract('hour', LlamadaLog.time)
@@ -867,7 +875,7 @@ class CallAnalyticsExtended:
         else:
             group_field = extract('hour', LlamadaLog.time)
             group_label = 'hora'
-        
+
         # Consulta agregada
         query = self.db.query(
             group_field.label('grupo'),
@@ -879,11 +887,11 @@ class CallAnalyticsExtended:
             func.avg(case((LlamadaLog.event.in_(eventos_abandonadas), LlamadaLog.bridge_wait_time), else_=None)).label('tiempo_abandono_promedio'),
             func.avg(case((LlamadaLog.event.in_(eventos_atendidas), LlamadaLog.duracion_llamada), else_=None)).label('duracion_promedio')
         ).select_from(LlamadaLog)
-        
+
         # Aplicar join si es por campaña
         if agrupar_por == 'campana':
             query = query.join(Campana, LlamadaLog.campana_id == Campana.id)
-        
+
         # Aplicar filtros adicionales
         query = query.join(
             subquery,
@@ -892,7 +900,7 @@ class CallAnalyticsExtended:
                 LlamadaLog.time == subquery.c.ultimo_tiempo
             )
         ).filter(LlamadaLog.tipo_llamada == 3)
-        
+
         if filters.get('fecha_inicio'):
             query = query.filter(LlamadaLog.time >= filters['fecha_inicio'])
         if filters.get('fecha_fin'):
@@ -901,16 +909,16 @@ class CallAnalyticsExtended:
             query = query.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
         if filters.get('agente_ids'):
             query = query.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
-        
+
         query = query.group_by(group_field)
-        
+
         resultados = query.all()
-        
+
         # Formatear resultados
         datos = []
         for r in resultados:
             grupo_valor = r.grupo
-            
+
             # Formatear etiqueta según el tipo de agrupación
             if agrupar_por == 'hora':
                 hora_inicio = int(grupo_valor)
@@ -925,17 +933,17 @@ class CallAnalyticsExtended:
             elif agrupar_por == 'semana':
                 label = f"Semana {int(grupo_valor)}"
             elif agrupar_por == 'mes':
-                meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
-                        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+                meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                         'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
                 label = meses[int(grupo_valor) - 1] if 1 <= int(grupo_valor) <= 12 else str(grupo_valor)
             else:  # campaña
                 label = str(grupo_valor)
-            
+
             total = r.total_llamadas or 0
             atendidas = r.atendidas or 0
             abandonadas = r.abandonadas or 0
             transferidas = r.transferidas or 0
-            
+
             datos.append({
                 'grupo': label,
                 'total_llamadas': total,
@@ -948,7 +956,7 @@ class CallAnalyticsExtended:
                 'tiempo_abandono_promedio': round(r.tiempo_abandono_promedio or 0, 2),
                 'duracion_promedio': round(r.duracion_promedio or 0, 2)
             })
-        
+
         # Ordenar según tipo de agrupación
         if agrupar_por == 'hora':
             # Crear lista completa de 24 horas (0-23)
@@ -958,7 +966,7 @@ class CallAnalyticsExtended:
                 hora_inicio = hora
                 hora_fin = (hora + 1) % 24
                 label = f"{hora_inicio:02d}:00 - {hora_fin:02d}:00"
-                
+
                 if label in datos_dict:
                     datos_completos.append(datos_dict[label])
                 else:
@@ -985,20 +993,19 @@ class CallAnalyticsExtended:
                     if len(parts) == 3:
                         return int(parts[2]) * 10000 + int(parts[1]) * 100 + int(parts[0])
                     return 0
-                except:
+                except (ValueError, IndexError, KeyError, AttributeError):
                     return 0
             datos.sort(key=fecha_sort_key)
         elif agrupar_por == 'semana':
             datos.sort(key=lambda x: int(x['grupo'].split()[1]))
         elif agrupar_por == 'mes':
-            meses_orden = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
-                          'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+            meses_orden = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                           'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
             datos.sort(key=lambda x: meses_orden.index(x['grupo']) if x['grupo'] in meses_orden else 99)
         else:  # campaña - ordenar por total descendente
             datos.sort(key=lambda x: x['total_llamadas'], reverse=True)
-        
-        return datos
 
+        return datos
 
     def get_detalle_transferencias(self, filters: Dict = None) -> List[Dict]:
         """
@@ -1006,10 +1013,10 @@ class CallAnalyticsExtended:
         AGRUPADAS POR CALLID - Una fila por llamada con sus múltiples eventos
         """
         filters = filters or {}
-        
+
         # Lista de eventos de transferencia
         eventos_transferencia = list(self.EVENTOS_TRANSFERENCIAS.keys())
-        
+
         # Query base
         query = self.db.query(
             LlamadaLog.callid,
@@ -1033,7 +1040,7 @@ class CallAnalyticsExtended:
         ).filter(
             LlamadaLog.event.in_(eventos_transferencia)
         )
-        
+
         # Aplicar filtros
         if filters.get('fecha_inicio'):
             query = query.filter(LlamadaLog.time >= filters['fecha_inicio'])
@@ -1043,19 +1050,19 @@ class CallAnalyticsExtended:
             query = query.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
         if filters.get('agente_ids'):
             query = query.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
-        
+
         query = query.order_by(LlamadaLog.time.asc())  # Ordenar por tiempo ascendente para agrupar
-        
+
         llamadas = query.all()
-        
+
         # Agrupar por callid
         llamadas_agrupadas = {}
         for llamada in llamadas:
             callid = llamada.callid
-            
+
             if callid not in llamadas_agrupadas:
                 agente_nombre = f'{llamada.first_name} {llamada.last_name}' if llamada.first_name else 'Sin Agente'
-                
+
                 llamadas_agrupadas[callid] = {
                     'callid': callid,
                     'fecha': llamada.time.strftime('%Y-%m-%d'),
@@ -1068,7 +1075,7 @@ class CallAnalyticsExtended:
                     'contacto_id': llamada.contacto_id,
                     'eventos': []
                 }
-            
+
             # Agregar evento a la lista de eventos de esta llamada
             llamadas_agrupadas[callid]['eventos'].append({
                 'evento': llamada.event,
@@ -1076,7 +1083,7 @@ class CallAnalyticsExtended:
                 'hora': llamada.time.strftime('%H:%M:%S'),
                 'duracion': int(llamada.duracion_llamada or 0)
             })
-        
+
         # Convertir a lista y filtrar llamadas que SOLO tienen ENTERQUEUE-TRANSFER
         # Estas son llamadas transferidas a cola, no a agentes, y no deben contarse
         resultado = []
@@ -1085,9 +1092,8 @@ class CallAnalyticsExtended:
             if len(llamada['eventos']) == 1 and llamada['eventos'][0]['evento'] == 'ENTERQUEUE-TRANSFER':
                 continue
             resultado.append(llamada)
-        
+
         # Ordenar por fecha descendente
         resultado.sort(key=lambda x: x['fecha'] + x['hora_inicio'], reverse=True)
-        
-        return resultado
 
+        return resultado

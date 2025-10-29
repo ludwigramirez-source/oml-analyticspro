@@ -1,10 +1,9 @@
-from fastapi import FastAPI, APIRouter
-from dotenv import load_dotenv
-from starlette.middleware.cors import CORSMiddleware
-import os
 import logging
 from pathlib import Path
 
+from dotenv import load_dotenv
+from fastapi import APIRouter, FastAPI
+from starlette.middleware.cors import CORSMiddleware
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -19,6 +18,7 @@ app = FastAPI(
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
 async def root():
@@ -27,6 +27,7 @@ async def root():
         "version": "2.0.0",
         "status": "running"
     }
+
 
 @api_router.get("/health")
 async def health_check():

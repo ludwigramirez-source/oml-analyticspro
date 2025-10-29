@@ -454,7 +454,6 @@ const DashboardMejorado = () => {
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px overflow-x-auto">
               {[
-                { id: 'configuracion', label: '⚙️ Configuración', icon: '⚙️' },
                 { id: 'resumen', label: '📈 Resumen', icon: '📈' },
                 { id: 'distribucion', label: '📊 Distribución', icon: '📊' },
                 { id: 'salientes', label: '📱 Salientes', icon: '📱' },
@@ -483,11 +482,6 @@ const DashboardMejorado = () => {
           </div>
 
           <div className="p-6">
-            {/* Tab: Configuración */}
-            {activeTab === 'configuracion' && (
-              <ConfiguracionDB />
-            )}
-
             {/* Tab: Resumen */}
             {activeTab === 'resumen' && (
               <div className="space-y-6">

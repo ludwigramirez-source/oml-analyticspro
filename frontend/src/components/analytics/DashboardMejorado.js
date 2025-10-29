@@ -54,16 +54,12 @@ const DashboardMejorado = () => {
 
   // Cargar datos iniciales solo una vez al montar el componente
   useEffect(() => {
-    if (activeTab !== 'configuracion') {
-      loadInitialData();
-    } else {
-      setLoading(false);
-    }
+    loadInitialData();
   }, []); // Solo se ejecuta una vez al montar
 
-  // Recargar datos cuando cambia el tab (excepto en configuración)
+  // Recargar datos cuando cambia el tab
   useEffect(() => {
-    if (activeTab !== 'configuracion' && activeTab !== 'resumen' && dataLoaded) {
+    if (activeTab !== 'resumen' && dataLoaded) {
       // El tab cambió, pero ya tenemos datos cargados, no hacer nada
     }
   }, [activeTab]);

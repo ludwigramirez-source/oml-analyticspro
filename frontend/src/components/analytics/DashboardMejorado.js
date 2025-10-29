@@ -9,7 +9,6 @@ import EntradasSalidas from './EntradasSalidas';
 import TablaLlamadas from './TablaLlamadas';
 import TablaAgentes from './TablaAgentes';
 import TablaAbandonadas from './TablaAbandonadas';
-import ConfiguracionDB from './ConfiguracionDB';
 import DistribucionAvanzada from './reportes/DistribucionAvanzada';
 import LlamadasSalientes from './reportes/LlamadasSalientes';
 import CausasDetalladas from './reportes/CausasDetalladas';

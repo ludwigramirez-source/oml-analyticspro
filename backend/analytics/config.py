@@ -2,10 +2,11 @@
 Configuración para el módulo de Analytics OmniLeads
 Conexión READ-ONLY a PostgreSQL
 """
-import os
-from dotenv import load_dotenv
-from pathlib import Path
 import logging
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).parent.parent
 load_dotenv(ROOT_DIR / '.env')
@@ -15,14 +16,14 @@ logger = logging.getLogger(__name__)
 
 class OmniLeadsConfig:
     """Configuración de conexión a PostgreSQL OmniLeads"""
-    
+
     # Configuración de PostgreSQL OmniLeads (READ-ONLY)
     OMNILEADS_DB_HOST = os.getenv('OMNILEADS_DB_HOST', 'localhost')
     OMNILEADS_DB_PORT = os.getenv('OMNILEADS_DB_PORT', '5432')
     OMNILEADS_DB_NAME = os.getenv('OMNILEADS_DB_NAME', 'omnileads')
     OMNILEADS_DB_USER = os.getenv('OMNILEADS_DB_USER', 'omnileads_readonly')
     OMNILEADS_DB_PASSWORD = os.getenv('OMNILEADS_DB_PASSWORD', '')
-    
+
     @classmethod
     def get_database_url(cls) -> str:
         """Retorna la URL de conexión a PostgreSQL"""
@@ -30,7 +31,7 @@ class OmniLeadsConfig:
             f"postgresql://{cls.OMNILEADS_DB_USER}:{cls.OMNILEADS_DB_PASSWORD}"
             f"@{cls.OMNILEADS_DB_HOST}:{cls.OMNILEADS_DB_PORT}/{cls.OMNILEADS_DB_NAME}"
         )
-    
+
     @classmethod
     def get_connection_params(cls) -> dict:
         """Retorna los parámetros de conexión como diccionario"""

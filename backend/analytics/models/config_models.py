@@ -2,10 +2,11 @@
 Modelos para la configuración de la aplicación
 Almacena configuraciones de conexión a bases de datos
 """
-from pydantic import BaseModel, Field
-from typing import Optional
-from datetime import datetime, timezone
 import uuid
+from datetime import datetime, timezone
+from typing import Optional
+
+from pydantic import BaseModel, Field
 
 
 class DatabaseConfig(BaseModel):

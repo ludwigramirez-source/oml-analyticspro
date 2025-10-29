@@ -1,16 +1,18 @@
 """
 Rutas de la API para Analytics
 """
+import time
+from datetime import date, datetime
+from typing import Optional
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from typing import Optional
-from datetime import datetime, date
-import time
 
 from ..database import get_db
-from ..services.call_analytics import CallAnalyticsService
+from ..models.omnileads_models import AgenteProfile, Campana, User
 from ..services.agent_analytics import AgentAnalyticsService
-from ..models.omnileads_models import Campana, AgenteProfile, User
+from ..services.call_analytics import CallAnalyticsService
+from ..services.call_analytics_extended import CallAnalyticsExtended
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
@@ -36,26 +38,26 @@ async def parse_filters(
         filters['fecha_inicio'] = datetime.combine(fecha_inicio, datetime.min.time())
     if fecha_fin:
         filters['fecha_fin'] = datetime.combine(fecha_fin, datetime.max.time())
-    
+
     # Soportar tanto campana_id único como campana_ids múltiples
     if campana_ids:
-        filters['campana_ids'] = [int(id.strip()) for id in campana_ids.split(',') if id.strip()]
+        filters['campana_ids'] = [int(item_id.strip()) for item_id in campana_ids.split(',') if item_id.strip()]
     elif campana_id:
         filters['campana_id'] = campana_id
-    
+
     if tipo_campana:
         filters['tipo_campana'] = tipo_campana
-    
+
     # Soportar tanto agente_id único como agente_ids múltiples
     if agente_ids:
-        filters['agente_ids'] = [int(id.strip()) for id in agente_ids.split(',') if id.strip()]
+        filters['agente_ids'] = [int(item_id.strip()) for item_id in agente_ids.split(',') if item_id.strip()]
     elif agente_id:
         filters['agente_id'] = agente_id
-    
+
     # Tipo de llamada
     if tipo_llamada:
         filters['tipo_llamada'] = tipo_llamada
-    
+
     return filters
 
 
@@ -253,7 +255,6 @@ async def get_rendimiento_agentes(
     return service.get_rendimiento_agentes(filters)
 
 
-
 @router.get("/agentes/disponibilidad")
 async def get_disponibilidad_agentes(
     filters: dict = Depends(parse_filters),
@@ -277,7 +278,7 @@ async def get_detalle_sesiones_agente(
         filters['fecha_inicio'] = fecha_inicio
     if fecha_fin:
         filters['fecha_fin'] = fecha_fin
-    
+
     service = AgentAnalyticsService(db)
     return service.get_detalle_sesiones_agente(agente_id, filters)
 
@@ -295,7 +296,7 @@ async def get_detalle_pausas_agente(
         filters['fecha_inicio'] = fecha_inicio
     if fecha_fin:
         filters['fecha_fin'] = fecha_fin
-    
+
     service = AgentAnalyticsService(db)
     return service.get_detalle_pausas_agente(agente_id, filters)
 
@@ -335,27 +336,27 @@ async def get_distribucion_pausas(
 async def get_campanas(db: Session = Depends(get_db)):
     """Obtiene lista de campañas (cached)"""
     current_time = time.time()
-    
+
     # Check cache
     if (_campanas_cache['data'] is not None and 
         current_time - _campanas_cache['timestamp'] < CACHE_TTL):
         return _campanas_cache['data']
-    
+
     # Query database (con LIMIT para evitar full table scan en bases de datos grandes)
     # Solo necesitamos campañas activas para los filtros
     campanas = db.query(Campana).order_by(Campana.nombre).limit(500).all()
-    
+
     result = [{
         'id': c.id,
         'nombre': c.nombre,
         'tipo': c.type,
         'estado': c.estado
     } for c in campanas]
-    
+
     # Update cache
     _campanas_cache['data'] = result
     _campanas_cache['timestamp'] = current_time
-    
+
     return result
 
 
@@ -363,12 +364,12 @@ async def get_campanas(db: Session = Depends(get_db)):
 async def get_agentes(db: Session = Depends(get_db)):
     """Obtiene lista de agentes (cached)"""
     current_time = time.time()
-    
+
     # Check cache
     if (_agentes_cache['data'] is not None and 
         current_time - _agentes_cache['timestamp'] < CACHE_TTL):
         return _agentes_cache['data']
-    
+
     # Query database (con LIMIT para evitar full table scan en bases de datos grandes)
     # Solo necesitamos agentes activos para los filtros
     agentes = db.query(
@@ -379,25 +380,21 @@ async def get_agentes(db: Session = Depends(get_db)):
     ).join(
         User, AgenteProfile.user_id == User.id
     ).order_by(User.first_name, User.last_name).limit(500).all()
-    
+
     result = [{
         'id': a.id,
         'nombre': f'{a.first_name} {a.last_name}',
         'estado': a.estado
     } for a in agentes]
-    
+
     # Update cache
     _agentes_cache['data'] = result
     _agentes_cache['timestamp'] = current_time
-    
+
     return result
 
 
-
 # ==================== NUEVOS ENDPOINTS PREMIUM ====================
-
-# Importar servicio extendido
-from ..services.call_analytics_extended import CallAnalyticsExtended
 
 
 @router.get("/distribucion-por-campana-detalle")
@@ -549,7 +546,6 @@ async def get_nivel_servicio_detallado(
     """Nivel de servicio con bloques configurables"""
     service_ext = CallAnalyticsExtended(db)
     return service_ext.get_nivel_servicio_detallado(filters)
-
 
 
 @router.get("/tabla-distribucion-horaria")

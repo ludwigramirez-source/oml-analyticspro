@@ -2,16 +2,21 @@
 Script para verificar valores reales en la base de datos
 """
 import os
-import psycopg2
 from collections import Counter
+
+import psycopg2
+from dotenv import load_dotenv
+
+# Cargar variables de entorno
+load_dotenv()
 
 # Conectar a la base de datos
 conn = psycopg2.connect(
-    host="capresoca.iptegra.co",
-    port=5432,
-    database="omnileads",
-    user="omnileads_readonly",
-    password="omnileads2025"
+    host=os.getenv('OMNILEADS_DB_HOST', 'capresoca.iptegra.co'),
+    port=int(os.getenv('OMNILEADS_DB_PORT', '5432')),
+    database=os.getenv('OMNILEADS_DB_NAME', 'omnileads'),
+    user=os.getenv('OMNILEADS_DB_USER', 'omnileads_readonly'),
+    password=os.getenv('OMNILEADS_DB_PASSWORD')
 )
 
 cur = conn.cursor()

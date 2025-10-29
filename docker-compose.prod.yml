@@ -1,0 +1,178 @@
+version: '3.9'
+
+services:
+  # Backend Service
+  backend:
+    build:
+      context: .
+      dockerfile: ./compose/prod/backend/backend.prod.dockerfile
+    container_name: oml-backend-prod
+    expose:
+      - "8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - MONGO_URL=${MONGO_URL}
+      - DB_NAME=${DB_NAME}
+      - OMNILEADS_DB_HOST=${OMNILEADS_DB_HOST}
+      - OMNILEADS_DB_PORT=${OMNILEADS_DB_PORT}
+      - OMNILEADS_DB_USER=${OMNILEADS_DB_USER}
+      - OMNILEADS_DB_PASSWORD=${OMNILEADS_DB_PASSWORD}
+      - OMNILEADS_DB_NAME=${OMNILEADS_DB_NAME}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    restart: always
+    networks:
+      - oml-network
+    depends_on:
+      mongo:
+        condition: service_healthy
+      postgres-omnileads:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/api/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # Frontend Service
+  frontend:
+    build:
+      context: .
+      dockerfile: ./compose/prod/frontend/frontend.prod.dockerfile
+    container_name: oml-frontend-prod
+    expose:
+      - "80"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - oml-network
+    depends_on:
+      - backend
+    restart: always
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: oml-nginx-prod
+    ports:
+      - "${NGINX_PORT:-80}:80"
+      - "${NGINX_SSL_PORT:-443}:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./prod/nginx-prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./prod/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - oml-network
+    restart: always
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+
+  # MongoDB Service
+  mongo:
+    image: mongo:6.0
+    container_name: oml-mongo-prod
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=${DB_NAME}
+    volumes:
+      - mongo-data:/data/db
+      - mongo-config:/data/configdb
+      - ./prod/mongo-backup:/backup
+    networks:
+      - oml-network
+    restart: always
+    command: --auth --wiredTigerCacheSizeGB 2
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongo localhost:27017/test -u ${MONGO_ROOT_USER} -p ${MONGO_ROOT_PASSWORD} --authenticationDatabase admin --quiet || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1024M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # PostgreSQL Service (OmniLeads Database)
+  postgres-omnileads:
+    image: postgres:16-alpine
+    container_name: oml-postgres-omnileads-prod
+    environment:
+      - POSTGRES_USER=${OMNILEADS_DB_USER}
+      - POSTGRES_PASSWORD=${OMNILEADS_DB_PASSWORD}
+      - POSTGRES_DB=${OMNILEADS_DB_NAME}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C
+    volumes:
+      - postgres-omnileads-data:/var/lib/postgresql/data
+      - ./prod/postgres-backup:/backup
+    networks:
+      - oml-network
+    restart: always
+    command: -c max_connections=200 -c shared_buffers=256MB -c effective_cache_size=1GB
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${OMNILEADS_DB_USER} -d ${OMNILEADS_DB_NAME}" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1024M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+networks:
+  oml-network:
+    driver: bridge
+
+volumes:
+  mongo-data:
+  mongo-config:
+  postgres-omnileads-data:

@@ -1,0 +1,88 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Docker
+.dockerignore
+Dockerfile*
+docker-compose*.yml
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info
+dist
+build
+.env
+.env.local
+.env.*.local
+venv
+env
+ENV
+.venv
+
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+.npm
+.eslintcache
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+.project
+.classpath
+.c9
+*.launch
+.settings
+*.sublime-workspace
+
+# Testing
+.coverage
+.pytest_cache
+coverage
+htmlcov
+.nyc_output
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+.DS_Store
+
+# OS
+.DS_Store
+Thumbs.db
+.env.local
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.circleci
+
+# Documentation
+docs
+README.md
+CHANGELOG.md
+LICENSE
+
+# Build artifacts
+dist
+build
+*.egg-info
+
+# Misc
+.eslintignore
+.prettierignore
+.prettierrc

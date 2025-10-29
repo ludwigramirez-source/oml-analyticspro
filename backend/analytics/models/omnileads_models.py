@@ -1,7 +1,7 @@
 """
 Modelos SQLAlchemy para tablas de OmniLeads (READ-ONLY)
 """
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Date, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, Integer, String, Text
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -11,7 +11,7 @@ class LlamadaLog(Base):
     """Modelo para reportes_app_llamadalog"""
     __tablename__ = 'reportes_app_llamadalog'
     __table_args__ = {'schema': 'public'}
-    
+
     id = Column(Integer, primary_key=True)
     time = Column(DateTime(timezone=True), nullable=False)
     callid = Column(String(32))
@@ -34,7 +34,7 @@ class ActividadAgenteLog(Base):
     """Modelo para reportes_app_actividadagentelog"""
     __tablename__ = 'reportes_app_actividadagentelog'
     __table_args__ = {'schema': 'public'}
-    
+
     id = Column(Integer, primary_key=True)
     time = Column(DateTime(timezone=True), nullable=False)
     agente_id = Column(Integer)
@@ -42,12 +42,11 @@ class ActividadAgenteLog(Base):
     pausa_id = Column(String(128))
 
 
-
 class Campana(Base):
     """Modelo para ominicontacto_app_campana"""
     __tablename__ = 'ominicontacto_app_campana'
     __table_args__ = {'schema': 'public'}
-    
+
     id = Column(Integer, primary_key=True)
     estado = Column(Integer, nullable=False)
     nombre = Column(String(128), nullable=False)
@@ -87,7 +86,7 @@ class AgenteProfile(Base):
     """Modelo para ominicontacto_app_agenteprofile"""
     __tablename__ = 'ominicontacto_app_agenteprofile'
     __table_args__ = {'schema': 'public'}
-    
+
     id = Column(Integer, primary_key=True)
     sip_extension = Column(Integer, nullable=False)
     sip_password = Column(String(128))
@@ -103,7 +102,7 @@ class Pausa(Base):
     """Modelo para ominicontacto_app_pausa"""
     __tablename__ = 'ominicontacto_app_pausa'
     __table_args__ = {'schema': 'public'}
-    
+
     id = Column(Integer, primary_key=True)
     nombre = Column(String(20), nullable=False)
     tipo = Column(String(1), nullable=False)  # P=Productiva, R=Recreativa
@@ -114,7 +113,7 @@ class User(Base):
     """Modelo para ominicontacto_app_user (Django users)"""
     __tablename__ = 'ominicontacto_app_user'
     __table_args__ = {'schema': 'public'}
-    
+
     id = Column(Integer, primary_key=True)
     password = Column(String(128), nullable=False)
     last_login = Column(DateTime(timezone=True))

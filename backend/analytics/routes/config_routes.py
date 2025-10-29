@@ -1,16 +1,17 @@
 """
 Endpoints para gestión de configuraciones
 """
+import logging
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from typing import List
-import logging
 
 from analytics.models.config_models import (
+    ConnectionTestResult,
     DatabaseConfigCreate,
-    DatabaseConfigUpdate,
     DatabaseConfigResponse,
-    ConnectionTestResult
+    DatabaseConfigUpdate,
 )
 from analytics.services.config_service import ConfigService
 
@@ -57,7 +58,7 @@ async def create_database_config(
     try:
         service = ConfigService(db)
         created_config = await service.create_config(config)
-        
+
         # Devolver sin password
         return DatabaseConfigResponse(
             id=created_config.id,
@@ -86,10 +87,10 @@ async def get_active_config(
     try:
         service = ConfigService(db)
         config = await service.get_active_config()
-        
+
         if not config:
             raise HTTPException(status_code=404, detail="No hay configuración activa")
-        
+
         return DatabaseConfigResponse(
             id=config.id,
             db_host=config.db_host,
@@ -137,10 +138,10 @@ async def update_config(
     try:
         service = ConfigService(db)
         updated = await service.update_config(config_id, update_data)
-        
+
         if not updated:
             raise HTTPException(status_code=404, detail="Configuración no encontrada")
-        
+
         return DatabaseConfigResponse(
             id=updated.id,
             db_host=updated.db_host,
@@ -171,10 +172,10 @@ async def delete_config(
     try:
         service = ConfigService(db)
         deleted = await service.delete_config(config_id)
-        
+
         if not deleted:
             raise HTTPException(status_code=404, detail="Configuración no encontrada")
-        
+
         return {"message": "Configuración eliminada exitosamente"}
     except HTTPException:
         raise
@@ -194,10 +195,10 @@ async def activate_config(
     try:
         service = ConfigService(db)
         activated = await service.activate_config(config_id)
-        
+
         if not activated:
             raise HTTPException(status_code=404, detail="Configuración no encontrada")
-        
+
         return {"message": "Configuración activada exitosamente"}
     except HTTPException:
         raise

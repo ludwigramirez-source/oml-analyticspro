@@ -2,7 +2,7 @@
  * Servicio API para Configuración de Base de Datos
  */
 
-const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
 
 class ConfigAPI {
   /**

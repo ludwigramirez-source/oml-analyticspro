@@ -1,5 +1,6 @@
 """
 Gestión de conexión a base de datos PostgreSQL OmniLeads
+Conexión configurada mediante variables de entorno (.env)
 """
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -24,8 +25,10 @@ def _initialize_engine():
         return engine
     
     try:
-        # URL de conexión a PostgreSQL (inicialmente desde env)
+        # URL de conexión a PostgreSQL desde variables de entorno
         DATABASE_URL = config.get_database_url()
+        
+        logger.info(f"Conectando a PostgreSQL: {config.OMNILEADS_DB_HOST}:{config.OMNILEADS_DB_PORT}/{config.OMNILEADS_DB_NAME}")
         
         # Crear engine con configuración READ-ONLY y timeout
         engine = create_engine(
@@ -34,53 +37,21 @@ def _initialize_engine():
             pool_recycle=3600,
             echo=False,  # Cambiar a True para debug SQL
             connect_args={
-                "options": "-c default_transaction_read_only=on -c statement_timeout=30000"  # 30 segundos timeout
+                "options": "-c default_transaction_read_only=on -c statement_timeout=30000",  # 30 segundos timeout
+                "connect_timeout": 10  # Timeout de conexión inicial
             }
         )
         
         # Crear sesión
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
         
-        logger.info("✅ Engine de base de datos inicializado")
+        logger.info("✅ Engine de base de datos inicializado correctamente")
         return engine
         
     except Exception as e:
         logger.error(f"❌ Error inicializando engine: {e}")
+        logger.error("Verifica las variables de entorno: OMNILEADS_DB_HOST, OMNILEADS_DB_PORT, OMNILEADS_DB_NAME, OMNILEADS_DB_USER, OMNILEADS_DB_PASSWORD")
         raise
-
-
-def update_database_connection(db_url: str):
-    """
-    Actualiza la conexión a la base de datos con una nueva URL
-    Se llama cuando se guarda una nueva configuración desde el frontend
-    """
-    global engine, SessionLocal
-    
-    try:
-        # Cerrar engine anterior si existe
-        if engine:
-            engine.dispose()
-        
-        # Crear nuevo engine con timeout
-        engine = create_engine(
-            db_url,
-            pool_pre_ping=True,
-            pool_recycle=3600,
-            echo=False,
-            connect_args={
-                "options": "-c default_transaction_read_only=on -c statement_timeout=30000"  # 30 segundos timeout
-            }
-        )
-        
-        # Crear nueva sesión
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        
-        logger.info("✅ Conexión a base de datos actualizada exitosamente")
-        return True
-    
-    except Exception as e:
-        logger.error(f"❌ Error actualizando conexión: {e}")
-        return False
 
 
 def get_db():
@@ -92,7 +63,7 @@ def get_db():
         _initialize_engine()
     
     if SessionLocal is None:
-        raise Exception("Database connection not configured")
+        raise Exception("Database connection not configured. Check .env file.")
     
     db = SessionLocal()
     try:

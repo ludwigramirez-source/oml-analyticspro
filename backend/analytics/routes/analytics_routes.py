@@ -72,7 +72,7 @@ async def parse_filters_no_agente(
     if fecha_inicio:
         filters['fecha_inicio'] = datetime.combine(fecha_inicio, datetime.min.time())
     if fecha_fin:
-        filters['fecha_fin'] = datetime.combine(fecha_fin, datetime.min.time())
+        filters['fecha_fin'] = datetime.combine(fecha_fin, datetime.max.time())
     if campana_id:
         filters['campana_id'] = campana_id
     if tipo_campana:

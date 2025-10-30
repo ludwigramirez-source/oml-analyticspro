@@ -89,9 +89,8 @@ class CallAnalyticsService:
             query = query.filter(LlamadaLog.time >= filters['fecha_inicio'])
 
         if filters.get('fecha_fin'):
-            # Agregar 1 día para incluir todo el día final
-            fecha_fin = filters['fecha_fin'] + timedelta(days=1)
-            query = query.filter(LlamadaLog.time < fecha_fin)
+            # Usar <= para incluir todo el día final (fecha_fin ya viene con 23:59:59.999999 desde el frontend)
+            query = query.filter(LlamadaLog.time <= filters['fecha_fin'])
 
         # Campañas: soportar una sola o múltiples
         if filters.get('campana_ids'):

@@ -55,8 +55,8 @@ class AgentAnalyticsService:
         if filters.get('fecha_inicio'):
             query = query.filter(LlamadaLog.time >= filters['fecha_inicio'])
         if filters.get('fecha_fin'):
-            fecha_fin = filters['fecha_fin'] + timedelta(days=1)
-            query = query.filter(LlamadaLog.time < fecha_fin)
+            # Usar <= para incluir todo el día final (fecha_fin ya viene con 23:59:59.999999 desde el frontend)
+            query = query.filter(LlamadaLog.time <= filters['fecha_fin'])
 
         # Filtrar solo agentes activos
         query = query.filter(~AgenteProfile.borrado)
@@ -107,8 +107,8 @@ class AgentAnalyticsService:
         if filters.get('fecha_inicio'):
             query = query.filter(ActividadAgenteLog.time >= filters['fecha_inicio'])
         if filters.get('fecha_fin'):
-            fecha_fin = filters['fecha_fin'] + timedelta(days=1)
-            query = query.filter(ActividadAgenteLog.time < fecha_fin)
+            # Usar <= para incluir todo el día final (fecha_fin ya viene con 23:59:59.999999 desde el frontend)
+            query = query.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
 
         pausas = query.all()
 
@@ -215,8 +215,8 @@ class AgentAnalyticsService:
         if filters.get('fecha_inicio'):
             query = query.filter(ActividadAgenteLog.time >= filters['fecha_inicio'])
         if filters.get('fecha_fin'):
-            fecha_fin = filters['fecha_fin'] + timedelta(days=1)
-            query = query.filter(ActividadAgenteLog.time < fecha_fin)
+            # Usar <= para incluir todo el día final (fecha_fin ya viene con 23:59:59.999999 desde el frontend)
+            query = query.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
 
         actividades = query.order_by(ActividadAgenteLog.time).all()
 
@@ -265,8 +265,8 @@ class AgentAnalyticsService:
         if filters.get('fecha_inicio'):
             query = query.filter(ActividadAgenteLog.time >= filters['fecha_inicio'])
         if filters.get('fecha_fin'):
-            fecha_fin = filters['fecha_fin'] + timedelta(days=1)
-            query = query.filter(ActividadAgenteLog.time < fecha_fin)
+            # Usar <= para incluir todo el día final (fecha_fin ya viene con 23:59:59.999999 desde el frontend)
+            query = query.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
 
         query = query.filter(~Pausa.eliminada)
 

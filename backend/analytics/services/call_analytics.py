@@ -116,9 +116,31 @@ class CallAnalyticsService:
 
         return query
 
+    def _build_last_event_subquery(self, filters: Dict, event_list: List[str] = None):
+        """
+        Helper para construir subquery de último evento por callid con filtros aplicados.
+        OPTIMIZACIÓN: Centraliza la lógica de filtros para evitar duplicación.
+        """
+        subquery = self.db.query(
+            LlamadaLog.callid,
+            func.max(LlamadaLog.time).label('ultimo_tiempo')
+        ).filter(
+            LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE])
+        )
+
+        # Filtrar por eventos específicos si se proporciona lista
+        if event_list:
+            subquery = subquery.filter(LlamadaLog.event.in_(event_list))
+
+        # Aplicar filtros comunes usando _apply_filters
+        subquery = self._apply_filters(subquery, filters)
+
+        return subquery.group_by(LlamadaLog.callid).subquery()
+
     def get_kpis(self, filters: Dict = None) -> Dict:
         """
-        Obtiene los KPIs principales del call center
+        Obtiene los KPIs principales del call center.
+        OPTIMIZADO: Consolidación de subqueries y métricas en queries combinadas.
         """
         filters = filters or {}
 
@@ -128,114 +150,73 @@ class CallAnalyticsService:
         query = query.filter(LlamadaLog.event.in_(self.EVENTOS_FINALES))
         query = query.filter(LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE]))
 
-        # Total de llamadas (SOLO EVENTOS FINALES, SOLO tipo 1 y 3)
-        total_llamadas = query.count()
+        # OPTIMIZACIÓN 1: Contar con scalar en lugar de .count()
+        total_llamadas = query.with_entities(func.count(LlamadaLog.id)).scalar() or 0
 
-        # Subquery para obtener último evento ATENDIDO de cada llamada
-        # SOLO tipo_llamada 1 (entrantes) y 3 (salientes) y SOLO eventos atendidos
-        subquery_atendidas = self.db.query(
-            LlamadaLog.callid,
-            func.max(LlamadaLog.time).label('ultimo_tiempo')
-        )
+        # OPTIMIZACIÓN 2: CONSOLIDAR 3 SUBQUERIES EN 1 - Mayor impacto!
+        # Single subquery para obtener último evento de cada llamada
+        from sqlalchemy import case
 
-        # Aplicar filtros de tipo_llamada y eventos atendidos
-        subquery_atendidas = subquery_atendidas.filter(
-            LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE]),
-            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
-        )
+        last_events_subq = self._build_last_event_subquery(filters)
 
-        if filters.get('fecha_inicio'):
-            subquery_atendidas = subquery_atendidas.filter(LlamadaLog.time >= filters['fecha_inicio'])
-        if filters.get('fecha_fin'):
-            subquery_atendidas = subquery_atendidas.filter(LlamadaLog.time <= filters['fecha_fin'])
-        if filters.get('campana_ids'):
-            subquery_atendidas = subquery_atendidas.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
-        if filters.get('agente_ids'):
-            subquery_atendidas = subquery_atendidas.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
+        # Single query con agregaciones condicionales para todos los tipos de llamadas
+        call_counts = self.db.query(
+            func.count(func.distinct(case(
+                (LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS), LlamadaLog.callid),
+                else_=None
+            ))).label('atendidas'),
+            func.count(func.distinct(case(
+                (LlamadaLog.event.in_(self.EVENTOS_ABANDONADAS), LlamadaLog.callid),
+                else_=None
+            ))).label('abandonadas'),
+            func.count(func.distinct(case(
+                (LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS), LlamadaLog.callid),
+                else_=None
+            ))).label('no_atendidas')
+        ).join(
+            last_events_subq,
+            and_(
+                LlamadaLog.callid == last_events_subq.c.callid,
+                LlamadaLog.time == last_events_subq.c.ultimo_tiempo
+            )
+        ).first()
 
-        subquery_atendidas = subquery_atendidas.group_by(LlamadaLog.callid).subquery()
-
-        # Contar llamadas atendidas únicas directamente del subquery
-        llamadas_atendidas = self.db.query(func.count(subquery_atendidas.c.callid)).scalar() or 0
-
-        # Subquery para llamadas abandonadas únicas
-        subquery_abandonadas = self.db.query(
-            LlamadaLog.callid,
-            func.max(LlamadaLog.time).label('ultimo_tiempo')
-        ).filter(
-            LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE]),
-            LlamadaLog.event.in_(self.EVENTOS_ABANDONADAS)
-        )
-        if filters.get('fecha_inicio'):
-            subquery_abandonadas = subquery_abandonadas.filter(LlamadaLog.time >= filters['fecha_inicio'])
-        if filters.get('fecha_fin'):
-            subquery_abandonadas = subquery_abandonadas.filter(LlamadaLog.time <= filters['fecha_fin'])
-        if filters.get('campana_ids'):
-            subquery_abandonadas = subquery_abandonadas.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
-        if filters.get('agente_ids'):
-            subquery_abandonadas = subquery_abandonadas.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
-
-        subquery_abandonadas = subquery_abandonadas.group_by(LlamadaLog.callid).subquery()
-        llamadas_abandonadas = self.db.query(func.count(subquery_abandonadas.c.callid)).scalar() or 0
-
-        # Subquery para otras llamadas no atendidas únicas
-        subquery_no_atendidas = self.db.query(
-            LlamadaLog.callid,
-            func.max(LlamadaLog.time).label('ultimo_tiempo')
-        ).filter(
-            LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE]),
-            LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS)
-        )
-        if filters.get('fecha_inicio'):
-            subquery_no_atendidas = subquery_no_atendidas.filter(LlamadaLog.time >= filters['fecha_inicio'])
-        if filters.get('fecha_fin'):
-            subquery_no_atendidas = subquery_no_atendidas.filter(LlamadaLog.time <= filters['fecha_fin'])
-        if filters.get('campana_ids'):
-            subquery_no_atendidas = subquery_no_atendidas.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
-        if filters.get('agente_ids'):
-            subquery_no_atendidas = subquery_no_atendidas.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
-
-        subquery_no_atendidas = subquery_no_atendidas.group_by(LlamadaLog.callid).subquery()
-        llamadas_no_atendidas_otras = self.db.query(func.count(subquery_no_atendidas.c.callid)).scalar() or 0
+        llamadas_atendidas = call_counts.atendidas or 0
+        llamadas_abandonadas = call_counts.abandonadas or 0
+        llamadas_no_atendidas_otras = call_counts.no_atendidas or 0
 
         # Total no atendidas = abandonadas + otras
         llamadas_no_atendidas_total = llamadas_abandonadas + llamadas_no_atendidas_otras
 
-        # TMO (Tiempo Medio de Operación) - solo llamadas atendidas únicas
-        # Usar la query base con filtros para calcular promedios
-        tmo_result = query.filter(
-            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
-            LlamadaLog.duracion_llamada.isnot(None)
+        # OPTIMIZACIÓN 3: CONSOLIDAR TMO, ESPERA, SLA60, SLA20 EN SINGLE QUERY
+        # En lugar de 4 queries separadas, usar una sola con múltiples agregaciones
+        metrics = query.filter(
+            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
         ).with_entities(
-            func.avg(LlamadaLog.duracion_llamada).label('tmo_promedio')
+            func.avg(LlamadaLog.duracion_llamada).label('tmo_promedio'),
+            func.avg(LlamadaLog.bridge_wait_time).label('espera_promedio'),
+            func.sum(case(
+                (and_(
+                    LlamadaLog.bridge_wait_time.isnot(None),
+                    LlamadaLog.bridge_wait_time <= self.SLA_THRESHOLD_60
+                ), 1),
+                else_=0
+            )).label('llamadas_en_sla_60'),
+            func.sum(case(
+                (and_(
+                    LlamadaLog.bridge_wait_time.isnot(None),
+                    LlamadaLog.bridge_wait_time <= self.SLA_THRESHOLD_20
+                ), 1),
+                else_=0
+            )).label('llamadas_en_sla_20')
         ).first()
 
-        tmo_promedio = int(tmo_result.tmo_promedio) if tmo_result.tmo_promedio else 0
-
-        # Tiempo de espera promedio
-        espera_result = query.filter(
-            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
-            LlamadaLog.bridge_wait_time.isnot(None)
-        ).with_entities(
-            func.avg(LlamadaLog.bridge_wait_time).label('espera_promedio')
-        ).first()
-
-        espera_promedio = int(espera_result.espera_promedio) if espera_result.espera_promedio else 0
-
-        # Service Level < 60 segundos (estándar industria)
-        llamadas_en_sla_60 = query.filter(
-            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
-            LlamadaLog.bridge_wait_time <= self.SLA_THRESHOLD_60
-        ).count()
+        tmo_promedio = int(metrics.tmo_promedio) if metrics and metrics.tmo_promedio else 0
+        espera_promedio = int(metrics.espera_promedio) if metrics and metrics.espera_promedio else 0
+        llamadas_en_sla_60 = metrics.llamadas_en_sla_60 if metrics else 0
+        llamadas_en_sla_20 = metrics.llamadas_en_sla_20 if metrics else 0
 
         service_level_60 = round((llamadas_en_sla_60 / llamadas_atendidas * 100), 2) if llamadas_atendidas > 0 else 0
-
-        # Service Level < 20 segundos (alto rendimiento)
-        llamadas_en_sla_20 = query.filter(
-            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
-            LlamadaLog.bridge_wait_time <= self.SLA_THRESHOLD_20
-        ).count()
-
         service_level_20 = round((llamadas_en_sla_20 / llamadas_atendidas * 100), 2) if llamadas_atendidas > 0 else 0
 
         # Agentes activos (únicos con llamadas en el período)

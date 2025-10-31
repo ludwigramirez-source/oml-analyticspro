@@ -1,7 +1,8 @@
 """
 Servicio de análisis de agentes
 """
-from datetime import datetime, timedelta
+import logging
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 
 from sqlalchemy import and_, case, extract, func
@@ -15,6 +16,8 @@ from ..models.omnileads_models import (
     User,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class AgentAnalyticsService:
     """Servicio para análisis de agentes"""
@@ -26,7 +29,8 @@ class AgentAnalyticsService:
 
     def get_rendimiento_agentes(self, filters: Dict = None) -> List[Dict]:
         """
-        Obtiene el rendimiento de cada agente
+        Obtiene el rendimiento de cada agente.
+        OPTIMIZADO: Eliminación de N+1 queries mediante batch fetching.
         """
         filters = filters or {}
 
@@ -67,17 +71,79 @@ class AgentAnalyticsService:
             func.count(LlamadaLog.id) > 0
         ).all()
 
+        # OPTIMIZACIÓN: Obtener IDs de agentes para batch fetching
+        agente_ids = [r.id for r in resultados]
+
+        if not agente_ids:
+            return []
+
+        # BATCH QUERY 1: Tiempos de pausa para TODOS los agentes
+        pausas_query = self.db.query(
+            ActividadAgenteLog.agente_id,
+            func.count(ActividadAgenteLog.id).label('num_pausas')
+        ).filter(
+            ActividadAgenteLog.agente_id.in_(agente_ids),
+            ActividadAgenteLog.event == 'PAUSEALL'
+        )
+
+        if filters.get('fecha_inicio'):
+            pausas_query = pausas_query.filter(ActividadAgenteLog.time >= filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            pausas_query = pausas_query.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
+
+        pausas_resultados = pausas_query.group_by(ActividadAgenteLog.agente_id).all()
+
+        # Crear diccionario para lookup O(1)
+        pausas_dict = {p.agente_id: p.num_pausas * 300 for p in pausas_resultados}
+
+        # BATCH QUERY 2: Estados de TODOS los agentes (última actividad)
+        # Usar subquery con MAX para obtener última actividad por agente
+        ultima_actividad_subq = self.db.query(
+            ActividadAgenteLog.agente_id,
+            func.max(ActividadAgenteLog.time).label('ultimo_tiempo')
+        ).filter(
+            ActividadAgenteLog.agente_id.in_(agente_ids)
+        ).group_by(ActividadAgenteLog.agente_id).subquery()
+
+        # Join para obtener el evento de la última actividad
+        ultimas_actividades = self.db.query(
+            ActividadAgenteLog.agente_id,
+            ActividadAgenteLog.event,
+            ActividadAgenteLog.time
+        ).join(
+            ultima_actividad_subq,
+            and_(
+                ActividadAgenteLog.agente_id == ultima_actividad_subq.c.agente_id,
+                ActividadAgenteLog.time == ultima_actividad_subq.c.ultimo_tiempo
+            )
+        ).all()
+
+        # Procesar estados en diccionario
+        estados_dict = {}
+        ahora = datetime.now()
+        for activity in ultimas_actividades:
+            if (ahora - activity.time.replace(tzinfo=None)).seconds > 3600:
+                estado = 'offline'
+            elif activity.event == 'ADDMEMBER':
+                estado = 'disponible'
+            elif activity.event == 'PAUSEALL':
+                estado = 'pausa'
+            elif activity.event == 'REMOVEMEMBER':
+                estado = 'offline'
+            else:
+                estado = 'disponible'
+            estados_dict[activity.agente_id] = estado
+
+        # Construir lista de agentes usando datos pre-cargados (NO MÁS QUERIES!)
         agentes = []
         for r in resultados:
             total = r.total_llamadas or 0
             atendidas = r.atendidas or 0
             no_atendidas = total - atendidas
 
-            # Calcular tiempo en pausa
-            tiempo_pausa = self._get_tiempo_pausa_agente(r.id, filters)
-
-            # Estado del agente (simplificado)
-            estado = self._get_estado_agente(r.id)
+            # Lookup O(1) desde diccionarios pre-cargados
+            tiempo_pausa = pausas_dict.get(r.id, 0)
+            estado = estados_dict.get(r.id, 'offline')
 
             agentes.append({
                 'id': r.id,
@@ -203,7 +269,8 @@ class AgentAnalyticsService:
 
     def get_timeline_agente(self, agente_id: int, filters: Dict = None) -> List[Dict]:
         """
-        Obtiene el timeline de actividad de un agente
+        Obtiene el timeline de actividad de un agente.
+        OPTIMIZADO: Eliminación de N+1 query mediante batch fetching de pausas.
         """
         filters = filters or {}
 
@@ -220,13 +287,23 @@ class AgentAnalyticsService:
 
         actividades = query.order_by(ActividadAgenteLog.time).all()
 
+        # OPTIMIZACIÓN: Batch fetch de todas las pausas necesarias
+        pausas_ids = set()
+        for act in actividades:
+            if act.pausa_id and str(act.pausa_id).isdigit():
+                pausas_ids.add(int(act.pausa_id))
+
+        # Una sola query para todas las pausas
+        pausas_dict = {}
+        if pausas_ids:
+            pausas = self.db.query(Pausa).filter(Pausa.id.in_(pausas_ids)).all()
+            pausas_dict = {str(p.id): p.nombre for p in pausas}
+
+        # Construir timeline sin queries adicionales
         timeline = []
         for act in actividades:
-            # Obtener nombre de pausa si aplica
-            pausa_nombre = None
-            if act.pausa_id:
-                pausa = self.db.query(Pausa).filter(Pausa.id == act.pausa_id).first()
-                pausa_nombre = pausa.nombre if pausa else None
+            # Lookup O(1) desde diccionario pre-cargado
+            pausa_nombre = pausas_dict.get(act.pausa_id) if act.pausa_id else None
 
             # Mapear evento a descripción
             evento_map = {
@@ -282,7 +359,8 @@ class AgentAnalyticsService:
 
     def get_disponibilidad_agentes(self, filters: Dict = None) -> List[Dict]:
         """
-        Obtiene reporte de disponibilidad de agentes con métricas de llamadas y actividad
+        Obtiene reporte de disponibilidad de agentes con métricas de llamadas y actividad.
+        OPTIMIZADO: Eliminación COMPLETA de N+1 queries mediante batch fetching masivo.
         """
         from sqlalchemy import and_, func
 
@@ -348,41 +426,85 @@ class AgentAnalyticsService:
             for ag in agentes_info
         }
 
-        # Calcular métricas de llamadas por agente
+        # ========================================================================
+        # OPTIMIZACIÓN 1: BATCH QUERY - Métricas de llamadas para TODOS los agentes
+        # ========================================================================
+        metricas_batch_query = self.db.query(
+            LlamadaLog.agente_id,
+            func.count(func.distinct(LlamadaLog.callid)).label('llamadas_atendidas'),
+            func.sum(LlamadaLog.duracion_llamada).label('tiempo_al_habla')
+        ).filter(
+            LlamadaLog.agente_id.in_(agentes_ids),
+            LlamadaLog.event.in_(EVENTOS_ATENDIDAS),
+            LlamadaLog.duracion_llamada.isnot(None)
+        )
+
+        if filters.get('fecha_inicio'):
+            metricas_batch_query = metricas_batch_query.filter(LlamadaLog.time >= filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            metricas_batch_query = metricas_batch_query.filter(LlamadaLog.time <= filters['fecha_fin'])
+
+        metricas_batch = metricas_batch_query.group_by(LlamadaLog.agente_id).all()
+
+        # Crear diccionario para lookup O(1)
+        metricas_dict = {
+            m.agente_id: {
+                'llamadas_atendidas': m.llamadas_atendidas or 0,
+                'tiempo_al_habla': int(m.tiempo_al_habla or 0)
+            }
+            for m in metricas_batch
+        }
+
+        # ========================================================================
+        # OPTIMIZACIÓN 2: BATCH QUERY - Actividades de TODOS los agentes
+        # ========================================================================
+        actividades_batch_query = self.db.query(ActividadAgenteLog).filter(
+            ActividadAgenteLog.agente_id.in_(agentes_ids)
+        )
+
+        if filters.get('fecha_inicio'):
+            actividades_batch_query = actividades_batch_query.filter(ActividadAgenteLog.time >= filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            actividades_batch_query = actividades_batch_query.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
+
+        actividades_batch = actividades_batch_query.order_by(ActividadAgenteLog.time).all()
+
+        # Agrupar actividades por agente_id
+        actividades_por_agente = {}
+        for act in actividades_batch:
+            if act.agente_id not in actividades_por_agente:
+                actividades_por_agente[act.agente_id] = []
+            actividades_por_agente[act.agente_id].append(act)
+
+        # ========================================================================
+        # OPTIMIZACIÓN 3: BATCH QUERY - Tipos de pausas de TODAS las actividades
+        # ========================================================================
+        all_pausa_ids = set()
+        for acts in actividades_por_agente.values():
+            for act in acts:
+                if act.event == 'PAUSEALL' and act.pausa_id and str(act.pausa_id).isdigit():
+                    all_pausa_ids.add(int(act.pausa_id))
+
+        # Una sola query para TODOS los tipos de pausas
+        pausas_dict = {}
+        if all_pausa_ids:
+            pausas_all = self.db.query(Pausa).filter(Pausa.id.in_(all_pausa_ids)).all()
+            pausas_dict = {str(p.id): p.tipo for p in pausas_all}
+
+        # ========================================================================
+        # PROCESAMIENTO: Ahora el loop NO ejecuta queries, solo procesa datos
+        # ========================================================================
         for agente_id in agentes_ids:
             if agente_id not in agentes_dict:
                 continue
 
-            # Métricas de llamadas atendidas
-            metricas_llamadas = self.db.query(
-                func.count(func.distinct(LlamadaLog.callid)).label('llamadas_atendidas'),
-                func.sum(LlamadaLog.duracion_llamada).label('tiempo_al_habla')
-            ).filter(
-                LlamadaLog.agente_id == agente_id,
-                LlamadaLog.event.in_(EVENTOS_ATENDIDAS),
-                LlamadaLog.duracion_llamada.isnot(None)
-            )
+            # Lookup O(1) de métricas pre-cargadas
+            metricas = metricas_dict.get(agente_id, {'llamadas_atendidas': 0, 'tiempo_al_habla': 0})
 
-            if filters.get('fecha_inicio'):
-                metricas_llamadas = metricas_llamadas.filter(LlamadaLog.time >= filters['fecha_inicio'])
-            if filters.get('fecha_fin'):
-                metricas_llamadas = metricas_llamadas.filter(LlamadaLog.time <= filters['fecha_fin'])
+            # Lookup O(1) de actividades pre-cargadas
+            actividades = actividades_por_agente.get(agente_id, [])
 
-            resultado_llamadas = metricas_llamadas.first()
-
-            # Métricas de actividad (sesiones y pausas)
-            actividad_query = self.db.query(ActividadAgenteLog).filter(
-                ActividadAgenteLog.agente_id == agente_id
-            )
-
-            if filters.get('fecha_inicio'):
-                actividad_query = actividad_query.filter(ActividadAgenteLog.time >= filters['fecha_inicio'])
-            if filters.get('fecha_fin'):
-                actividad_query = actividad_query.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
-
-            actividades = actividad_query.order_by(ActividadAgenteLog.time).all()
-
-            # Calcular sesiones y pausas
+            # Calcular sesiones y pausas (sin queries adicionales)
             num_sesiones = 0
             tiempo_total_sesion = 0
             num_pausas = 0
@@ -394,16 +516,6 @@ class AgentAnalyticsService:
             tiempo_login = None
             tiempo_pausa_inicio = None
             pausa_id_actual = None
-
-            # Obtener tipos de pausas del agente de una sola vez (solo si hay actividades de pausa)
-            pausas_dict = {}
-            pausas_ids = [
-                int(act.pausa_id) for act in actividades 
-                if act.event == 'PAUSEALL' and act.pausa_id and act.pausa_id.isdigit()
-            ]
-            if pausas_ids:
-                pausas_agente = self.db.query(Pausa).filter(Pausa.id.in_(pausas_ids)).all()
-                pausas_dict = {str(p.id): p.tipo for p in pausas_agente}
 
             for actividad in actividades:
                 if actividad.event == 'ADDMEMBER':
@@ -424,7 +536,7 @@ class AgentAnalyticsService:
                 elif actividad.event == 'UNPAUSEALL' and tiempo_pausa_inicio:
                     duracion_pausa = (actividad.time - tiempo_pausa_inicio).total_seconds()
 
-                    # Verificar tipo de pausa usando el diccionario precargado
+                    # Lookup O(1) del tipo de pausa desde diccionario pre-cargado
                     if pausa_id_actual and pausa_id_actual in pausas_dict:
                         if pausas_dict[pausa_id_actual] == 'R':
                             tiempo_pausas_recreativas += duracion_pausa
@@ -442,13 +554,13 @@ class AgentAnalyticsService:
             tiempo_promedio_sesion = int(tiempo_total_sesion / num_sesiones) if num_sesiones > 0 else 0
             tiempo_promedio_pausa = int(tiempo_total_pausas / num_pausas) if num_pausas > 0 else 0
 
-            tiempo_al_habla = int(resultado_llamadas.tiempo_al_habla or 0)
+            tiempo_al_habla = metricas['tiempo_al_habla']
             tiempo_disponible = tiempo_total_sesion - tiempo_pausas_recreativas
             ocupacion = round((tiempo_al_habla / tiempo_disponible * 100), 1) if tiempo_disponible > 0 else 0
             ocupacion = min(ocupacion, 100)  # No puede ser mayor a 100%
 
             agentes_dict[agente_id].update({
-                'llamadas_contestadas': resultado_llamadas.llamadas_atendidas or 0,
+                'llamadas_contestadas': metricas['llamadas_atendidas'],
                 'num_sesiones': num_sesiones,
                 'tiempo_total_sesion': int(tiempo_total_sesion),
                 'tiempo_promedio_sesion': tiempo_promedio_sesion,
@@ -471,65 +583,95 @@ class AgentAnalyticsService:
 
     def get_detalle_sesiones_agente(self, agente_id: int, filters: Dict = None) -> List[Dict]:
         """
-        Obtiene el detalle de todas las sesiones de un agente específico
+        Obtiene el detalle de todas las sesiones de un agente específico.
         """
         filters = filters or {}
 
-        # Obtener actividades del agente
-        actividad_query = self.db.query(ActividadAgenteLog).filter(
+        # Convertir filtros a timezone-aware (UTC) si existen
+        if filters.get('fecha_inicio') and filters['fecha_inicio'].tzinfo is None:
+            filters['fecha_inicio'] = filters['fecha_inicio'].replace(tzinfo=timezone.utc)
+        if filters.get('fecha_fin') and filters['fecha_fin'].tzinfo is None:
+            filters['fecha_fin'] = filters['fecha_fin'].replace(tzinfo=timezone.utc)
+
+        print(f"★★★ get_detalle_sesiones_agente - agente_id={agente_id}, filters={filters}")
+        logger.info(f"get_detalle_sesiones_agente - agente_id={agente_id}, filters={filters}")
+
+        # Obtener TODAS las actividades del agente (sin filtro de fecha en SQL)
+        actividades = self.db.query(ActividadAgenteLog).filter(
             ActividadAgenteLog.agente_id == agente_id
-        )
+        ).order_by(ActividadAgenteLog.time).all()
 
-        if filters.get('fecha_inicio'):
-            actividad_query = actividad_query.filter(ActividadAgenteLog.time >= filters['fecha_inicio'])
-        if filters.get('fecha_fin'):
-            actividad_query = actividad_query.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
-
-        actividades = actividad_query.order_by(ActividadAgenteLog.time).all()
+        print(f"★★★ Total actividades encontradas: {len(actividades)}")
+        logger.info(f"Total actividades encontradas: {len(actividades)}")
 
         sesiones = []
         tiempo_login = None
+        sesiones_totales = 0
+        sesiones_filtradas = 0
 
         for actividad in actividades:
             if actividad.event == 'ADDMEMBER':
                 tiempo_login = actividad.time
             elif actividad.event == 'REMOVEMEMBER' and tiempo_login:
+                sesiones_totales += 1
                 duracion_segundos = (actividad.time - tiempo_login).total_seconds()
-                horas = int(duracion_segundos // 3600)
-                minutos = int((duracion_segundos % 3600) // 60)
-                segundos = int(duracion_segundos % 60)
 
-                sesiones.append({
-                    'fecha_inicio': tiempo_login.strftime('%Y-%m-%d %H:%M:%S'),
-                    'fecha_fin': actividad.time.strftime('%Y-%m-%d %H:%M:%S'),
-                    'duracion': f'{horas:02d}:{minutos:02d}:{segundos:02d}',
-                    'duracion_segundos': int(duracion_segundos)
-                })
+                # Aplicar filtros de fecha DESPUÉS de emparejar
+                incluir_sesion = True
+                if filters.get('fecha_inicio') and filters.get('fecha_fin'):
+                    # Solo incluir si la sesión tiene overlap con el rango
+                    # Excluir si termina antes del inicio O empieza después del fin
+                    if actividad.time < filters['fecha_inicio'] or tiempo_login > filters['fecha_fin']:
+                        incluir_sesion = False
+                        print(f"★★★ Sesión EXCLUIDA: login={tiempo_login}, logout={actividad.time}, rango={filters['fecha_inicio']} a {filters['fecha_fin']}")
+                    else:
+                        print(f"★★★ Sesión INCLUIDA: login={tiempo_login}, logout={actividad.time}, rango={filters['fecha_inicio']} a {filters['fecha_fin']}")
+
+                if incluir_sesion:
+                    sesiones_filtradas += 1
+                    horas = int(duracion_segundos // 3600)
+                    minutos = int((duracion_segundos % 3600) // 60)
+                    segundos = int(duracion_segundos % 60)
+
+                    sesiones.append({
+                        'fecha_inicio': tiempo_login.strftime('%Y-%m-%d %H:%M:%S'),
+                        'fecha_fin': actividad.time.strftime('%Y-%m-%d %H:%M:%S'),
+                        'duracion': f'{horas:02d}:{minutos:02d}:{segundos:02d}',
+                        'duracion_segundos': int(duracion_segundos)
+                    })
+
                 tiempo_login = None
 
+        print(f"★★★ Sesiones totales: {sesiones_totales}, filtradas: {sesiones_filtradas}")
+        logger.info(f"Sesiones totales encontradas: {sesiones_totales}, después de filtros: {sesiones_filtradas}")
         return sesiones
 
     def get_detalle_pausas_agente(self, agente_id: int, filters: Dict = None) -> List[Dict]:
         """
-        Obtiene el detalle de todas las pausas de un agente específico
+        Obtiene el detalle de todas las pausas de un agente específico.
         """
         filters = filters or {}
 
-        # Obtener actividades del agente
-        actividad_query = self.db.query(ActividadAgenteLog).filter(
+        # Convertir filtros a timezone-aware (UTC) si existen
+        if filters.get('fecha_inicio') and filters['fecha_inicio'].tzinfo is None:
+            filters['fecha_inicio'] = filters['fecha_inicio'].replace(tzinfo=timezone.utc)
+        if filters.get('fecha_fin') and filters['fecha_fin'].tzinfo is None:
+            filters['fecha_fin'] = filters['fecha_fin'].replace(tzinfo=timezone.utc)
+
+        print(f"★★★ get_detalle_pausas_agente - agente_id={agente_id}, filters={filters}")
+        logger.info(f"get_detalle_pausas_agente - agente_id={agente_id}, filters={filters}")
+
+        # Obtener TODAS las actividades del agente (sin filtro de fecha en SQL)
+        actividades = self.db.query(ActividadAgenteLog).filter(
             ActividadAgenteLog.agente_id == agente_id
-        )
+        ).order_by(ActividadAgenteLog.time).all()
 
-        if filters.get('fecha_inicio'):
-            actividad_query = actividad_query.filter(ActividadAgenteLog.time >= filters['fecha_inicio'])
-        if filters.get('fecha_fin'):
-            actividad_query = actividad_query.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
-
-        actividades = actividad_query.order_by(ActividadAgenteLog.time).all()
+        print(f"★★★ Total actividades encontradas: {len(actividades)}")
+        logger.info(f"Total actividades encontradas: {len(actividades)}")
 
         # Obtener tipos de pausas
         pausas_ids = [
-            int(act.pausa_id) for act in actividades 
+            int(act.pausa_id) for act in actividades
             if act.event == 'PAUSEALL' and act.pausa_id and act.pausa_id.isdigit()
         ]
         pausas_dict = {}
@@ -543,29 +685,49 @@ class AgentAnalyticsService:
         pausas = []
         tiempo_pausa_inicio = None
         pausa_id_actual = None
+        pausas_totales = 0
+        pausas_filtradas = 0
 
         for actividad in actividades:
             if actividad.event == 'PAUSEALL':
                 tiempo_pausa_inicio = actividad.time
                 pausa_id_actual = actividad.pausa_id
             elif actividad.event == 'UNPAUSEALL' and tiempo_pausa_inicio:
+                pausas_totales += 1
                 duracion_segundos = (actividad.time - tiempo_pausa_inicio).total_seconds()
-                horas = int(duracion_segundos // 3600)
-                minutos = int((duracion_segundos % 3600) // 60)
-                segundos = int(duracion_segundos % 60)
 
-                pausa_info = pausas_dict.get(pausa_id_actual, {'tipo': 'P', 'nombre': 'Otra'})
+                # Aplicar filtros de fecha DESPUÉS de emparejar
+                incluir_pausa = True
+                if filters.get('fecha_inicio') and filters.get('fecha_fin'):
+                    # Solo incluir si la pausa tiene overlap con el rango
+                    # Excluir si termina antes del inicio O empieza después del fin
+                    if actividad.time < filters['fecha_inicio'] or tiempo_pausa_inicio > filters['fecha_fin']:
+                        incluir_pausa = False
+                        print(f"★★★ Pausa EXCLUIDA: inicio={tiempo_pausa_inicio}, fin={actividad.time}, rango={filters['fecha_inicio']} a {filters['fecha_fin']}")
+                    else:
+                        print(f"★★★ Pausa INCLUIDA: inicio={tiempo_pausa_inicio}, fin={actividad.time}, rango={filters['fecha_inicio']} a {filters['fecha_fin']}")
 
-                pausas.append({
-                    'tipo': pausa_info['tipo'],
-                    'nombre': pausa_info['nombre'],
-                    'fecha_inicio': tiempo_pausa_inicio.strftime('%Y-%m-%d %H:%M:%S'),
-                    'fecha_fin': actividad.time.strftime('%Y-%m-%d %H:%M:%S'),
-                    'duracion': f'{horas:02d}:{minutos:02d}:{segundos:02d}',
-                    'duracion_segundos': int(duracion_segundos)
-                })
+                if incluir_pausa:
+                    pausas_filtradas += 1
+                    horas = int(duracion_segundos // 3600)
+                    minutos = int((duracion_segundos % 3600) // 60)
+                    segundos = int(duracion_segundos % 60)
+
+                    pausa_info = pausas_dict.get(pausa_id_actual, {'tipo': 'P', 'nombre': 'Otra'})
+
+                    pausas.append({
+                        'tipo': pausa_info['tipo'],
+                        'nombre': pausa_info['nombre'],
+                        'fecha_inicio': tiempo_pausa_inicio.strftime('%Y-%m-%d %H:%M:%S'),
+                        'fecha_fin': actividad.time.strftime('%Y-%m-%d %H:%M:%S'),
+                        'duracion': f'{horas:02d}:{minutos:02d}:{segundos:02d}',
+                        'duracion_segundos': int(duracion_segundos)
+                    })
+
                 tiempo_pausa_inicio = None
                 pausa_id_actual = None
 
+        print(f"★★★ Pausas totales: {pausas_totales}, filtradas: {pausas_filtradas}")
+        logger.info(f"Pausas totales encontradas: {pausas_totales}, después de filtros: {pausas_filtradas}")
         return pausas
 

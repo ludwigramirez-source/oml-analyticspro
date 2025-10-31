@@ -51,9 +51,6 @@ const AgentesAvanzado = ({ filters }) => {
       } else {
         setTotalSesiones(null);
       }
-      
-      // La tabla ampliada no la usaremos más
-      setDisponibilidadAmpliada([]);
     } catch (error) {
       console.error('Error loading agentes avanzado:', error);
     } finally {

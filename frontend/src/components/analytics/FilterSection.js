@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { format, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 
 const FilterSection = ({ filters, setFilters, campanas, agentes, onSearch }) => {
-  const [selectedRange, setSelectedRange] = useState('este_mes');
+  const [selectedRange, setSelectedRange] = useState('hoy');
   const [selectedCampanas, setSelectedCampanas] = useState([]);
   const [selectedAgentes, setSelectedAgentes] = useState([]);
 
@@ -81,10 +81,10 @@ const FilterSection = ({ filters, setFilters, campanas, agentes, onSearch }) => 
   const handleLimpiar = () => {
     setSelectedCampanas([]);
     setSelectedAgentes([]);
-    setSelectedRange('este_mes');
+    setSelectedRange('hoy');
     setFilters({});
-    // Aplicar rango "Este mes" por defecto al limpiar
-    setTimeout(() => applyDateRange('este_mes'), 0);
+    // Aplicar rango "Hoy" por defecto al limpiar
+    setTimeout(() => applyDateRange('hoy'), 0);
   };
 
   return (

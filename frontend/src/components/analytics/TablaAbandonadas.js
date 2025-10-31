@@ -5,6 +5,9 @@ import Pagination from './Pagination';
 const TablaAbandonadas = ({ llamadas }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState('asc'); // 'asc' o 'desc'
+
   const formatTiempo = (seconds) => {
     const min = Math.floor(seconds / 60);
     const sec = seconds % 60;
@@ -20,13 +23,58 @@ const TablaAbandonadas = ({ llamadas }) => {
     return badges[tipo] || 'bg-gray-100 text-gray-800';
   };
 
-  // Paginación
-  const totalPages = Math.ceil((llamadas?.length || 0) / pageSize);
+  // Función para manejar el ordenamiento
+  const handleSort = (field) => {
+    if (sortField === field) {
+      // Si ya está ordenado por este campo, cambiar dirección
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Nuevo campo, ordenar ascendente
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setCurrentPage(1); // Volver a la primera página al ordenar
+  };
+
+  // Datos ordenados
+  const sortedData = useMemo(() => {
+    if (!llamadas || !sortField) return llamadas || [];
+
+    const sorted = [...llamadas].sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+
+      // Manejar valores null/undefined
+      if (aVal === null || aVal === undefined) return 1;
+      if (bVal === null || bVal === undefined) return -1;
+
+      // Comparación numérica para tiempo_espera
+      if (sortField === 'tiempo_espera') {
+        aVal = Number(aVal) || 0;
+        bVal = Number(bVal) || 0;
+      }
+
+      // Comparación de strings
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = bVal.toLowerCase();
+      }
+
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return sorted;
+  }, [llamadas, sortField, sortDirection]);
+
+  // Paginación aplicada a datos ordenados
+  const totalPages = Math.ceil((sortedData?.length || 0) / pageSize);
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     const end = start + pageSize;
-    return llamadas?.slice(start, end) || [];
-  }, [llamadas, currentPage, pageSize]);
+    return sortedData?.slice(start, end) || [];
+  }, [sortedData, currentPage, pageSize]);
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -56,14 +104,94 @@ const TablaAbandonadas = ({ llamadas }) => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Call ID</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hora</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Campaña</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Número</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tiempo Espera</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo Abandono</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Evento</th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('callid')}
+              >
+                <div className="flex items-center gap-1">
+                  Call ID
+                  {sortField === 'callid' && (
+                    <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('fecha')}
+              >
+                <div className="flex items-center gap-1">
+                  Fecha
+                  {sortField === 'fecha' && (
+                    <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('hora')}
+              >
+                <div className="flex items-center gap-1">
+                  Hora
+                  {sortField === 'hora' && (
+                    <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('campana')}
+              >
+                <div className="flex items-center gap-1">
+                  Campaña
+                  {sortField === 'campana' && (
+                    <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('numero')}
+              >
+                <div className="flex items-center gap-1">
+                  Número
+                  {sortField === 'numero' && (
+                    <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('tiempo_espera')}
+              >
+                <div className="flex items-center gap-1">
+                  Tiempo Espera
+                  {sortField === 'tiempo_espera' && (
+                    <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('tipo_abandono')}
+              >
+                <div className="flex items-center gap-1">
+                  Tipo Abandono
+                  {sortField === 'tipo_abandono' && (
+                    <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('evento')}
+              >
+                <div className="flex items-center gap-1">
+                  Evento
+                  {sortField === 'evento' && (
+                    <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -100,14 +228,14 @@ const TablaAbandonadas = ({ llamadas }) => {
       </div>
       
       {/* Paginación */}
-      {llamadas && llamadas.length > 0 && (
+      {sortedData && sortedData.length > 0 && (
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           pageSize={pageSize}
           onPageChange={handlePageChange}
           onPageSizeChange={handlePageSizeChange}
-          totalItems={llamadas.length}
+          totalItems={sortedData.length}
         />
       )}
     </div>

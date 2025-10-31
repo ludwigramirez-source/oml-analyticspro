@@ -268,37 +268,49 @@ async def get_disponibilidad_agentes(
 @router.get("/agentes/{agente_id}/sesiones")
 async def get_detalle_sesiones_agente(
     agente_id: int,
-    fecha_inicio: str = Query(None),
-    fecha_fin: str = Query(None),
+    fecha_inicio: date = Query(None),
+    fecha_fin: date = Query(None),
     db: Session = Depends(get_db)
 ):
     """Obtiene el detalle de sesiones de un agente específico"""
-    filters = {}
-    if fecha_inicio:
-        filters['fecha_inicio'] = fecha_inicio
-    if fecha_fin:
-        filters['fecha_fin'] = fecha_fin
+    try:
+        filters = {}
+        if fecha_inicio:
+            filters['fecha_inicio'] = datetime.combine(fecha_inicio, datetime.min.time())
+        if fecha_fin:
+            filters['fecha_fin'] = datetime.combine(fecha_fin, datetime.max.time())
 
-    service = AgentAnalyticsService(db)
-    return service.get_detalle_sesiones_agente(agente_id, filters)
+        service = AgentAnalyticsService(db)
+        return service.get_detalle_sesiones_agente(agente_id, filters)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error en get_detalle_sesiones_agente: {e}", exc_info=True)
+        return []
 
 
 @router.get("/agentes/{agente_id}/pausas")
 async def get_detalle_pausas_agente(
     agente_id: int,
-    fecha_inicio: str = Query(None),
-    fecha_fin: str = Query(None),
+    fecha_inicio: date = Query(None),
+    fecha_fin: date = Query(None),
     db: Session = Depends(get_db)
 ):
     """Obtiene el detalle de pausas de un agente específico"""
-    filters = {}
-    if fecha_inicio:
-        filters['fecha_inicio'] = fecha_inicio
-    if fecha_fin:
-        filters['fecha_fin'] = fecha_fin
+    try:
+        filters = {}
+        if fecha_inicio:
+            filters['fecha_inicio'] = datetime.combine(fecha_inicio, datetime.min.time())
+        if fecha_fin:
+            filters['fecha_fin'] = datetime.combine(fecha_fin, datetime.max.time())
 
-    service = AgentAnalyticsService(db)
-    return service.get_detalle_pausas_agente(agente_id, filters)
+        service = AgentAnalyticsService(db)
+        return service.get_detalle_pausas_agente(agente_id, filters)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error en get_detalle_pausas_agente: {e}", exc_info=True)
+        return []
 
 
 @router.get("/agentes/ocupacion")

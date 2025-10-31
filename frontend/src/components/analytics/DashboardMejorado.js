@@ -23,15 +23,13 @@ const DashboardMejorado = () => {
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [dataLoaded, setDataLoaded] = useState(false);
   
-  // Calcular filtros por defecto: Este mes
+  // Calcular filtros por defecto: HOY
   const [filters, setFilters] = useState(() => {
     const today = new Date();
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    
+
     return {
-      fecha_inicio: format(startOfMonth, 'yyyy-MM-dd'),
-      fecha_fin: format(endOfMonth, 'yyyy-MM-dd')
+      fecha_inicio: format(today, 'yyyy-MM-dd'),
+      fecha_fin: format(today, 'yyyy-MM-dd')
     };
   });
 

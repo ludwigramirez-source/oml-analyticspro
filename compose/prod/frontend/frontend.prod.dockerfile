@@ -5,18 +5,17 @@
 FROM node:20-alpine as builder
 
 ENV NODE_ENV=production \
-    NODE_PATH=/app/node_modules
+    NODE_PATH=/app/node_modules \
+    PATH=/app/node_modules/.bin:$PATH
 
 WORKDIR /app
 
-# Copy package management files
-COPY frontend/package.json frontend/package-lock.json* frontend/yarn.lock* ./
-
-# Install dependencies
-RUN npm ci 2>&1 || yarn install --frozen-lockfile 2>&1
-
 # Copy source code
 COPY frontend/ .
+
+# Install dependencies
+RUN npm install 2>&1 || yarn install 2>&1
+
 
 # Build the React application
 RUN npm run build 2>&1 || yarn build 2>&1
@@ -40,6 +39,7 @@ RUN mkdir -p /var/cache/nginx/client_temp && \
     chown -R nginx:nginx /usr/share/nginx/html && \
     chown -R nginx:nginx /var/cache/nginx && \
     chown -R nginx:nginx /var/log/nginx && \
+    chown -R nginx:nginx /var/run/&& \
     chown -R nginx:nginx /etc/nginx/conf.d
 
 USER nginx

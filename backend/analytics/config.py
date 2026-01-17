@@ -4,6 +4,7 @@ Conexión READ-ONLY a PostgreSQL
 """
 import logging
 import os
+from datetime import timedelta, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -24,6 +25,9 @@ class OmniLeadsConfig:
     OMNILEADS_DB_USER = os.getenv('OMNILEADS_DB_USER', 'omnileads_readonly')
     OMNILEADS_DB_PASSWORD = os.getenv('OMNILEADS_DB_PASSWORD', '')
 
+    # Timezone Configuration (default GMT-6 for Central America)
+    TIMEZONE_OFFSET = int(os.getenv('TIMEZONE_OFFSET', '-6'))
+
     @classmethod
     def get_database_url(cls) -> str:
         """Retorna la URL de conexión a PostgreSQL"""
@@ -43,6 +47,11 @@ class OmniLeadsConfig:
             'password': cls.OMNILEADS_DB_PASSWORD,
             'options': '-c default_transaction_read_only=on'  # READ-ONLY
         }
+
+    @classmethod
+    def get_timezone(cls):
+        """Retorna el timezone configurado basado en TIMEZONE_OFFSET"""
+        return timezone(timedelta(hours=cls.TIMEZONE_OFFSET))
 
 
 # Instancia de configuración

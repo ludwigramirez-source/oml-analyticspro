@@ -590,10 +590,9 @@ class CallAnalyticsService:
         Incluye: ABANDONADAS (entrantes) + NO ATENDIDAS (salientes)
         - ABANDON, ABANDONWEL, EXITWITHTIMEOUT (abandonadas entrantes)
         - NOANSWER, CANCEL, BUSY, etc. (no atendidas salientes)
-        Convierte timezone a GMT-5 (America/Bogota)
+        Convierte timezone según configuración (TIMEZONE_OFFSET)
         """
-        from datetime import timedelta
-        from datetime import timezone as dt_timezone
+        from ..config import config
 
         filters = filters or {}
 
@@ -648,15 +647,15 @@ class CallAnalyticsService:
         offset = (page - 1) * per_page
         resultados = query.order_by(LlamadaLog.time.desc()).offset(offset).limit(per_page).all()
 
-        # Timezone GMT-5 (America/Bogota)
-        gmt_minus_5 = dt_timezone(timedelta(hours=-5))
+        # Timezone configurado
+        local_tz = config.get_timezone()
 
         llamadas = []
         for r in resultados:
             llamada = r.LlamadaLog
 
-            # Convertir tiempo a GMT-5
-            time_gmt5 = llamada.time.astimezone(gmt_minus_5)
+            # Convertir tiempo a timezone local
+            time_local = llamada.time.astimezone(local_tz)
 
             # Mapear tipo de abandono
             tipo_abandono = {
@@ -669,8 +668,8 @@ class CallAnalyticsService:
             llamadas.append({
                 'id': llamada.id,
                 'callid': llamada.callid,
-                'fecha': time_gmt5.strftime('%Y-%m-%d'),
-                'hora': time_gmt5.strftime('%H:%M:%S'),
+                'fecha': time_local.strftime('%Y-%m-%d'),
+                'hora': time_local.strftime('%H:%M:%S'),
                 'campana': r.campana_nombre or f'Campaña {llamada.campana_id}',
                 'agente': f'{r.agente_nombre or ""} {r.agente_apellido or ""}'.strip() or 'Sin asignar',
                 'numero': llamada.numero_marcado or '-',
@@ -691,10 +690,9 @@ class CallAnalyticsService:
         """
         Obtiene lista detallada de llamadas ATENDIDAS con paginación
         Solo eventos finales: COMPLETEAGENT, COMPLETEOUTNUM
-        Convierte timezone a GMT-5 (America/Bogota)
+        Convierte timezone según configuración (TIMEZONE_OFFSET)
         """
-        from datetime import timedelta
-        from datetime import timezone as dt_timezone
+        from ..config import config
 
         filters = filters or {}
 
@@ -746,15 +744,15 @@ class CallAnalyticsService:
         offset = (page - 1) * per_page
         resultados = query.order_by(LlamadaLog.time.desc()).offset(offset).limit(per_page).all()
 
-        # Timezone GMT-5 (America/Bogota)
-        gmt_minus_5 = dt_timezone(timedelta(hours=-5))
+        # Timezone configurado
+        local_tz = config.get_timezone()
 
         llamadas = []
         for r in resultados:
             llamada = r.LlamadaLog
 
-            # Convertir tiempo a GMT-5
-            time_gmt5 = llamada.time.astimezone(gmt_minus_5)
+            # Convertir tiempo a timezone local
+            time_local = llamada.time.astimezone(local_tz)
 
             # Determinar quién colgó
             quien_colgo = 'Agente' if llamada.event == 'COMPLETEAGENT' else 'Cliente'
@@ -762,8 +760,8 @@ class CallAnalyticsService:
             llamadas.append({
                 'id': llamada.id,
                 'callid': llamada.callid,
-                'fecha': time_gmt5.strftime('%Y-%m-%d'),
-                'hora': time_gmt5.strftime('%H:%M:%S'),
+                'fecha': time_local.strftime('%Y-%m-%d'),
+                'hora': time_local.strftime('%H:%M:%S'),
                 'campana': r.campana_nombre or f'Campaña {llamada.campana_id}',
                 'agente': f'{r.agente_nombre or ""} {r.agente_apellido or ""}'.strip() or f'Agente {llamada.agente_id}',
                 'numero': llamada.numero_marcado or '-',

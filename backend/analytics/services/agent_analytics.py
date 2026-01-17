@@ -8,6 +8,7 @@ from typing import Dict, List
 from sqlalchemy import and_, case, extract, func
 from sqlalchemy.orm import Session
 
+from ..config import config
 from ..models.omnileads_models import (
     ActividadAgenteLog,
     AgenteProfile,
@@ -300,6 +301,7 @@ class AgentAnalyticsService:
             pausas_dict = {str(p.id): p.nombre for p in pausas}
 
         # Construir timeline sin queries adicionales
+        local_tz = config.get_timezone()
         timeline = []
         for act in actividades:
             # Lookup O(1) desde diccionario pre-cargado
@@ -313,8 +315,11 @@ class AgentAnalyticsService:
                 'UNPAUSEALL': 'Fin de pausa'
             }
 
+            # Convertir tiempo a timezone local
+            time_local = act.time.astimezone(local_tz)
+
             timeline.append({
-                'tiempo': act.time.strftime('%H:%M:%S'),
+                'tiempo': time_local.strftime('%H:%M:%S'),
                 'evento': evento_map.get(act.event, act.event),
                 'tipo': act.event
             })
@@ -559,6 +564,11 @@ class AgentAnalyticsService:
             ocupacion = round((tiempo_al_habla / tiempo_disponible * 100), 1) if tiempo_disponible > 0 else 0
             ocupacion = min(ocupacion, 100)  # No puede ser mayor a 100%
 
+            # Convertir timestamps a timezone local
+            local_tz = config.get_timezone()
+            primer_login_local = primer_login.astimezone(local_tz) if primer_login else None
+            ultimo_logout_local = ultimo_logout.astimezone(local_tz) if ultimo_logout else None
+
             agentes_dict[agente_id].update({
                 'llamadas_contestadas': metricas['llamadas_atendidas'],
                 'num_sesiones': num_sesiones,
@@ -571,8 +581,8 @@ class AgentAnalyticsService:
                 'tiempo_total_pausa': int(tiempo_total_pausas),
                 'tiempo_promedio_pausa': tiempo_promedio_pausa,
                 'ocupacion': ocupacion,
-                'primer_login': primer_login.strftime('%H:%M:%S') if primer_login else '-',
-                'ultimo_logout': ultimo_logout.strftime('%H:%M:%S') if ultimo_logout else '-'
+                'primer_login': primer_login_local.strftime('%H:%M:%S') if primer_login_local else '-',
+                'ultimo_logout': ultimo_logout_local.strftime('%H:%M:%S') if ultimo_logout_local else '-'
             })
 
         # Retornar solo agentes con llamadas
@@ -608,6 +618,7 @@ class AgentAnalyticsService:
         tiempo_login = None
         sesiones_totales = 0
         sesiones_filtradas = 0
+        local_tz = config.get_timezone()
 
         for actividad in actividades:
             if actividad.event == 'ADDMEMBER':
@@ -633,9 +644,13 @@ class AgentAnalyticsService:
                     minutos = int((duracion_segundos % 3600) // 60)
                     segundos = int(duracion_segundos % 60)
 
+                    # Convertir timestamps a timezone local
+                    tiempo_login_local = tiempo_login.astimezone(local_tz)
+                    tiempo_logout_local = actividad.time.astimezone(local_tz)
+
                     sesiones.append({
-                        'fecha_inicio': tiempo_login.strftime('%Y-%m-%d %H:%M:%S'),
-                        'fecha_fin': actividad.time.strftime('%Y-%m-%d %H:%M:%S'),
+                        'fecha_inicio': tiempo_login_local.strftime('%Y-%m-%d %H:%M:%S'),
+                        'fecha_fin': tiempo_logout_local.strftime('%Y-%m-%d %H:%M:%S'),
                         'duracion': f'{horas:02d}:{minutos:02d}:{segundos:02d}',
                         'duracion_segundos': int(duracion_segundos)
                     })
@@ -687,6 +702,7 @@ class AgentAnalyticsService:
         pausa_id_actual = None
         pausas_totales = 0
         pausas_filtradas = 0
+        local_tz = config.get_timezone()
 
         for actividad in actividades:
             if actividad.event == 'PAUSEALL':
@@ -715,11 +731,15 @@ class AgentAnalyticsService:
 
                     pausa_info = pausas_dict.get(pausa_id_actual, {'tipo': 'P', 'nombre': 'Otra'})
 
+                    # Convertir timestamps a timezone local
+                    tiempo_pausa_inicio_local = tiempo_pausa_inicio.astimezone(local_tz)
+                    tiempo_pausa_fin_local = actividad.time.astimezone(local_tz)
+
                     pausas.append({
                         'tipo': pausa_info['tipo'],
                         'nombre': pausa_info['nombre'],
-                        'fecha_inicio': tiempo_pausa_inicio.strftime('%Y-%m-%d %H:%M:%S'),
-                        'fecha_fin': actividad.time.strftime('%Y-%m-%d %H:%M:%S'),
+                        'fecha_inicio': tiempo_pausa_inicio_local.strftime('%Y-%m-%d %H:%M:%S'),
+                        'fecha_fin': tiempo_pausa_fin_local.strftime('%Y-%m-%d %H:%M:%S'),
                         'duracion': f'{horas:02d}:{minutos:02d}:{segundos:02d}',
                         'duracion_segundos': int(duracion_segundos)
                     })

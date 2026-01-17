@@ -1,0 +1,146 @@
+================================================================================
+ARCHIVOS DE MIGRACIÓN DE TIMEZONE GMT-5 → GMT-6
+OmniLeads Analytics Pro
+Fecha: 2026-01-17
+================================================================================
+
+Se han creado los siguientes archivos en la carpeta del proyecto:
+
+1. TIMEZONE_MIGRATION.md
+   ----------------------------------------------------------
+   Documento completo con:
+   - Explicación detallada de todos los cambios
+   - Ubicación exacta de cada modificación
+   - Código ANTES y DESPUÉS
+   - Instrucciones paso a paso para aplicar en producción
+   - Comandos de verificación
+   - Procedimiento de rollback
+
+   📖 LEE ESTE ARCHIVO PRIMERO para entender todos los cambios
+
+
+2. apply_timezone_migration.ps1 (PowerShell - Windows)
+   ----------------------------------------------------------
+   Script automatizado que:
+   ✓ Verifica que todos los archivos están actualizados
+   ✓ Crea backups automáticos
+   ✓ Reinicia los contenedores Docker
+   ✓ Verifica que la configuración funciona correctamente
+
+   Uso:
+   .\apply_timezone_migration.ps1 -Environment development
+   .\apply_timezone_migration.ps1 -Environment production -Force
+
+
+3. apply_timezone_migration.sh (Bash - Linux)
+   ----------------------------------------------------------
+   Mismo script que el anterior pero para Linux/Mac
+
+   Primero dale permisos:
+   chmod +x apply_timezone_migration.sh
+
+   Uso:
+   ./apply_timezone_migration.sh --environment development
+   ./apply_timezone_migration.sh --environment production --force
+
+
+4. restart_docker.ps1 (PowerShell - Windows)
+   ----------------------------------------------------------
+   Script simple para solo reiniciar Docker sin verificaciones
+
+   Uso:
+   .\restart_docker.ps1 -Environment development
+   .\restart_docker.ps1 -Environment production
+
+
+================================================================================
+PASOS RECOMENDADOS PARA PRODUCCIÓN
+================================================================================
+
+OPCIÓN A - Migración Manual (Recomendado)
+------------------------------------------
+1. Lee completamente TIMEZONE_MIGRATION.md
+2. Aplica los cambios manualmente según el documento
+3. Usa restart_docker.ps1 para reiniciar los contenedores
+4. Verifica que todo funciona correctamente
+
+
+OPCIÓN B - Migración Automatizada
+----------------------------------
+1. Lee TIMEZONE_MIGRATION.md para entender los cambios
+2. Aplica manualmente los cambios de código (archivos .py)
+3. Ejecuta: .\apply_timezone_migration.ps1 -Environment production
+4. El script verifica y reinicia automáticamente
+
+
+================================================================================
+ARCHIVOS YA MODIFICADOS EN DESARROLLO
+================================================================================
+
+Los siguientes archivos YA fueron modificados en el ambiente de desarrollo:
+
+✓ .env
+✓ backend/analytics/config.py
+✓ backend/analytics/services/call_analytics.py
+✓ backend/analytics/services/agent_analytics.py
+✓ docker-compose.dev.yml
+
+Para aplicar en producción, debes replicar estos cambios en el servidor
+de producción usando TIMEZONE_MIGRATION.md como guía.
+
+
+================================================================================
+RESUMEN DE LA MIGRACIÓN
+================================================================================
+
+CAMBIO PRINCIPAL:
+-----------------
+GMT-5 (Colombia, Perú, Ecuador) → GMT-6 (Nicaragua, Costa Rica, El Salvador)
+
+IMPACTO:
+--------
+- Todos los timestamps en reportes mostrarán 1 hora menos
+- Los datos en la base de datos NO cambian
+- La conversión es en tiempo real al consultar datos
+- Los filtros por fecha siguen funcionando correctamente
+
+ARCHIVOS MODIFICADOS:
+---------------------
+1. .env - Variable TIMEZONE_OFFSET=-6
+2. backend/analytics/config.py - Configuración centralizada
+3. backend/analytics/services/call_analytics.py - Conversión de timestamps
+4. backend/analytics/services/agent_analytics.py - Conversión de timestamps
+5. docker-compose.dev.yml - Variable de entorno
+6. docker-compose.prod.yml - Variable de entorno (pendiente en producción)
+
+VERIFICACIÓN:
+-------------
+Ejecuta esta query en PostgreSQL para comparar:
+
+SELECT
+    id,
+    time AS time_original,
+    time AT TIME ZONE 'America/Managua' as time_gmt6
+FROM reportes_app_llamadalog
+ORDER BY time DESC
+LIMIT 5;
+
+La columna time_gmt6 debería mostrar 1 hora menos que time_original
+(si la BD está en GMT-5).
+
+
+================================================================================
+SOPORTE
+================================================================================
+
+Si tienes problemas:
+1. Revisa los logs: docker logs <container-backend> --tail 100
+2. Verifica variables: docker exec <container-backend> env | grep TIMEZONE
+3. Lee la sección "Rollback" en TIMEZONE_MIGRATION.md
+4. Usa los backups creados automáticamente en la carpeta backups/
+
+
+Última actualización: 2026-01-17
+Aplicado en desarrollo: ✓
+Pendiente en producción: Sí
+================================================================================

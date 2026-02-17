@@ -8,7 +8,6 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from ..config import config
 from ..database import get_db
 from ..models.omnileads_models import AgenteProfile, Campana, User
 from ..services.agent_analytics import AgentAnalyticsService
@@ -33,16 +32,15 @@ async def parse_filters(
     agente_ids: Optional[str] = Query(None, description="IDs de agentes separados por coma"),
     tipo_llamada: Optional[str] = Query(None, description="Tipo de llamada: entrantes o salientes")
 ) -> dict:
-    """Parse y retorna los filtros comunes con timezone local"""
-    local_tz = config.get_timezone()
+    """Parse y retorna los filtros comunes (naive datetime)"""
     filters = {}
     if fecha_inicio:
         filters['fecha_inicio'] = datetime.combine(
-            fecha_inicio, datetime.min.time(), tzinfo=local_tz
+            fecha_inicio, datetime.min.time()
         )
     if fecha_fin:
         filters['fecha_fin'] = datetime.combine(
-            fecha_fin, datetime.max.time(), tzinfo=local_tz
+            fecha_fin, datetime.max.time()
         )
 
     # Soportar tanto campana_id único como campana_ids múltiples
@@ -74,15 +72,14 @@ async def parse_filters_no_agente(
     tipo_campana: Optional[int] = Query(None, description="Tipo de campaña")
 ) -> dict:
     """Parse filtros sin agente_id (para evitar conflicto con path params)"""
-    local_tz = config.get_timezone()
     filters = {}
     if fecha_inicio:
         filters['fecha_inicio'] = datetime.combine(
-            fecha_inicio, datetime.min.time(), tzinfo=local_tz
+            fecha_inicio, datetime.min.time()
         )
     if fecha_fin:
         filters['fecha_fin'] = datetime.combine(
-            fecha_fin, datetime.max.time(), tzinfo=local_tz
+            fecha_fin, datetime.max.time()
         )
     if campana_id:
         filters['campana_id'] = campana_id
@@ -285,15 +282,14 @@ async def get_detalle_sesiones_agente(
 ):
     """Obtiene el detalle de sesiones de un agente específico"""
     try:
-        local_tz = config.get_timezone()
         filters = {}
         if fecha_inicio:
             filters['fecha_inicio'] = datetime.combine(
-                fecha_inicio, datetime.min.time(), tzinfo=local_tz
+                fecha_inicio, datetime.min.time()
             )
         if fecha_fin:
             filters['fecha_fin'] = datetime.combine(
-                fecha_fin, datetime.max.time(), tzinfo=local_tz
+                fecha_fin, datetime.max.time()
             )
 
         service = AgentAnalyticsService(db)
@@ -314,15 +310,14 @@ async def get_detalle_pausas_agente(
 ):
     """Obtiene el detalle de pausas de un agente específico"""
     try:
-        local_tz = config.get_timezone()
         filters = {}
         if fecha_inicio:
             filters['fecha_inicio'] = datetime.combine(
-                fecha_inicio, datetime.min.time(), tzinfo=local_tz
+                fecha_inicio, datetime.min.time()
             )
         if fecha_fin:
             filters['fecha_fin'] = datetime.combine(
-                fecha_fin, datetime.max.time(), tzinfo=local_tz
+                fecha_fin, datetime.max.time()
             )
 
         service = AgentAnalyticsService(db)

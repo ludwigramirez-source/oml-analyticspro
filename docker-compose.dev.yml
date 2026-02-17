@@ -20,7 +20,7 @@ services:
       - OMNILEADS_DB_NAME=${OMNILEADS_DB_NAME:-omnileads}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key-change-in-production}
       - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
-      - TIMEZONE_OFFSET=${TIMEZONE_OFFSET:--6}
+      - TIMEZONE_DB=${TIMEZONE_DB:-America/Bogota}
     volumes:
       - ./backend:/app
       - /app/__pycache__

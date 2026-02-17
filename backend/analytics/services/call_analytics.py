@@ -80,17 +80,16 @@ class CallAnalyticsService:
 
     def __init__(self, db: Session):
         self.db = db
-        self._tz_name = config.TIMEZONE_NAME  # 'America/Managua'
+        self._tz_db = config.TIMEZONE_DB  # 'America/Bogota'
 
     def _local_time(self, column):
         """
-        Convierte una columna timestamptz a hora local usando
-        PostgreSQL AT TIME ZONE.
-        Ej: time AT TIME ZONE 'America/Managua'
-        Esto convierte correctamente desde el timezone de la BD
-        (America/Bogota UTC-5) al timezone del cliente (UTC-6).
+        Extrae timestamp naive con la hora tal cual está en la BD.
+        El servidor OmniLeads tiene el reloj en hora local (Nicaragua)
+        pero graba con offset de Colombia. AT TIME ZONE con el TZ de
+        la BD devuelve la hora numérica sin convertir.
         """
-        return func.timezone(self._tz_name, column)
+        return func.timezone(self._tz_db, column)
 
     def _apply_filters(self, query, filters: Dict):
         """Aplica filtros comunes a las consultas"""
@@ -628,10 +627,8 @@ class CallAnalyticsService:
         Incluye: ABANDONADAS (entrantes) + NO ATENDIDAS (salientes)
         - ABANDON, ABANDONWEL, EXITWITHTIMEOUT (abandonadas entrantes)
         - NOANSWER, CANCEL, BUSY, etc. (no atendidas salientes)
-        Convierte timezone según configuración (TIMEZONE_OFFSET)
+        Hora se muestra tal cual de la BD (hora local del servidor)
         """
-        from ..config import config
-
         filters = filters or {}
 
         # Combinar eventos abandonadas + no atendidas
@@ -685,15 +682,9 @@ class CallAnalyticsService:
         offset = (page - 1) * per_page
         resultados = query.order_by(LlamadaLog.time.desc()).offset(offset).limit(per_page).all()
 
-        # Timezone configurado
-        local_tz = config.get_timezone()
-
         llamadas = []
         for r in resultados:
             llamada = r.LlamadaLog
-
-            # Convertir tiempo a timezone local
-            time_local = llamada.time.astimezone(local_tz)
 
             # Mapear tipo de abandono
             tipo_abandono = {
@@ -706,8 +697,8 @@ class CallAnalyticsService:
             llamadas.append({
                 'id': llamada.id,
                 'callid': llamada.callid,
-                'fecha': time_local.strftime('%Y-%m-%d'),
-                'hora': time_local.strftime('%H:%M:%S'),
+                'fecha': llamada.time.strftime('%Y-%m-%d'),
+                'hora': llamada.time.strftime('%H:%M:%S'),
                 'campana': r.campana_nombre or f'Campaña {llamada.campana_id}',
                 'agente': f'{r.agente_nombre or ""} {r.agente_apellido or ""}'.strip() or 'Sin asignar',
                 'numero': llamada.numero_marcado or '-',
@@ -728,10 +719,8 @@ class CallAnalyticsService:
         """
         Obtiene lista detallada de llamadas ATENDIDAS con paginación
         Solo eventos finales: COMPLETEAGENT, COMPLETEOUTNUM
-        Convierte timezone según configuración (TIMEZONE_OFFSET)
+        Hora se muestra tal cual de la BD (hora local del servidor)
         """
-        from ..config import config
-
         filters = filters or {}
 
         # Subquery para obtener el último evento de cada llamada atendida
@@ -782,15 +771,9 @@ class CallAnalyticsService:
         offset = (page - 1) * per_page
         resultados = query.order_by(LlamadaLog.time.desc()).offset(offset).limit(per_page).all()
 
-        # Timezone configurado
-        local_tz = config.get_timezone()
-
         llamadas = []
         for r in resultados:
             llamada = r.LlamadaLog
-
-            # Convertir tiempo a timezone local
-            time_local = llamada.time.astimezone(local_tz)
 
             # Determinar quién colgó
             quien_colgo = 'Agente' if llamada.event == 'COMPLETEAGENT' else 'Cliente'
@@ -798,8 +781,8 @@ class CallAnalyticsService:
             llamadas.append({
                 'id': llamada.id,
                 'callid': llamada.callid,
-                'fecha': time_local.strftime('%Y-%m-%d'),
-                'hora': time_local.strftime('%H:%M:%S'),
+                'fecha': llamada.time.strftime('%Y-%m-%d'),
+                'hora': llamada.time.strftime('%H:%M:%S'),
                 'campana': r.campana_nombre or f'Campaña {llamada.campana_id}',
                 'agente': f'{r.agente_nombre or ""} {r.agente_apellido or ""}'.strip() or f'Agente {llamada.agente_id}',
                 'numero': llamada.numero_marcado or '-',

@@ -84,15 +84,15 @@ class CallAnalyticsExtended:
 
     def __init__(self, db: Session):
         self.db = db
-        self._tz_name = config.TIMEZONE_NAME  # 'America/Managua'
+        self._tz_db = config.TIMEZONE_DB  # 'America/Bogota'
 
     def _local_time(self, column):
         """
-        Convierte columna timestamptz a hora local.
-        Usa AT TIME ZONE para convertir desde el TZ de la BD
-        al TZ del cliente.
+        Extrae timestamp naive con la hora tal cual está en la BD.
+        AT TIME ZONE con el TZ de la BD devuelve la hora numérica
+        sin convertir zona.
         """
-        return func.timezone(self._tz_name, column)
+        return func.timezone(self._tz_db, column)
 
     def _build_last_event_subquery(self, filters: Dict = None):
         """
@@ -1186,20 +1186,18 @@ class CallAnalyticsExtended:
 
         llamadas = query.all()
 
-        # Agrupar por callid (convertir a timezone local)
-        local_tz = config.get_timezone()
+        # Agrupar por callid (hora tal cual de la BD)
         llamadas_agrupadas = {}
         for llamada in llamadas:
             callid = llamada.callid
 
             if callid not in llamadas_agrupadas:
                 agente_nombre = f'{llamada.first_name} {llamada.last_name}' if llamada.first_name else 'Sin Agente'
-                time_local = llamada.time.astimezone(local_tz)
 
                 llamadas_agrupadas[callid] = {
                     'callid': callid,
-                    'fecha': time_local.strftime('%Y-%m-%d'),
-                    'hora_inicio': time_local.strftime('%H:%M:%S'),
+                    'fecha': llamada.time.strftime('%Y-%m-%d'),
+                    'hora_inicio': llamada.time.strftime('%H:%M:%S'),
                     'campana': llamada.campana_nombre or 'Sin Campaña',
                     'agente': agente_nombre,
                     'numero': llamada.numero_marcado or 'N/A',
@@ -1210,11 +1208,10 @@ class CallAnalyticsExtended:
                 }
 
             # Agregar evento a la lista de eventos de esta llamada
-            time_local_evt = llamada.time.astimezone(local_tz)
             llamadas_agrupadas[callid]['eventos'].append({
                 'evento': llamada.event,
                 'evento_descripcion': self.EVENTOS_TRANSFERENCIAS.get(llamada.event, llamada.event),
-                'hora': time_local_evt.strftime('%H:%M:%S'),
+                'hora': llamada.time.strftime('%H:%M:%S'),
                 'duracion': int(llamada.duracion_llamada or 0)
             })
 

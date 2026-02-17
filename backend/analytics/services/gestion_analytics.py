@@ -237,8 +237,6 @@ class GestionAnalyticsService:
         per_page: int = 50,
     ) -> Dict:
         """Detalle paginado de gestiones"""
-        from ..config import config
-
         filters = filters or {}
 
         query = self.db.query(
@@ -274,13 +272,9 @@ class GestionAnalyticsService:
             .all()
         )
 
-        local_tz = config.get_timezone()
-
         gestiones = []
         for r in resultados:
             g = r.CustomFormGestion
-
-            fecha_local = g.fecha.astimezone(local_tz)
 
             gestiones.append({
                 'id': g.id,
@@ -288,8 +282,8 @@ class GestionAnalyticsService:
                 'telefono': g.telefono,
                 'nis': g.nis,
                 'incidencia': r.incidencia_nombre or '',
-                'fecha': fecha_local.strftime('%Y-%m-%d'),
-                'hora': fecha_local.strftime('%H:%M:%S'),
+                'fecha': g.fecha.strftime('%Y-%m-%d'),
+                'hora': g.fecha.strftime('%H:%M:%S'),
                 'agente': (
                     f'{r.agente_nombre or ""} '
                     f'{r.agente_apellido or ""}'.strip()
@@ -319,7 +313,7 @@ class GestionAnalyticsService:
 
         # Convertir fecha a timezone local para agrupar
         local_fecha = func.timezone(
-            config.TIMEZONE_NAME, CustomFormGestion.fecha
+            config.TIMEZONE_DB, CustomFormGestion.fecha
         )
 
         query = self.db.query(

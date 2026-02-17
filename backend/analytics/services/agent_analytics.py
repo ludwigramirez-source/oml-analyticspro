@@ -127,11 +127,9 @@ class AgentAnalyticsService:
 
         # Procesar estados en diccionario
         estados_dict = {}
-        local_tz = config.get_timezone()
-        ahora = datetime.now(tz=local_tz)
+        ahora = datetime.now(tz=activity.time.tzinfo) if ultimas_actividades else datetime.now()
         for activity in ultimas_actividades:
-            time_local = activity.time.astimezone(local_tz)
-            if (ahora - time_local).total_seconds() > 3600:
+            if (ahora - activity.time).total_seconds() > 3600:
                 estado = 'offline'
             elif activity.event == 'ADDMEMBER':
                 estado = 'disponible'
@@ -201,10 +199,8 @@ class AgentAnalyticsService:
             return 'offline'
 
         # Verificar si fue hace menos de 1 hora
-        local_tz = config.get_timezone()
-        ahora = datetime.now(tz=local_tz)
-        time_local = ultima_actividad.time.astimezone(local_tz)
-        if (ahora - time_local).total_seconds() > 3600:
+        ahora = datetime.now(tz=ultima_actividad.time.tzinfo)
+        if (ahora - ultima_actividad.time).total_seconds() > 3600:
             return 'offline'
 
         # Determinar estado basado en evento
@@ -311,7 +307,6 @@ class AgentAnalyticsService:
             pausas_dict = {str(p.id): p.nombre for p in pausas}
 
         # Construir timeline sin queries adicionales
-        local_tz = config.get_timezone()
         timeline = []
         for act in actividades:
             # Lookup O(1) desde diccionario pre-cargado
@@ -325,11 +320,8 @@ class AgentAnalyticsService:
                 'UNPAUSEALL': 'Fin de pausa'
             }
 
-            # Convertir tiempo a timezone local
-            time_local = act.time.astimezone(local_tz)
-
             timeline.append({
-                'tiempo': time_local.strftime('%H:%M:%S'),
+                'tiempo': act.time.strftime('%H:%M:%S'),
                 'evento': evento_map.get(act.event, act.event),
                 'tipo': act.event
             })
@@ -575,10 +567,6 @@ class AgentAnalyticsService:
             ocupacion = min(ocupacion, 100)  # No puede ser mayor a 100%
 
             # Convertir timestamps a timezone local
-            local_tz = config.get_timezone()
-            primer_login_local = primer_login.astimezone(local_tz) if primer_login else None
-            ultimo_logout_local = ultimo_logout.astimezone(local_tz) if ultimo_logout else None
-
             agentes_dict[agente_id].update({
                 'llamadas_contestadas': metricas['llamadas_atendidas'],
                 'num_sesiones': num_sesiones,
@@ -591,8 +579,8 @@ class AgentAnalyticsService:
                 'tiempo_total_pausa': int(tiempo_total_pausas),
                 'tiempo_promedio_pausa': tiempo_promedio_pausa,
                 'ocupacion': ocupacion,
-                'primer_login': primer_login_local.strftime('%H:%M:%S') if primer_login_local else '-',
-                'ultimo_logout': ultimo_logout_local.strftime('%H:%M:%S') if ultimo_logout_local else '-'
+                'primer_login': primer_login.strftime('%H:%M:%S') if primer_login else '-',
+                'ultimo_logout': ultimo_logout.strftime('%H:%M:%S') if ultimo_logout else '-'
             })
 
         # Retornar solo agentes con llamadas
@@ -607,14 +595,6 @@ class AgentAnalyticsService:
         """
         filters = filters or {}
 
-        # Convertir filtros a timezone-aware (timezone local) si existen
-        local_tz = config.get_timezone()
-        if filters.get('fecha_inicio') and filters['fecha_inicio'].tzinfo is None:
-            filters['fecha_inicio'] = filters['fecha_inicio'].replace(tzinfo=local_tz)
-        if filters.get('fecha_fin') and filters['fecha_fin'].tzinfo is None:
-            filters['fecha_fin'] = filters['fecha_fin'].replace(tzinfo=local_tz)
-
-        print(f"★★★ get_detalle_sesiones_agente - agente_id={agente_id}, filters={filters}")
         logger.info(f"get_detalle_sesiones_agente - agente_id={agente_id}, filters={filters}")
 
         # Obtener TODAS las actividades del agente (sin filtro de fecha en SQL)
@@ -629,7 +609,6 @@ class AgentAnalyticsService:
         tiempo_login = None
         sesiones_totales = 0
         sesiones_filtradas = 0
-        local_tz = config.get_timezone()
 
         for actividad in actividades:
             if actividad.event == 'ADDMEMBER':
@@ -641,13 +620,8 @@ class AgentAnalyticsService:
                 # Aplicar filtros de fecha DESPUÉS de emparejar
                 incluir_sesion = True
                 if filters.get('fecha_inicio') and filters.get('fecha_fin'):
-                    # Solo incluir si la sesión tiene overlap con el rango
-                    # Excluir si termina antes del inicio O empieza después del fin
                     if actividad.time < filters['fecha_inicio'] or tiempo_login > filters['fecha_fin']:
                         incluir_sesion = False
-                        print(f"★★★ Sesión EXCLUIDA: login={tiempo_login}, logout={actividad.time}, rango={filters['fecha_inicio']} a {filters['fecha_fin']}")
-                    else:
-                        print(f"★★★ Sesión INCLUIDA: login={tiempo_login}, logout={actividad.time}, rango={filters['fecha_inicio']} a {filters['fecha_fin']}")
 
                 if incluir_sesion:
                     sesiones_filtradas += 1
@@ -655,13 +629,9 @@ class AgentAnalyticsService:
                     minutos = int((duracion_segundos % 3600) // 60)
                     segundos = int(duracion_segundos % 60)
 
-                    # Convertir timestamps a timezone local
-                    tiempo_login_local = tiempo_login.astimezone(local_tz)
-                    tiempo_logout_local = actividad.time.astimezone(local_tz)
-
                     sesiones.append({
-                        'fecha_inicio': tiempo_login_local.strftime('%Y-%m-%d %H:%M:%S'),
-                        'fecha_fin': tiempo_logout_local.strftime('%Y-%m-%d %H:%M:%S'),
+                        'fecha_inicio': tiempo_login.strftime('%Y-%m-%d %H:%M:%S'),
+                        'fecha_fin': actividad.time.strftime('%Y-%m-%d %H:%M:%S'),
                         'duracion': f'{horas:02d}:{minutos:02d}:{segundos:02d}',
                         'duracion_segundos': int(duracion_segundos)
                     })
@@ -678,14 +648,6 @@ class AgentAnalyticsService:
         """
         filters = filters or {}
 
-        # Convertir filtros a timezone-aware (timezone local) si existen
-        local_tz = config.get_timezone()
-        if filters.get('fecha_inicio') and filters['fecha_inicio'].tzinfo is None:
-            filters['fecha_inicio'] = filters['fecha_inicio'].replace(tzinfo=local_tz)
-        if filters.get('fecha_fin') and filters['fecha_fin'].tzinfo is None:
-            filters['fecha_fin'] = filters['fecha_fin'].replace(tzinfo=local_tz)
-
-        print(f"★★★ get_detalle_pausas_agente - agente_id={agente_id}, filters={filters}")
         logger.info(f"get_detalle_pausas_agente - agente_id={agente_id}, filters={filters}")
 
         # Obtener TODAS las actividades del agente (sin filtro de fecha en SQL)
@@ -714,7 +676,6 @@ class AgentAnalyticsService:
         pausa_id_actual = None
         pausas_totales = 0
         pausas_filtradas = 0
-        local_tz = config.get_timezone()
 
         for actividad in actividades:
             if actividad.event == 'PAUSEALL':
@@ -727,13 +688,8 @@ class AgentAnalyticsService:
                 # Aplicar filtros de fecha DESPUÉS de emparejar
                 incluir_pausa = True
                 if filters.get('fecha_inicio') and filters.get('fecha_fin'):
-                    # Solo incluir si la pausa tiene overlap con el rango
-                    # Excluir si termina antes del inicio O empieza después del fin
                     if actividad.time < filters['fecha_inicio'] or tiempo_pausa_inicio > filters['fecha_fin']:
                         incluir_pausa = False
-                        print(f"★★★ Pausa EXCLUIDA: inicio={tiempo_pausa_inicio}, fin={actividad.time}, rango={filters['fecha_inicio']} a {filters['fecha_fin']}")
-                    else:
-                        print(f"★★★ Pausa INCLUIDA: inicio={tiempo_pausa_inicio}, fin={actividad.time}, rango={filters['fecha_inicio']} a {filters['fecha_fin']}")
 
                 if incluir_pausa:
                     pausas_filtradas += 1
@@ -743,15 +699,11 @@ class AgentAnalyticsService:
 
                     pausa_info = pausas_dict.get(pausa_id_actual, {'tipo': 'P', 'nombre': 'Otra'})
 
-                    # Convertir timestamps a timezone local
-                    tiempo_pausa_inicio_local = tiempo_pausa_inicio.astimezone(local_tz)
-                    tiempo_pausa_fin_local = actividad.time.astimezone(local_tz)
-
                     pausas.append({
                         'tipo': pausa_info['tipo'],
                         'nombre': pausa_info['nombre'],
-                        'fecha_inicio': tiempo_pausa_inicio_local.strftime('%Y-%m-%d %H:%M:%S'),
-                        'fecha_fin': tiempo_pausa_fin_local.strftime('%Y-%m-%d %H:%M:%S'),
+                        'fecha_inicio': tiempo_pausa_inicio.strftime('%Y-%m-%d %H:%M:%S'),
+                        'fecha_fin': actividad.time.strftime('%Y-%m-%d %H:%M:%S'),
                         'duracion': f'{horas:02d}:{minutos:02d}:{segundos:02d}',
                         'duracion_segundos': int(duracion_segundos)
                     })
@@ -759,7 +711,6 @@ class AgentAnalyticsService:
                 tiempo_pausa_inicio = None
                 pausa_id_actual = None
 
-        print(f"★★★ Pausas totales: {pausas_totales}, filtradas: {pausas_filtradas}")
         logger.info(f"Pausas totales encontradas: {pausas_totales}, después de filtros: {pausas_filtradas}")
         return pausas
 

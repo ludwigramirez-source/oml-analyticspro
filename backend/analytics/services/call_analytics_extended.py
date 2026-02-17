@@ -39,11 +39,11 @@ class CallAnalyticsExtended:
     ]
 
     # Otros eventos NO atendidas - sincronizado con CallAnalyticsService
+    # NOTA: NONDIALPLAN y CONGESTION excluidos - no son llamadas reales
     EVENTOS_NO_ATENDIDAS = [
         'NOANSWER',           # No contesta (saliente)
         'CANCEL',             # Cancelada (saliente)
         'CHANUNAVAIL',        # Canal no disponible
-        'NONDIALPLAN',        # Sin ruta de marcado
         'BUSY',               # Ocupado
         'DIAL',               # Solo quedó en DIAL
     ]
@@ -66,20 +66,26 @@ class CallAnalyticsExtended:
         'CHANUNAVAIL': 'Canal no disponible'
     }
 
-    # Eventos de transferencias (basados en datos reales de OmniLeads)
+    # Eventos de transferencias (nombres reales de OmniLeads)
     EVENTOS_TRANSFERENCIAS = {
-        'BT-TRY': 'Intento de transfer ciego',
-        'BT-ANSWER': 'Transfer ciego atendido',
-        'BT-BUSY': 'Transfer ciego - destino ocupado',
-        'BT-NOANSWER': 'Transfer ciego - sin respuesta',
-        'BT-CHANUNAVAIL': 'Transfer ciego - canal no disponible',
-        'COMPLETE-BT': 'Llamada completada vía transfer ciego',
-        'CT-TRY': 'Intento de transfer consultivo',
-        'CT-ANSWER': 'Transfer consultivo atendido',
-        'CT-CANCEL': 'Transfer consultivo cancelado',
-        'CT-BUSY': 'Transfer consultivo - destino ocupado',
-        'COMPLETE-CT': 'Llamada completada vía transfer consultivo',
-        'ENTERQUEUE-TRANSFER': 'Llamada ingresó a cola por transferencia'
+        # Transfer Ciego (Blind Transfer Out)
+        'BTOUT-TRY': 'Intento de transfer ciego',
+        'BTOUT-ANSWER': 'Transfer ciego atendido',
+        'BTOUT-NONDIALPLAN': 'Transfer ciego - sin ruta',
+        'BTOUT-CONGESTION': 'Transfer ciego - congestión',
+        'COMPLETE-BTOUT': 'Llamada completada vía transfer ciego',
+        # Transfer Consultivo (Consultive Transfer Out)
+        'CTOUT-TRY': 'Intento de transfer consultivo',
+        'CTOUT-ANSWER': 'Transfer consultivo atendido',
+        'CTOUT-NONDIALPLAN': 'Transfer consultivo - sin ruta',
+        'CTOUT-DISCARD': 'Transfer consultivo descartado',
+        'COMPLETE-CTOUT': 'Llamada completada vía transfer consultivo',
+        # Transfer de Campaña
+        'CAMPT-TRY': 'Intento de transfer a campaña',
+        'CAMPT-COMPLETE': 'Transfer a campaña completado',
+        'COMPLETE-CAMPT': 'Llamada completada vía transfer campaña',
+        # Cola
+        'ENTERQUEUE-TRANSFER': 'Llamada ingresó a cola por transferencia',
     }
 
     def __init__(self, db: Session):
@@ -357,24 +363,21 @@ class CallAnalyticsExtended:
             LlamadaLog.tipo_llamada == 1  # Salientes = 1
         )
 
-        if filters.get('fecha_inicio'):
-            subquery = subquery.filter(LlamadaLog.time >= filters['fecha_inicio'])
-        if filters.get('fecha_fin'):
-            subquery = subquery.filter(LlamadaLog.time <= filters['fecha_fin'])
-        if filters.get('campana_ids'):
-            subquery = subquery.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
-        if filters.get('agente_ids'):
-            subquery = subquery.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
+        # Aplicar todos los filtros (fecha, campaña, agente)
+        subquery = self._apply_filters(subquery, filters)
 
         subquery = subquery.group_by(LlamadaLog.callid).subquery()
 
         # Query principal: unir para obtener el evento final de cada llamada
+        # Excluir NONDIALPLAN y CONGESTION (no son llamadas reales)
         query = self.db.query(LlamadaLog).join(
             subquery,
             and_(
                 LlamadaLog.callid == subquery.c.callid,
                 LlamadaLog.id == subquery.c.ultimo_id
             )
+        ).filter(
+            ~LlamadaLog.event.in_(['NONDIALPLAN', 'CONGESTION'])
         )
 
         # Contar llamadas únicas por categoría basada en evento final
@@ -395,16 +398,21 @@ class CallAnalyticsExtended:
 
         # Fallos técnicos
         fallos = query.filter(
-            LlamadaLog.event.in_(['CONGESTION', 'NONDIALPLAN', 'CHANUNAVAIL'])
+            LlamadaLog.event == 'CHANUNAVAIL'
         ).count()
 
-        # Transferencias y otros
+        # Transferencias y otros (nombres correctos de OmniLeads)
         otros = query.filter(
-            LlamadaLog.event.in_(['BT-TRY', 'BT-BUSY', 'CAMPT-COMPLETE', 'CAMPT-TRY'])
+            LlamadaLog.event.in_([
+                'BTOUT-TRY', 'CAMPT-COMPLETE', 'CAMPT-TRY',
+                'CTOUT-TRY', 'ANSWER', 'DIAL'
+            ])
         ).count()
 
         # Calcular tasa de contactación
-        tasa_contactacion = round(contestadas / total_llamadas * 100, 2) if total_llamadas > 0 else 0
+        tasa_contactacion = round(
+            contestadas / total_llamadas * 100, 2
+        ) if total_llamadas > 0 else 0
 
         # Preparar eventos para el gráfico
         eventos = {
@@ -440,6 +448,134 @@ class CallAnalyticsExtended:
                 'total_fallos': fallos,
                 'tasa_contactacion': tasa_contactacion
             }
+        }
+
+    def get_llamadas_salientes_detalle(
+        self, filters: Dict = None, page: int = 1,
+        per_page: int = 50, sort_by: str = None,
+        sort_dir: str = 'desc'
+    ) -> Dict:
+        """
+        Detalle paginado de llamadas salientes con último evento por callid.
+        Mismo patrón que get_llamadas_detalladas de CallAnalyticsService.
+        Excluye NONDIALPLAN y CONGESTION (EVENTOS_EXCLUIDOS).
+        """
+        filters = filters or {}
+
+        # Subquery: último evento de cada llamada saliente
+        subquery = self.db.query(
+            LlamadaLog.callid,
+            func.max(LlamadaLog.id).label('ultimo_id')
+        ).filter(
+            LlamadaLog.tipo_llamada == 1  # Solo salientes
+        )
+
+        # Aplicar filtros de fecha y campaña/agente
+        subquery = self._apply_filters(subquery, filters)
+        subquery = subquery.group_by(LlamadaLog.callid).subquery()
+
+        # Query principal: JOIN con subquery para obtener evento final
+        query = self.db.query(
+            LlamadaLog,
+            Campana.nombre.label('campana_nombre'),
+            User.first_name.label('agente_nombre'),
+            User.last_name.label('agente_apellido')
+        ).join(
+            subquery,
+            and_(
+                LlamadaLog.callid == subquery.c.callid,
+                LlamadaLog.id == subquery.c.ultimo_id
+            )
+        ).filter(
+            # Excluir NONDIALPLAN, CONGESTION (no son llamadas reales)
+            ~LlamadaLog.event.in_(['NONDIALPLAN', 'CONGESTION'])
+        ).outerjoin(
+            Campana, LlamadaLog.campana_id == Campana.id
+        ).outerjoin(
+            AgenteProfile, LlamadaLog.agente_id == AgenteProfile.id
+        ).outerjoin(
+            User, AgenteProfile.user_id == User.id
+        )
+
+        # Total de registros
+        total = query.count()
+
+        # Ordenamiento server-side
+        sort_map = {
+            'fecha': LlamadaLog.time,
+            'hora': LlamadaLog.time,
+            'duracion': LlamadaLog.duracion_llamada,
+            'espera': LlamadaLog.bridge_wait_time,
+            'callid': LlamadaLog.callid,
+            'numero': LlamadaLog.numero_marcado,
+            'resultado': LlamadaLog.event,
+            'campana': Campana.nombre,
+            'agente': User.first_name,
+        }
+        sort_column = sort_map.get(sort_by, LlamadaLog.time)
+        if sort_dir == 'asc':
+            query = query.order_by(sort_column.asc())
+        else:
+            query = query.order_by(sort_column.desc())
+
+        # Paginación
+        offset = (page - 1) * per_page
+        resultados = query.offset(offset).limit(per_page).all()
+
+        llamadas = []
+        for r in resultados:
+            llamada = r.LlamadaLog
+
+            # Determinar resultado de la llamada
+            evento = llamada.event
+            if evento in ('COMPLETEAGENT', 'COMPLETEOUTNUM'):
+                resultado = 'Contestada'
+            elif evento in ('NOANSWER', 'CANCEL'):
+                resultado = 'No contestada'
+            elif evento == 'BUSY':
+                resultado = 'Ocupado'
+            elif evento == 'CHANUNAVAIL':
+                resultado = 'Canal no disponible'
+            elif evento == 'DIAL':
+                resultado = 'Solo marcación'
+            elif evento == 'ANSWER':
+                resultado = 'Contestada (sin cierre)'
+            else:
+                resultado = evento
+
+            # Quién colgó (solo para contestadas)
+            quien_colgo = ''
+            if evento == 'COMPLETEAGENT':
+                quien_colgo = 'Agente'
+            elif evento == 'COMPLETEOUTNUM':
+                quien_colgo = 'Cliente'
+
+            nombre_agente = (
+                f'{r.agente_nombre or ""} {r.agente_apellido or ""}'.strip()
+                or f'Agente {llamada.agente_id}'
+            )
+
+            llamadas.append({
+                'id': llamada.id,
+                'callid': llamada.callid,
+                'fecha': llamada.time.strftime('%Y-%m-%d'),
+                'hora': llamada.time.strftime('%H:%M:%S'),
+                'campana': r.campana_nombre or f'Campaña {llamada.campana_id}',
+                'agente': nombre_agente,
+                'numero': llamada.numero_marcado or '-',
+                'duracion': llamada.duracion_llamada or 0,
+                'espera': llamada.bridge_wait_time or 0,
+                'evento': evento,
+                'resultado': resultado,
+                'quien_colgo': quien_colgo,
+            })
+
+        return {
+            'data': llamadas,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total + per_page - 1) // per_page
         }
 
     def get_llamadas_manuales_vs_dialer(self, filters: Dict = None) -> Dict:
@@ -521,13 +657,12 @@ class CallAnalyticsExtended:
         """
         filters = filters or {}
 
+        # NONDIALPLAN y CONGESTION excluidos: no son llamadas reales
         eventos_no_conexion = [
             'ABANDON',
             'ABANDONWEL',
             'ABANDON-CTOUT',
             'EXITWITHTIMEOUT',
-            'CONGESTION',
-            'NONDIALPLAN',
             'CHANUNAVAIL',
             'NOANSWER',
             'CANCEL'
@@ -551,8 +686,6 @@ class CallAnalyticsExtended:
             'ABANDONWEL': 'Abandono en bienvenida',
             'ABANDON-CTOUT': 'Abandono en transfer',
             'EXITWITHTIMEOUT': 'Timeout',
-            'CONGESTION': 'Congestión',
-            'NONDIALPLAN': 'Sin ruta',
             'CHANUNAVAIL': 'Canal no disponible',
             'NOANSWER': 'No contestada',
             'CANCEL': 'Cancelada'
@@ -696,6 +829,16 @@ class CallAnalyticsExtended:
         if filters.get('fecha_fin'):
             query = query.filter(ActividadAgenteLog.time <= filters['fecha_fin'])
 
+        # Filtrar por agente si se especifica
+        if filters.get('agente_ids'):
+            query = query.filter(
+                ActividadAgenteLog.agente_id.in_(filters['agente_ids'])
+            )
+        elif filters.get('agente_id'):
+            query = query.filter(
+                ActividadAgenteLog.agente_id == filters['agente_id']
+            )
+
         resultados = query.group_by('dia', 'hora').all()
 
         # Crear matriz 7 días x 24 horas
@@ -816,38 +959,42 @@ class CallAnalyticsExtended:
         base_query = self._apply_filters(base_query, filters)
 
         unique_counts = base_query.with_entities(
-            # Transfer Ciego
-            func.count(func.distinct(case((LlamadaLog.event == 'BT-TRY', LlamadaLog.callid)))).label('bt_intentos'),
-            func.count(func.distinct(case((LlamadaLog.event == 'COMPLETE-BT', LlamadaLog.callid)))).label('bt_completados'),
-            func.count(func.distinct(case((LlamadaLog.event == 'BT-ANSWER', LlamadaLog.callid)))).label('bt_atendidos'),
-            func.count(func.distinct(case((LlamadaLog.event == 'BT-BUSY', LlamadaLog.callid)))).label('bt_ocupados'),
-            func.count(func.distinct(case((LlamadaLog.event == 'BT-NOANSWER', LlamadaLog.callid)))).label('bt_sin_respuesta'),
-            func.count(func.distinct(case((LlamadaLog.event == 'BT-CHANUNAVAIL', LlamadaLog.callid)))).label('bt_no_disponible'),
-            # Transfer Consultivo
-            func.count(func.distinct(case((LlamadaLog.event == 'CT-TRY', LlamadaLog.callid)))).label('ct_intentos'),
-            func.count(func.distinct(case((LlamadaLog.event == 'COMPLETE-CT', LlamadaLog.callid)))).label('ct_completados'),
-            func.count(func.distinct(case((LlamadaLog.event == 'CT-ANSWER', LlamadaLog.callid)))).label('ct_atendidos'),
-            func.count(func.distinct(case((LlamadaLog.event == 'CT-CANCEL', LlamadaLog.callid)))).label('ct_cancelados'),
-            func.count(func.distinct(case((LlamadaLog.event == 'CT-BUSY', LlamadaLog.callid)))).label('ct_ocupados')
+            # Transfer Ciego (BTOUT)
+            func.count(func.distinct(case((LlamadaLog.event == 'BTOUT-TRY', LlamadaLog.callid)))).label('bt_intentos'),
+            func.count(func.distinct(case((LlamadaLog.event == 'COMPLETE-BTOUT', LlamadaLog.callid)))).label('bt_completados'),
+            func.count(func.distinct(case((LlamadaLog.event == 'BTOUT-ANSWER', LlamadaLog.callid)))).label('bt_atendidos'),
+            func.count(func.distinct(case((LlamadaLog.event == 'BTOUT-CONGESTION', LlamadaLog.callid)))).label('bt_fallidos'),
+            func.count(func.distinct(case((LlamadaLog.event == 'BTOUT-NONDIALPLAN', LlamadaLog.callid)))).label('bt_sin_ruta'),
+            # Transfer Consultivo (CTOUT)
+            func.count(func.distinct(case((LlamadaLog.event == 'CTOUT-TRY', LlamadaLog.callid)))).label('ct_intentos'),
+            func.count(func.distinct(case((LlamadaLog.event == 'COMPLETE-CTOUT', LlamadaLog.callid)))).label('ct_completados'),
+            func.count(func.distinct(case((LlamadaLog.event == 'CTOUT-ANSWER', LlamadaLog.callid)))).label('ct_atendidos'),
+            func.count(func.distinct(case((LlamadaLog.event == 'CTOUT-DISCARD', LlamadaLog.callid)))).label('ct_descartados'),
+            func.count(func.distinct(case((LlamadaLog.event == 'CTOUT-NONDIALPLAN', LlamadaLog.callid)))).label('ct_sin_ruta'),
+            # Transfer Campaña (CAMPT)
+            func.count(func.distinct(case((LlamadaLog.event == 'CAMPT-TRY', LlamadaLog.callid)))).label('campt_intentos'),
+            func.count(func.distinct(case((LlamadaLog.event.in_(['CAMPT-COMPLETE', 'COMPLETE-CAMPT']), LlamadaLog.callid)))).label('campt_completados'),
         ).first()
 
         # Extraer resultados
         bt_intentos = unique_counts.bt_intentos or 0
         bt_completados = unique_counts.bt_completados or 0
         bt_atendidos = unique_counts.bt_atendidos or 0
-        bt_ocupados = unique_counts.bt_ocupados or 0
-        bt_sin_respuesta = unique_counts.bt_sin_respuesta or 0
-        bt_no_disponible = unique_counts.bt_no_disponible or 0
+        bt_fallidos = unique_counts.bt_fallidos or 0
+        bt_sin_ruta = unique_counts.bt_sin_ruta or 0
 
         ct_intentos = unique_counts.ct_intentos or 0
         ct_completados = unique_counts.ct_completados or 0
         ct_atendidos = unique_counts.ct_atendidos or 0
-        ct_cancelados = unique_counts.ct_cancelados or 0
-        ct_ocupados = unique_counts.ct_ocupados or 0
+        ct_descartados = unique_counts.ct_descartados or 0
+        ct_sin_ruta = unique_counts.ct_sin_ruta or 0
+
+        campt_intentos = unique_counts.campt_intentos or 0
+        campt_completados = unique_counts.campt_completados or 0
 
         # Total de transferencias exitosas y intentos
-        total_exitosas = bt_completados + ct_completados
-        total_intentos = bt_intentos + ct_intentos
+        total_exitosas = bt_completados + ct_completados + campt_completados
+        total_intentos = bt_intentos + ct_intentos + campt_intentos
 
         # Ingresos a cola por transferencia - CONTAR LLAMADAS ÚNICAS, no eventos
         # Obtener todos los callids que tienen ENTERQUEUE-TRANSFER
@@ -890,18 +1037,22 @@ class CallAnalyticsExtended:
                     'intentos': bt_intentos,
                     'atendidos': bt_atendidos,
                     'completados': bt_completados,
-                    'ocupados': bt_ocupados,
-                    'sin_respuesta': bt_sin_respuesta,
-                    'no_disponible': bt_no_disponible,
+                    'fallidos': bt_fallidos,
+                    'sin_ruta': bt_sin_ruta,
                     'tasa_exito': round(bt_completados / bt_intentos * 100, 2) if bt_intentos > 0 else 0
                 },
                 'transfer_consultivo': {
                     'intentos': ct_intentos,
                     'atendidos': ct_atendidos,
                     'completados': ct_completados,
-                    'cancelados': ct_cancelados,
-                    'ocupados': ct_ocupados,
+                    'descartados': ct_descartados,
+                    'sin_ruta': ct_sin_ruta,
                     'tasa_exito': round(ct_completados / ct_intentos * 100, 2) if ct_intentos > 0 else 0
+                },
+                'transfer_campana': {
+                    'intentos': campt_intentos,
+                    'completados': campt_completados,
+                    'tasa_exito': round(campt_completados / campt_intentos * 100, 2) if campt_intentos > 0 else 0
                 },
                 'totales': {
                     'total_intentos': total_intentos,

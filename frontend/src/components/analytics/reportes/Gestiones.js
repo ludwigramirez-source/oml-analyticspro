@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import analyticsApi from '../../../services/analyticsApi';
 import ApexChart from '../ApexChart';
-import { ExportButton } from '../../../utils/excelExport';
+import { ExportButton, ExportButtonAsync } from '../../../utils/excelExport';
+import Pagination from '../Pagination';
 
 const Gestiones = ({ filters }) => {
   const [loading, setLoading] = useState(true);
@@ -12,15 +13,18 @@ const Gestiones = ({ filters }) => {
   const [porDia, setPorDia] = useState([]);
   const [detalle, setDetalle] = useState({ data: [], total: 0, page: 1, total_pages: 0 });
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [loadingDetalle, setLoadingDetalle] = useState(false);
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState('asc');
 
   useEffect(() => {
     loadData();
   }, [filters]);
 
   useEffect(() => {
-    loadDetalle(currentPage);
-  }, [currentPage, filters]);
+    loadDetalle(currentPage, pageSize);
+  }, [currentPage, pageSize, filters]);
 
   const loadData = async () => {
     setLoading(true);
@@ -46,10 +50,10 @@ const Gestiones = ({ filters }) => {
     }
   };
 
-  const loadDetalle = async (page) => {
+  const loadDetalle = async (page, perPage = 25) => {
     setLoadingDetalle(true);
     try {
-      const result = await analyticsApi.getGestionesDetalle(filters, page, 50);
+      const result = await analyticsApi.getGestionesDetalle(filters, page, perPage);
       setDetalle(result || { data: [], total: 0, page: 1, total_pages: 0 });
     } catch (error) {
       console.error('Error loading gestiones detalle:', error);
@@ -59,9 +63,79 @@ const Gestiones = ({ filters }) => {
     }
   };
 
+  // Fetch ALL pages para export Excel
+  const fetchAllGestiones = async (onProgress) => {
+    const allData = [];
+    let page = 1;
+    let totalPages = 1;
+    const perPage = 200;
+    while (page <= totalPages) {
+      const result = await analyticsApi.getGestionesDetalle(filters, page, perPage);
+      allData.push(...(result.data || []));
+      if (page === 1) totalPages = result.total_pages || 1;
+      if (onProgress) onProgress(allData.length, result.total || 0);
+      page++;
+    }
+    return allData;
+  };
+
   const formatNumber = (num) => {
     return typeof num === 'number' ? num.toLocaleString('es-CO') : '0';
   };
+
+  // Sort para la tabla detalle (local, dentro de la página)
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedItems = React.useMemo(() => {
+    const items = detalle.data || [];
+    if (!items.length || !sortField) return items;
+    return [...items].sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+      if (aVal === null || aVal === undefined) return 1;
+      if (bVal === null || bVal === undefined) return -1;
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = (bVal || '').toLowerCase();
+      }
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [detalle.data, sortField, sortDirection]);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (size) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  };
+
+  const totalItems = detalle.total || 0;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+
+  const SortHeader = ({ field, children }) => (
+    <th
+      className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+      onClick={() => handleSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {children}
+        {sortField === field && (
+          <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
+        )}
+      </div>
+    </th>
+  );
 
   if (loading) {
     return (
@@ -81,10 +155,6 @@ const Gestiones = ({ filters }) => {
     value: Number(item.total_gestiones || 0),
   }));
 
-  const tendenciaData = porDia.map(item => ({
-    label: item.dia || '',
-    value: Number(item.total || 0),
-  }));
 
   return (
     <div>
@@ -116,17 +186,6 @@ const Gestiones = ({ filters }) => {
             </p>
             <p className="text-xs text-gray-400">{formatNumber(kpis.top_incidencia_total)} gestiones</p>
           </div>
-        </div>
-      )}
-
-      {/* Tendencia por Dia */}
-      {tendenciaData.length > 0 && (
-        <div className="mb-6">
-          <ApexChart
-            type="area"
-            data={tendenciaData}
-            title="Tendencia de Gestiones por Dia"
-          />
         </div>
       )}
 
@@ -248,84 +307,75 @@ const Gestiones = ({ filters }) => {
         )}
       </div>
 
-      {/* Tabla Detalle */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold text-gray-800">
-            Detalle de Gestiones
-            <span className="text-sm font-normal text-gray-500 ml-2">
-              ({formatNumber(detalle.total)} registros)
-            </span>
-          </h3>
-          {detalle.data.length > 0 && (
-            <ExportButton data={detalle.data} filename="gestiones_detalle" label="Exportar" />
-          )}
+      {/* Tabla Detalle - Mismo estilo que TablaLlamadas */}
+      <div className="bg-white rounded-lg border border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-gray-800">Detalle de Gestiones</h3>
+          <ExportButtonAsync
+            fetchAllData={fetchAllGestiones}
+            filename="gestiones_detalle"
+            label="Exportar a Excel"
+            totalItems={totalItems}
+          />
         </div>
 
         {loadingDetalle ? (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-3 text-sm text-gray-500">Cargando...</span>
           </div>
-        ) : detalle.data.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">No se encontraron gestiones</p>
         ) : (
           <>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hora</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">NIS</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Telefono</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Incidencia</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agente</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Campana</th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Call ID</th>
+                    <SortHeader field="fecha">Fecha</SortHeader>
+                    <SortHeader field="hora">Hora</SortHeader>
+                    <SortHeader field="nombre">Nombre</SortHeader>
+                    <SortHeader field="nis">NIS</SortHeader>
+                    <SortHeader field="telefono">Telefono</SortHeader>
+                    <SortHeader field="incidencia">Incidencia</SortHeader>
+                    <SortHeader field="agente">Agente</SortHeader>
+                    <SortHeader field="campana">Campana</SortHeader>
+                    <SortHeader field="call_id">Call ID</SortHeader>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {detalle.data.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 text-sm text-gray-900 whitespace-nowrap">{item.fecha}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 whitespace-nowrap">{item.hora}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900">{item.nombre}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 whitespace-nowrap">{item.nis}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900 whitespace-nowrap">{item.telefono}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900">{item.incidencia}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900">{item.agente}</td>
-                      <td className="px-3 py-2 text-sm text-gray-900">{item.campana}</td>
-                      <td className="px-3 py-2 text-sm text-gray-500 text-xs">{item.call_id}</td>
+                  {sortedItems.length === 0 ? (
+                    <tr>
+                      <td colSpan="9" className="px-6 py-8 text-center text-gray-500">
+                        No se encontraron gestiones
+                      </td>
                     </tr>
-                  ))}
+                  ) : (
+                    sortedItems.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 text-sm text-gray-900 whitespace-nowrap">{item.fecha}</td>
+                        <td className="px-3 py-2 text-sm text-gray-600 whitespace-nowrap">{item.hora}</td>
+                        <td className="px-3 py-2 text-sm text-gray-900">{item.nombre}</td>
+                        <td className="px-3 py-2 text-sm text-gray-900 whitespace-nowrap">{item.nis}</td>
+                        <td className="px-3 py-2 text-sm text-gray-600 font-medium whitespace-nowrap">{item.telefono}</td>
+                        <td className="px-3 py-2 text-sm text-gray-900">{item.incidencia}</td>
+                        <td className="px-3 py-2 text-sm text-gray-900">{item.agente}</td>
+                        <td className="px-3 py-2 text-sm text-gray-900">{item.campana}</td>
+                        <td className="px-3 py-2 text-xs text-gray-500 font-mono whitespace-nowrap">{item.call_id}</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
 
-            {/* Paginacion */}
-            {detalle.total_pages > 1 && (
-              <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-500">
-                  Pagina {detalle.page} de {detalle.total_pages}
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage <= 1}
-                    className="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Anterior
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(detalle.total_pages, p + 1))}
-                    disabled={currentPage >= detalle.total_pages}
-                    className="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Siguiente
-                  </button>
-                </div>
-              </div>
+            {totalItems > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                pageSize={pageSize}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+                totalItems={totalItems}
+              />
             )}
           </>
         )}

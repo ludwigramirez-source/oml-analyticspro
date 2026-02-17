@@ -39,15 +39,19 @@ const Transferencias = ({ filters }) => {
 
   const getEventoBadge = (evento) => {
     const badges = {
-      'BT-TRY': 'bg-blue-100 text-blue-800',
-      'BT-ANSWER': 'bg-green-100 text-green-800',
-      'BT-BUSY': 'bg-orange-100 text-orange-800',
-      'BT-NOANSWER': 'bg-red-100 text-red-800',
-      'COMPLETE-BT': 'bg-green-100 text-green-800',
-      'CT-TRY': 'bg-purple-100 text-purple-800',
-      'CT-ANSWER': 'bg-green-100 text-green-800',
-      'CT-CANCEL': 'bg-yellow-100 text-yellow-800',
-      'COMPLETE-CT': 'bg-green-100 text-green-800',
+      'BTOUT-TRY': 'bg-blue-100 text-blue-800',
+      'BTOUT-ANSWER': 'bg-green-100 text-green-800',
+      'BTOUT-CONGESTION': 'bg-orange-100 text-orange-800',
+      'BTOUT-NONDIALPLAN': 'bg-red-100 text-red-800',
+      'COMPLETE-BTOUT': 'bg-green-100 text-green-800',
+      'CTOUT-TRY': 'bg-purple-100 text-purple-800',
+      'CTOUT-ANSWER': 'bg-green-100 text-green-800',
+      'CTOUT-DISCARD': 'bg-yellow-100 text-yellow-800',
+      'CTOUT-NONDIALPLAN': 'bg-red-100 text-red-800',
+      'COMPLETE-CTOUT': 'bg-green-100 text-green-800',
+      'CAMPT-TRY': 'bg-indigo-100 text-indigo-800',
+      'CAMPT-COMPLETE': 'bg-green-100 text-green-800',
+      'COMPLETE-CAMPT': 'bg-green-100 text-green-800',
       'ENTERQUEUE-TRANSFER': 'bg-indigo-100 text-indigo-800'
     };
     return badges[evento] || 'bg-gray-100 text-gray-800';
@@ -144,7 +148,7 @@ const Transferencias = ({ filters }) => {
       
       {/* Resumen por Tipo de Transferencia */}
       {analisis.resumen && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           {/* Transfer Ciego */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
@@ -169,16 +173,12 @@ const Transferencias = ({ filters }) => {
                 <span className="font-medium">{analisis.resumen.transfer_ciego.atendidos}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Ocupados</span>
-                <span className="font-medium text-orange-600">{analisis.resumen.transfer_ciego.ocupados}</span>
+                <span className="text-gray-600">Fallidos (congestión)</span>
+                <span className="font-medium text-orange-600">{analisis.resumen.transfer_ciego.fallidos}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Sin respuesta</span>
-                <span className="font-medium text-red-600">{analisis.resumen.transfer_ciego.sin_respuesta}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">No disponible</span>
-                <span className="font-medium text-red-600">{analisis.resumen.transfer_ciego.no_disponible}</span>
+                <span className="text-gray-600">Sin ruta</span>
+                <span className="font-medium text-red-600">{analisis.resumen.transfer_ciego.sin_ruta}</span>
               </div>
             </div>
             
@@ -222,12 +222,12 @@ const Transferencias = ({ filters }) => {
                 <span className="font-medium">{analisis.resumen.transfer_consultivo.atendidos}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Cancelados</span>
-                <span className="font-medium text-orange-600">{analisis.resumen.transfer_consultivo.cancelados}</span>
+                <span className="text-gray-600">Descartados</span>
+                <span className="font-medium text-orange-600">{analisis.resumen.transfer_consultivo.descartados}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Ocupados</span>
-                <span className="font-medium text-red-600">{analisis.resumen.transfer_consultivo.ocupados}</span>
+                <span className="text-gray-600">Sin ruta</span>
+                <span className="font-medium text-red-600">{analisis.resumen.transfer_consultivo.sin_ruta}</span>
               </div>
             </div>
             
@@ -246,6 +246,42 @@ const Transferencias = ({ filters }) => {
               </div>
             </div>
           </div>
+
+          {/* Transfer Campaña */}
+          {analisis.resumen.transfer_campana && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <span className="mr-2">🏢</span>
+                Transfer a Campaña
+              </h3>
+
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="bg-blue-50 p-3 rounded">
+                  <div className="text-xs text-gray-600">Intentos</div>
+                  <div className="text-2xl font-bold text-blue-600">{analisis.resumen.transfer_campana.intentos}</div>
+                </div>
+                <div className="bg-green-50 p-3 rounded">
+                  <div className="text-xs text-gray-600">Completados</div>
+                  <div className="text-2xl font-bold text-green-600">{analisis.resumen.transfer_campana.completados}</div>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t">
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-700 font-medium">Tasa de Éxito</span>
+                  <span className="font-bold text-green-600 text-lg">
+                    {analisis.resumen.transfer_campana.tasa_exito}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div
+                    className="bg-green-600 h-3 rounded-full transition-all"
+                    style={{ width: `${analisis.resumen.transfer_campana.tasa_exito}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

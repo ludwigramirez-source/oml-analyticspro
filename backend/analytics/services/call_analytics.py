@@ -40,11 +40,11 @@ class CallAnalyticsService:
     ]
 
     # Otros eventos de llamadas NO atendidas (errores/problemas)
+    # NOTA: NONDIALPLAN y CONGESTION excluidos - no son llamadas reales.
     EVENTOS_NO_ATENDIDAS = [
         'NOANSWER',           # No contesta (saliente)
         'CANCEL',             # Cancelada (saliente)
         'CHANUNAVAIL',        # Canal no disponible
-        'NONDIALPLAN',        # Sin ruta de marcado
         'BUSY',               # Ocupado
         'DIAL',               # Llamada que solo quedó en DIAL
     ]
@@ -59,6 +59,15 @@ class CallAnalyticsService:
         'HOLD',               # En espera
         'UNHOLD',             # Fin de espera
         'RINGNOANSWER',       # Timbrando sin respuesta (intermedio)
+        'CAMPT-TRY',          # Intento de transfer de campaña
+        'CAMPT-COMPLETE',     # Transfer de campaña completado
+        'CTOUT-TRY',          # Intento de transfer consultivo
+    ]
+
+    # Eventos EXCLUIDOS de todo conteo - no son llamadas reales
+    EVENTOS_EXCLUIDOS = [
+        'NONDIALPLAN',        # Click2call sin ruta válida (no es llamada)
+        'CONGESTION',         # Congestión de red (nunca conectó)
     ]
 
     # EVENTOS FINALES: Solo estos cuentan como "llamadas" en los totales
@@ -145,6 +154,30 @@ class CallAnalyticsService:
 
         return subquery.group_by(LlamadaLog.callid).subquery()
 
+    def _get_sort_column(self, sort_by, LlamadaLogModel,
+                         CampanaModel=None, UserModel=None):
+        """
+        Mapea nombre de campo frontend a columna SQLAlchemy
+        para ORDER BY server-side.
+        """
+        sort_map = {
+            'fecha': LlamadaLogModel.time,
+            'hora': LlamadaLogModel.time,
+            'duracion': LlamadaLogModel.duracion_llamada,
+            'espera': LlamadaLogModel.bridge_wait_time,
+            'tiempo_espera': LlamadaLogModel.bridge_wait_time,
+            'callid': LlamadaLogModel.callid,
+            'numero': LlamadaLogModel.numero_marcado,
+            'evento': LlamadaLogModel.event,
+            'agente_id': LlamadaLogModel.agente_id,
+            'campana_id': LlamadaLogModel.campana_id,
+        }
+        if CampanaModel:
+            sort_map['campana'] = CampanaModel.nombre
+        if UserModel:
+            sort_map['agente'] = UserModel.first_name
+        return sort_map.get(sort_by, LlamadaLogModel.time)
+
     def get_kpis(self, filters: Dict = None) -> Dict:
         """
         Obtiene los KPIs principales del call center.
@@ -197,9 +230,13 @@ class CallAnalyticsService:
         )
         clasificadas = llamadas_atendidas + llamadas_abandonadas + llamadas_no_atendidas_otras
 
-        # Total de llamadas únicas basadas en último evento
-        # Este es el total real de llamadas (cada callid = 1 llamada)
-        total_llamadas = self.db.query(
+        # Total de llamadas = solo las que caen en categorías finales
+        # Excluye NONDIALPLAN (click2call sin ruta) y eventos intermedios
+        total_llamadas = clasificadas
+
+        # Anomalías: llamadas cuyo último evento no está en ninguna
+        # categoría final (ENTERQUEUE, CONNECT, HOLD, etc.)
+        total_todas = self.db.query(
             func.count(func.distinct(LlamadaLog.callid))
         ).join(
             last_events_subq,
@@ -209,7 +246,7 @@ class CallAnalyticsService:
             )
         ).scalar() or 0
 
-        anomalias = max(0, total_llamadas - clasificadas)
+        anomalias = max(0, total_todas - clasificadas)
 
         # Total no atendidas = abandonadas + otras
         llamadas_no_atendidas_total = llamadas_abandonadas + llamadas_no_atendidas_otras
@@ -653,7 +690,11 @@ class CallAnalyticsService:
             'data': [r.total for r in resultados]
         }
 
-    def get_llamadas_abandonadas(self, filters: Dict = None, page: int = 1, per_page: int = 50) -> Dict:
+    def get_llamadas_abandonadas(
+        self, filters: Dict = None, page: int = 1,
+        per_page: int = 50, sort_by: str = None,
+        sort_dir: str = 'desc'
+    ) -> Dict:
         """
         Obtiene lista detallada de llamadas NO ATENDIDAS con paginación.
         Usa el último evento GLOBAL de cada llamada (MAX(id) por callid)
@@ -695,9 +736,18 @@ class CallAnalyticsService:
         # Total de registros
         total = query.count()
 
+        # Ordenamiento server-side
+        sort_column = self._get_sort_column(
+            sort_by, LlamadaLog, Campana, User
+        )
+        if sort_dir == 'asc':
+            query = query.order_by(sort_column.asc())
+        else:
+            query = query.order_by(sort_column.desc())
+
         # Paginación
         offset = (page - 1) * per_page
-        resultados = query.order_by(LlamadaLog.time.desc()).offset(offset).limit(per_page).all()
+        resultados = query.offset(offset).limit(per_page).all()
 
         llamadas = []
         for r in resultados:
@@ -732,7 +782,11 @@ class CallAnalyticsService:
             'total_pages': (total + per_page - 1) // per_page
         }
 
-    def get_llamadas_detalladas(self, filters: Dict = None, page: int = 1, per_page: int = 50) -> Dict:
+    def get_llamadas_detalladas(
+        self, filters: Dict = None, page: int = 1,
+        per_page: int = 50, sort_by: str = None,
+        sort_dir: str = 'desc'
+    ) -> Dict:
         """
         Obtiene lista detallada de llamadas ATENDIDAS con paginación.
         Usa el último evento GLOBAL de cada llamada (MAX(id) por callid)
@@ -769,9 +823,18 @@ class CallAnalyticsService:
         # Total de registros
         total = query.count()
 
+        # Ordenamiento server-side
+        sort_column = self._get_sort_column(
+            sort_by, LlamadaLog, Campana, User
+        )
+        if sort_dir == 'asc':
+            query = query.order_by(sort_column.asc())
+        else:
+            query = query.order_by(sort_column.desc())
+
         # Paginación
         offset = (page - 1) * per_page
-        resultados = query.order_by(LlamadaLog.time.desc()).offset(offset).limit(per_page).all()
+        resultados = query.offset(offset).limit(per_page).all()
 
         llamadas = []
         for r in resultados:
@@ -955,25 +1018,27 @@ class CallAnalyticsService:
         q_ent = base.filter(
             LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE
         )
-        entrantes_total = q_ent.count()
         entrantes_atendidas = q_ent.filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
         ).count()
         entrantes_abandonadas = q_ent.filter(
             LlamadaLog.event.in_(self.EVENTOS_ABANDONADAS)
         ).count()
+        # Total = solo categorías finales (excluye intermedios/NONDIALPLAN)
+        entrantes_total = entrantes_atendidas + entrantes_abandonadas
 
         # --- SALIENTES (tipo_llamada = 1) ---
         q_sal = base.filter(
             LlamadaLog.tipo_llamada == self.TIPO_SALIENTE
         )
-        salientes_total = q_sal.count()
         salientes_atendidas = q_sal.filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
         ).count()
         salientes_no_atendidas = q_sal.filter(
             LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS)
         ).count()
+        # Total = solo categorías finales (excluye intermedios/NONDIALPLAN)
+        salientes_total = salientes_atendidas + salientes_no_atendidas
 
         # Calcular tasas
         tasa_abandono_entrantes = round(

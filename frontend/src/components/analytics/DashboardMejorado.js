@@ -43,8 +43,11 @@ const DashboardMejorado = () => {
   const [horariaData, setHorariaData] = useState([]);
   const [nivelServicioData, setNivelServicioData] = useState([]);
   const [campanasConAlerta, setCampanasConAlerta] = useState([]);
-  const [llamadasDetalladas, setLlamadasDetalladas] = useState([]);
-  const [llamadasAbandonadas, setLlamadasAbandonadas] = useState([]);
+  // Paginación server-side para tablas detalladas
+  const [llamadasDetalladas, setLlamadasDetalladas] = useState({ data: [], total: 0, page: 1, total_pages: 0 });
+  const [llamadasAbandonadas, setLlamadasAbandonadas] = useState({ data: [], total: 0, page: 1, total_pages: 0 });
+  const [loadingAtendidas, setLoadingAtendidas] = useState(false);
+  const [loadingAbandonadas, setLoadingAbandonadas] = useState(false);
   const [agentesData, setAgentesData] = useState([]);
 
   // Listas
@@ -63,21 +66,21 @@ const DashboardMejorado = () => {
     }
   }, [activeTab]);
 
-  // Cargar llamadas atendidas solo cuando se abre la pestaña
+  // Cargar primera página de atendidas cuando se abre la pestaña
+  // o cuando los datos se resetean por cambio de filtros (total vuelve a 0)
   useEffect(() => {
-    if (activeTab === 'atendidas' && llamadasDetalladas.length === 0) {
-      console.log('🔄 Cargando TODAS las llamadas atendidas...');
-      loadAllLlamadasAtendidas();
+    if (activeTab === 'atendidas' && llamadasDetalladas.total === 0 && !loading) {
+      loadPageAtendidas(1, 25);
     }
-  }, [activeTab]);
+  }, [activeTab, llamadasDetalladas.total, loading]);
 
-  // Cargar llamadas abandonadas solo cuando se abre la pestaña
+  // Cargar primera página de abandonadas cuando se abre la pestaña
+  // o cuando los datos se resetean por cambio de filtros (total vuelve a 0)
   useEffect(() => {
-    if (activeTab === 'abandonadas' && llamadasAbandonadas.length === 0) {
-      console.log('🔄 Cargando TODAS las llamadas abandonadas...');
-      loadAllLlamadasAbandonadas();
+    if (activeTab === 'abandonadas' && llamadasAbandonadas.total === 0 && !loading) {
+      loadPageAbandonadas(1, 25);
     }
-  }, [activeTab]);
+  }, [activeTab, llamadasAbandonadas.total, loading]);
 
   const loadInitialData = async () => {
     try {
@@ -110,8 +113,8 @@ const DashboardMejorado = () => {
     console.log('📊 Cargando datos del dashboard...');
 
     // Limpiar llamadas detalladas para forzar recarga con nuevos filtros
-    setLlamadasDetalladas([]);
-    setLlamadasAbandonadas([]);
+    setLlamadasDetalladas({ data: [], total: 0, page: 1, total_pages: 0 });
+    setLlamadasAbandonadas({ data: [], total: 0, page: 1, total_pages: 0 });
 
     try {
       // Cargar KPIs mejorados
@@ -207,73 +210,61 @@ const DashboardMejorado = () => {
     }
   };
 
-  // Cargar TODAS las llamadas atendidas (paginación automática)
-  const loadAllLlamadasAtendidas = async () => {
+  // Cargar UNA PÁGINA de llamadas atendidas (server-side pagination)
+  const loadPageAtendidas = async (page, pageSize = 25, sortBy = null, sortDir = 'desc') => {
     try {
-      console.log(`📋 Cargando TODAS las llamadas atendidas...`);
-
-      const allLlamadas = [];
-      let currentPage = 1;
-      let totalPages = 1;
-      const perPage = 200; // Máximo permitido por el backend
-
-      // Cargar páginas hasta obtener todas las llamadas
-      while (currentPage <= totalPages) {
-        console.log(`📄 Cargando página ${currentPage}/${totalPages}...`);
-        const result = await analyticsApi.getLlamadasAtendidas(currentPage, perPage, filters);
-
-        // Agregar datos de esta página
-        allLlamadas.push(...(result.data || []));
-
-        // Actualizar total de páginas (solo en la primera iteración)
-        if (currentPage === 1) {
-          totalPages = result.total_pages || 1;
-          console.log(`📊 Total de registros: ${result.total}, páginas: ${totalPages}`);
-        }
-
-        currentPage++;
-      }
-
-      setLlamadasDetalladas(allLlamadas);
-      console.log(`✅ Cargadas ${allLlamadas.length} llamadas atendidas en total`);
+      setLoadingAtendidas(true);
+      const result = await analyticsApi.getLlamadasAtendidas(page, pageSize, filters, sortBy, sortDir);
+      setLlamadasDetalladas(result || { data: [], total: 0, page: 1, total_pages: 0 });
     } catch (error) {
-      console.error('❌ Error cargando llamadas atendidas:', error);
-      setLlamadasDetalladas([]);
+      console.error('Error cargando llamadas atendidas:', error);
+    } finally {
+      setLoadingAtendidas(false);
     }
   };
 
-  const loadAllLlamadasAbandonadas = async () => {
+  // Cargar UNA PÁGINA de llamadas abandonadas (server-side pagination)
+  const loadPageAbandonadas = async (page, pageSize = 25, sortBy = null, sortDir = 'desc') => {
     try {
-      console.log(`📋 Cargando TODAS las llamadas abandonadas...`);
-
-      const allLlamadas = [];
-      let currentPage = 1;
-      let totalPages = 1;
-      const perPage = 200; // Máximo permitido por el backend
-
-      // Cargar páginas hasta obtener todas las llamadas
-      while (currentPage <= totalPages) {
-        console.log(`📄 Cargando página ${currentPage}/${totalPages}...`);
-        const result = await analyticsApi.getLlamadasAbandonadas(currentPage, perPage, filters);
-
-        // Agregar datos de esta página
-        allLlamadas.push(...(result.data || []));
-
-        // Actualizar total de páginas (solo en la primera iteración)
-        if (currentPage === 1) {
-          totalPages = result.total_pages || 1;
-          console.log(`📊 Total de registros: ${result.total}, páginas: ${totalPages}`);
-        }
-
-        currentPage++;
-      }
-
-      setLlamadasAbandonadas(allLlamadas);
-      console.log(`✅ Cargadas ${allLlamadas.length} llamadas abandonadas en total`);
+      setLoadingAbandonadas(true);
+      const result = await analyticsApi.getLlamadasAbandonadas(page, pageSize, filters, sortBy, sortDir);
+      setLlamadasAbandonadas(result || { data: [], total: 0, page: 1, total_pages: 0 });
     } catch (error) {
-      console.error('❌ Error cargando llamadas abandonadas:', error);
-      setLlamadasAbandonadas([]);
+      console.error('Error cargando llamadas abandonadas:', error);
+    } finally {
+      setLoadingAbandonadas(false);
     }
+  };
+
+  // Fetch ALL pages para export Excel (se ejecuta solo al hacer clic en Exportar)
+  const fetchAllAtendidas = async (onProgress) => {
+    const allData = [];
+    let page = 1;
+    let totalPages = 1;
+    const perPage = 200;
+    while (page <= totalPages) {
+      const result = await analyticsApi.getLlamadasAtendidas(page, perPage, filters);
+      allData.push(...(result.data || []));
+      if (page === 1) totalPages = result.total_pages || 1;
+      if (onProgress) onProgress(allData.length, result.total || 0);
+      page++;
+    }
+    return allData;
+  };
+
+  const fetchAllAbandonadas = async (onProgress) => {
+    const allData = [];
+    let page = 1;
+    let totalPages = 1;
+    const perPage = 200;
+    while (page <= totalPages) {
+      const result = await analyticsApi.getLlamadasAbandonadas(page, perPage, filters);
+      allData.push(...(result.data || []));
+      if (page === 1) totalPages = result.total_pages || 1;
+      if (onProgress) onProgress(allData.length, result.total || 0);
+      page++;
+    }
+    return allData;
   };
 
   // Preparar datos para gráficos
@@ -644,14 +635,22 @@ const DashboardMejorado = () => {
             {/* Tab: Llamadas Atendidas */}
             {activeTab === 'atendidas' && (
               <TablaLlamadas
-                llamadas={llamadasDetalladas}
+                data={llamadasDetalladas}
+                loading={loadingAtendidas}
+                onPageChange={(page, pageSize, sortBy, sortDir) => loadPageAtendidas(page, pageSize, sortBy, sortDir)}
+                filters={filters}
+                fetchAllPages={fetchAllAtendidas}
               />
             )}
 
             {/* Tab: Llamadas Abandonadas */}
             {activeTab === 'abandonadas' && (
               <TablaAbandonadas
-                llamadas={llamadasAbandonadas}
+                data={llamadasAbandonadas}
+                loading={loadingAbandonadas}
+                onPageChange={(page, pageSize, sortBy, sortDir) => loadPageAbandonadas(page, pageSize, sortBy, sortDir)}
+                filters={filters}
+                fetchAllPages={fetchAllAbandonadas}
               />
             )}
 

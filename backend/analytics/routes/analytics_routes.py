@@ -181,36 +181,48 @@ async def get_causas_no_atencion(
 async def get_llamadas_atendidas(
     page: int = Query(1, ge=1, description="Número de página"),
     per_page: int = Query(50, ge=1, le=200, description="Registros por página"),
+    sort_by: Optional[str] = Query(None, description="Campo para ordenar"),
+    sort_dir: Optional[str] = Query('desc', description="Dirección: asc o desc"),
     filters: dict = Depends(parse_filters),
     db: Session = Depends(get_db)
 ):
     """Obtiene lista detallada de llamadas ATENDIDAS (COMPLETEAGENT, COMPLETEOUTNUM)"""
     service = CallAnalyticsService(db)
-    return service.get_llamadas_detalladas(filters, page, per_page)
+    return service.get_llamadas_detalladas(
+        filters, page, per_page, sort_by, sort_dir
+    )
 
 
 @router.get("/llamadas-abandonadas")
 async def get_llamadas_abandonadas(
     page: int = Query(1, ge=1, description="Número de página"),
     per_page: int = Query(50, ge=1, le=200, description="Registros por página"),
+    sort_by: Optional[str] = Query(None, description="Campo para ordenar"),
+    sort_dir: Optional[str] = Query('desc', description="Dirección: asc o desc"),
     filters: dict = Depends(parse_filters),
     db: Session = Depends(get_db)
 ):
     """Obtiene lista detallada de llamadas ABANDONADAS (ABANDON, ABANDON-CTOUT, ABANDONWEL)"""
     service = CallAnalyticsService(db)
-    return service.get_llamadas_abandonadas(filters, page, per_page)
+    return service.get_llamadas_abandonadas(
+        filters, page, per_page, sort_by, sort_dir
+    )
 
 
 @router.get("/llamadas-detalladas")
 async def get_llamadas_detalladas(
     page: int = Query(1, ge=1, description="Número de página"),
     per_page: int = Query(50, ge=1, le=200, description="Registros por página"),
+    sort_by: Optional[str] = Query(None, description="Campo para ordenar"),
+    sort_dir: Optional[str] = Query('desc', description="Dirección: asc o desc"),
     filters: dict = Depends(parse_filters),
     db: Session = Depends(get_db)
 ):
     """Obtiene lista detallada de llamadas atendidas (alias para compatibilidad)"""
     service = CallAnalyticsService(db)
-    return service.get_llamadas_detalladas(filters, page, per_page)
+    return service.get_llamadas_detalladas(
+        filters, page, per_page, sort_by, sort_dir
+    )
 
 
 @router.get("/nivel-atencion-campanas")
@@ -474,6 +486,22 @@ async def get_salientes_dashboard(
     """Dashboard completo de llamadas salientes"""
     service_ext = CallAnalyticsExtended(db)
     return service_ext.get_llamadas_salientes_dashboard(filters)
+
+
+@router.get("/salientes/detalle")
+async def get_salientes_detalle(
+    page: int = Query(1, ge=1, description="Número de página"),
+    per_page: int = Query(50, ge=1, le=200, description="Registros por página"),
+    sort_by: Optional[str] = Query(None, description="Campo para ordenar"),
+    sort_dir: Optional[str] = Query('desc', description="Dirección: asc o desc"),
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Detalle paginado de llamadas salientes"""
+    service_ext = CallAnalyticsExtended(db)
+    return service_ext.get_llamadas_salientes_detalle(
+        filters, page, per_page, sort_by, sort_dir
+    )
 
 
 @router.get("/salientes/manuales-vs-dialer")

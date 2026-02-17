@@ -41,12 +41,15 @@ class AgentAnalyticsService:
         """
         filters = filters or {}
 
+        # Eventos a excluir
+        EVENTOS_EXCLUIDOS = ['NONDIALPLAN', 'CONGESTION']
+
         # Query para obtener métricas de llamadas por agente
         query = self.db.query(
             AgenteProfile.id,
             User.first_name,
             User.last_name,
-            func.count(LlamadaLog.id).label('total_llamadas'),
+            func.count(func.distinct(LlamadaLog.callid)).label('total_llamadas'),
             func.sum(
                 case((LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS), 1), else_=0)
             ).label('atendidas'),
@@ -62,12 +65,26 @@ class AgentAnalyticsService:
             LlamadaLog, AgenteProfile.id == LlamadaLog.agente_id
         )
 
+        # Excluir eventos no válidos
+        query = query.filter(~LlamadaLog.event.in_(EVENTOS_EXCLUIDOS))
+
         # Aplicar filtros de fecha
         if filters.get('fecha_inicio'):
             query = query.filter(LlamadaLog.time >= filters['fecha_inicio'])
         if filters.get('fecha_fin'):
-            # Usar <= para incluir todo el día final (fecha_fin ya viene con 23:59:59.999999 desde el frontend)
             query = query.filter(LlamadaLog.time <= filters['fecha_fin'])
+
+        # Filtrar por campaña
+        if filters.get('campana_ids'):
+            query = query.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
+        elif filters.get('campana_id'):
+            query = query.filter(LlamadaLog.campana_id == filters['campana_id'])
+
+        # Filtrar por agente
+        if filters.get('agente_ids'):
+            query = query.filter(AgenteProfile.id.in_(filters['agente_ids']))
+        elif filters.get('agente_id'):
+            query = query.filter(AgenteProfile.id == filters['agente_id'])
 
         # Filtrar solo agentes activos
         query = query.filter(~AgenteProfile.borrado)
@@ -75,7 +92,7 @@ class AgentAnalyticsService:
         resultados = query.group_by(
             AgenteProfile.id, User.first_name, User.last_name
         ).having(
-            func.count(LlamadaLog.id) > 0
+            func.count(func.distinct(LlamadaLog.callid)) > 0
         ).all()
 
         # OPTIMIZACIÓN: Obtener IDs de agentes para batch fetching
@@ -127,7 +144,7 @@ class AgentAnalyticsService:
 
         # Procesar estados en diccionario
         estados_dict = {}
-        ahora = datetime.now(tz=activity.time.tzinfo) if ultimas_actividades else datetime.now()
+        ahora = datetime.now(tz=ultimas_actividades[0].time.tzinfo) if ultimas_actividades else datetime.now()
         for activity in ultimas_actividades:
             if (ahora - activity.time).total_seconds() > 3600:
                 estado = 'offline'
@@ -374,14 +391,18 @@ class AgentAnalyticsService:
         filters = filters or {}
 
         # Constantes para eventos de llamadas atendidas
-        EVENTOS_ATENDIDAS = ['COMPLETEAGENT', 'COMPLETEOUTNUM', 'COMPLETE-BTOUT', 'COMPLETE-CTOUT', 'COMPLETE-CT']
+        EVENTOS_ATENDIDAS = ['COMPLETEAGENT', 'COMPLETEOUTNUM', 'COMPLETE-BTOUT', 'COMPLETE-CTOUT']
 
-        # Obtener agentes con llamadas en el período (TODOS los que tengan actividad)
+        # Eventos a excluir del conteo
+        EVENTOS_EXCLUIDOS = ['NONDIALPLAN', 'CONGESTION']
+
+        # Obtener agentes con llamadas en el período
         subquery_agentes = self.db.query(
             LlamadaLog.agente_id,
             func.count(func.distinct(LlamadaLog.callid)).label('total_llamadas')
         ).filter(
-            LlamadaLog.agente_id.isnot(None)
+            LlamadaLog.agente_id.isnot(None),
+            ~LlamadaLog.event.in_(EVENTOS_EXCLUIDOS)
         )
 
         if filters.get('fecha_inicio'):
@@ -389,7 +410,27 @@ class AgentAnalyticsService:
         if filters.get('fecha_fin'):
             subquery_agentes = subquery_agentes.filter(LlamadaLog.time <= filters['fecha_fin'])
 
-        # Obtener TODOS los agentes con llamadas, ordenados por cantidad (sin LIMIT)
+        # Filtrar por campaña si se especifica
+        if filters.get('campana_ids'):
+            subquery_agentes = subquery_agentes.filter(
+                LlamadaLog.campana_id.in_(filters['campana_ids'])
+            )
+        elif filters.get('campana_id'):
+            subquery_agentes = subquery_agentes.filter(
+                LlamadaLog.campana_id == filters['campana_id']
+            )
+
+        # Filtrar por agente si se especifica
+        if filters.get('agente_ids'):
+            subquery_agentes = subquery_agentes.filter(
+                LlamadaLog.agente_id.in_(filters['agente_ids'])
+            )
+        elif filters.get('agente_id'):
+            subquery_agentes = subquery_agentes.filter(
+                LlamadaLog.agente_id == filters['agente_id']
+            )
+
+        # Obtener agentes con llamadas, ordenados por cantidad
         agentes_con_llamadas = subquery_agentes.group_by(
             LlamadaLog.agente_id
         ).order_by(
@@ -450,6 +491,16 @@ class AgentAnalyticsService:
             metricas_batch_query = metricas_batch_query.filter(LlamadaLog.time >= filters['fecha_inicio'])
         if filters.get('fecha_fin'):
             metricas_batch_query = metricas_batch_query.filter(LlamadaLog.time <= filters['fecha_fin'])
+
+        # Aplicar filtro de campaña también a métricas
+        if filters.get('campana_ids'):
+            metricas_batch_query = metricas_batch_query.filter(
+                LlamadaLog.campana_id.in_(filters['campana_ids'])
+            )
+        elif filters.get('campana_id'):
+            metricas_batch_query = metricas_batch_query.filter(
+                LlamadaLog.campana_id == filters['campana_id']
+            )
 
         metricas_batch = metricas_batch_query.group_by(LlamadaLog.agente_id).all()
 

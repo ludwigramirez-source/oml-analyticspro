@@ -18,8 +18,12 @@ class AnalyticsAPI {
       params.append('fecha_fin', filters.fecha_fin);
     }
     // Soportar campana_ids (múltiples) y campana_id (único)
+    // campana_ids puede ser array [1,2,3] o string "1,2,3"
     if (filters.campana_ids && filters.campana_ids.length > 0) {
-      params.append('campana_ids', filters.campana_ids.join(','));
+      const ids = Array.isArray(filters.campana_ids)
+        ? filters.campana_ids.join(',')
+        : filters.campana_ids;
+      if (ids) params.append('campana_ids', ids);
     } else if (filters.campana_id) {
       params.append('campana_id', filters.campana_id);
     }
@@ -27,10 +31,18 @@ class AnalyticsAPI {
       params.append('tipo_campana', filters.tipo_campana);
     }
     // Soportar agente_ids (múltiples) y agente_id (único)
+    // agente_ids puede ser array [1,2,3] o string "1,2,3"
     if (filters.agente_ids && filters.agente_ids.length > 0) {
-      params.append('agente_ids', filters.agente_ids.join(','));
+      const ids = Array.isArray(filters.agente_ids)
+        ? filters.agente_ids.join(',')
+        : filters.agente_ids;
+      if (ids) params.append('agente_ids', ids);
     } else if (filters.agente_id) {
       params.append('agente_id', filters.agente_id);
+    }
+    // Tipo de llamada (entrantes/salientes)
+    if (filters.tipo_llamada) {
+      params.append('tipo_llamada', filters.tipo_llamada);
     }
 
     return params.toString();
@@ -134,16 +146,18 @@ class AnalyticsAPI {
   /**
    * Obtiene llamadas ATENDIDAS detalladas
    */
-  async getLlamadasAtendidas(page = 1, perPage = 50, filters = {}) {
-    const endpoint = `llamadas-atendidas?page=${page}&per_page=${perPage}`;
+  async getLlamadasAtendidas(page = 1, perPage = 50, filters = {}, sortBy = null, sortDir = 'desc') {
+    let endpoint = `llamadas-atendidas?page=${page}&per_page=${perPage}`;
+    if (sortBy) endpoint += `&sort_by=${sortBy}&sort_dir=${sortDir}`;
     return this.fetchData(endpoint, filters);
   }
 
   /**
    * Obtiene llamadas ABANDONADAS detalladas
    */
-  async getLlamadasAbandonadas(page = 1, perPage = 50, filters = {}) {
-    const endpoint = `llamadas-abandonadas?page=${page}&per_page=${perPage}`;
+  async getLlamadasAbandonadas(page = 1, perPage = 50, filters = {}, sortBy = null, sortDir = 'desc') {
+    let endpoint = `llamadas-abandonadas?page=${page}&per_page=${perPage}`;
+    if (sortBy) endpoint += `&sort_by=${sortBy}&sort_dir=${sortDir}`;
     return this.fetchData(endpoint, filters);
   }
 
@@ -264,6 +278,15 @@ class AnalyticsAPI {
     return this.fetchData('salientes/dashboard', filters);
   }
   
+  /**
+   * Detalle paginado de llamadas salientes
+   */
+  async getSalientesDetalle(page = 1, perPage = 50, filters = {}, sortBy = null, sortDir = 'desc') {
+    let endpoint = `salientes/detalle?page=${page}&per_page=${perPage}`;
+    if (sortBy) endpoint += `&sort_by=${sortBy}&sort_dir=${sortDir}`;
+    return this.fetchData(endpoint, filters);
+  }
+
   /**
    * Llamadas manuales vs dialer
    */

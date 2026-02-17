@@ -128,10 +128,11 @@ const Gestiones = ({ filters }) => {
   };
 
   const formatDuration = (seconds) => {
-    if (!seconds) return '0s';
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+    if (!seconds && seconds !== 0) return '00:00';
+    const sec = Math.round(Number(seconds) || 0);
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
   // Sort para la tabla detalle (local, dentro de la pagina)
@@ -477,6 +478,7 @@ const Gestiones = ({ filters }) => {
                     <SortHeader field="telefono" onSortClick={handleSort} activeField={sortField} activeDirection={sortDirection}>Telefono</SortHeader>
                     <SortHeader field="incidencia" onSortClick={handleSort} activeField={sortField} activeDirection={sortDirection}>Incidencia</SortHeader>
                     <SortHeader field="agente" onSortClick={handleSort} activeField={sortField} activeDirection={sortDirection}>Agente</SortHeader>
+                    <SortHeader field="duracion_llamada" onSortClick={handleSort} activeField={sortField} activeDirection={sortDirection}>Duracion</SortHeader>
                     <SortHeader field="campana" onSortClick={handleSort} activeField={sortField} activeDirection={sortDirection}>Campana</SortHeader>
                     <SortHeader field="call_id" onSortClick={handleSort} activeField={sortField} activeDirection={sortDirection}>Call ID</SortHeader>
                   </tr>
@@ -484,7 +486,7 @@ const Gestiones = ({ filters }) => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {sortedItems.length === 0 ? (
                     <tr>
-                      <td colSpan="9" className="px-6 py-8 text-center text-gray-500">
+                      <td colSpan="10" className="px-6 py-8 text-center text-gray-500">
                         No se encontraron gestiones
                       </td>
                     </tr>
@@ -498,6 +500,7 @@ const Gestiones = ({ filters }) => {
                         <td className="px-3 py-2 text-sm text-gray-600 font-medium whitespace-nowrap">{item.telefono}</td>
                         <td className="px-3 py-2 text-sm text-gray-900">{item.incidencia}</td>
                         <td className="px-3 py-2 text-sm text-gray-900">{item.agente}</td>
+                        <td className="px-3 py-2 text-sm text-gray-600 font-mono whitespace-nowrap">{formatDuration(item.duracion_llamada)}</td>
                         <td className="px-3 py-2 text-sm text-gray-900">{item.campana}</td>
                         <td className="px-3 py-2 text-xs text-gray-500 font-mono whitespace-nowrap">{item.call_id}</td>
                       </tr>

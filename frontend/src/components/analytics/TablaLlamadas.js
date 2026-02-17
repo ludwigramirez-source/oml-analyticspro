@@ -25,9 +25,11 @@ const TablaLlamadas = ({
   const totalPages = Math.ceil(totalItems / pageSize) || 1;
 
   const formatDuracion = (seconds) => {
-    const min = Math.floor(seconds / 60);
-    const sec = seconds % 60;
-    return `${min}:${sec.toString().padStart(2, '0')}`;
+    if (!seconds && seconds !== 0) return '00:00';
+    const s = Math.round(Number(seconds) || 0);
+    const min = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
   };
 
   // Sorting server-side: al hacer click, pedir al backend ordenado
@@ -113,7 +115,7 @@ const TablaLlamadas = ({
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{llamada.agente}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">{llamada.numero}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDuracion(llamada.duracion)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{llamada.espera}s</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{formatDuracion(llamada.espera)}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                           llamada.quien_colgo === 'Agente' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'

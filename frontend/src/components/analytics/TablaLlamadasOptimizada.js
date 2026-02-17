@@ -49,10 +49,11 @@ const TablaLlamadasOptimizada = ({ llamadasPaginated, onPageChange, filters }) =
   };
 
   const formatDuration = (seconds) => {
-    if (!seconds) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${String(secs).padStart(2, '0')}`;
+    if (!seconds && seconds !== 0) return '00:00';
+    const sec = Math.round(Number(seconds) || 0);
+    const mins = Math.floor(sec / 60);
+    const secs = sec % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
   return (
@@ -154,7 +155,7 @@ const TablaLlamadasOptimizada = ({ llamadasPaginated, onPageChange, filters }) =
                     {formatDuration(llamada.duracion)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {llamada.espera}s
+                    {formatDuration(llamada.espera)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-600">
                     {llamada.evento}

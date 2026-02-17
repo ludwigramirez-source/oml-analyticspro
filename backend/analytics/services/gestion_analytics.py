@@ -249,8 +249,36 @@ class GestionAnalyticsService:
         page: int = 1,
         per_page: int = 50,
     ) -> Dict:
-        """Detalle paginado de gestiones"""
+        """Detalle paginado de gestiones con duración de llamada"""
         filters = filters or {}
+
+        # Subquery 1: hora real de la llamada (cualquier evento)
+        # Matchea incluso llamadas en curso (ENTERQUEUE, CONNECT)
+        hora_sq = self.db.query(
+            LlamadaLog.callid.label('callid'),
+            func.max(LlamadaLog.time).label(
+                'hora_llamada'
+            ),
+        ).filter(
+            LlamadaLog.callid.isnot(None),
+            LlamadaLog.callid != '',
+        ).group_by(
+            LlamadaLog.callid
+        ).subquery()
+
+        # Subquery 2: duración (solo eventos atendidos)
+        duracion_sq = self.db.query(
+            LlamadaLog.callid.label('callid'),
+            func.max(
+                LlamadaLog.duracion_llamada
+            ).label('duracion'),
+        ).filter(
+            LlamadaLog.event.in_(EVENTOS_ATENDIDAS),
+            LlamadaLog.callid.isnot(None),
+            LlamadaLog.callid != '',
+        ).group_by(
+            LlamadaLog.callid
+        ).subquery()
 
         query = self.db.query(
             CustomFormGestion,
@@ -259,6 +287,12 @@ class GestionAnalyticsService:
             Campana.nombre.label('campana_nombre'),
             CustomFormIncidencias.descripcion.label(
                 'incidencia_nombre'
+            ),
+            duracion_sq.c.duracion.label(
+                'duracion_llamada'
+            ),
+            hora_sq.c.hora_llamada.label(
+                'hora_llamada'
             ),
         ).outerjoin(
             AgenteProfile,
@@ -271,6 +305,14 @@ class GestionAnalyticsService:
             CustomFormIncidencias,
             CustomFormGestion.incidencia_id
             == CustomFormIncidencias.id,
+        ).outerjoin(
+            hora_sq,
+            CustomFormGestion.call_id
+            == hora_sq.c.callid,
+        ).outerjoin(
+            duracion_sq,
+            CustomFormGestion.call_id
+            == duracion_sq.c.callid,
         )
 
         query = self._apply_filters(query, filters)
@@ -289,14 +331,18 @@ class GestionAnalyticsService:
         for r in resultados:
             g = r.CustomFormGestion
 
+            # Hora de la llamada (LlamadaLog.time) o
+            # fallback a fecha de gestión
+            ts = r.hora_llamada or g.fecha
+
             gestiones.append({
                 'id': g.id,
                 'nombre': g.nombre,
                 'telefono': g.telefono,
                 'nis': g.nis,
                 'incidencia': r.incidencia_nombre or '',
-                'fecha': g.fecha.strftime('%Y-%m-%d'),
-                'hora': g.fecha.strftime('%H:%M:%S'),
+                'fecha': ts.strftime('%Y-%m-%d'),
+                'hora': ts.strftime('%H:%M:%S'),
                 'agente': (
                     f'{r.agente_nombre or ""} '
                     f'{r.agente_apellido or ""}'.strip()
@@ -308,6 +354,9 @@ class GestionAnalyticsService:
                 ),
                 'call_id': g.call_id or '',
                 'rec_file': g.rec_file or '',
+                'duracion_llamada': (
+                    r.duracion_llamada or 0
+                ),
             })
 
         return {

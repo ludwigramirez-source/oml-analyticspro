@@ -28,6 +28,14 @@ const TablaAbandonadasOptimizada = ({ llamadasPaginated, onPageChange, filters }
     onPageChange(1, size);
   };
 
+  const formatDuration = (seconds) => {
+    if (!seconds && seconds !== 0) return '00:00';
+    const sec = Math.round(Number(seconds) || 0);
+    const mins = Math.floor(sec / 60);
+    const secs = sec % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
   const handleExportVisible = () => {
     // Exportar solo los datos visibles
     const excelData = data.map(llamada => ({
@@ -136,7 +144,7 @@ const TablaAbandonadasOptimizada = ({ llamadasPaginated, onPageChange, filters }
                     {llamada.numero}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {llamada.espera}s
+                    {formatDuration(llamada.espera)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-xs">
                     <span className={`px-2 py-1 rounded-full ${

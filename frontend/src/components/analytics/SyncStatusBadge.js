@@ -21,23 +21,48 @@ const SyncStatusBadge = () => {
     return null; // No mostrar si no hay sync habilitado
   }
 
+  // Formatear fecha en hora de Nicaragua (America/Managua, UTC-6)
   const formatDate = (isoString) => {
     if (!isoString) return 'Nunca';
     const d = new Date(isoString);
-    return d.toLocaleString('es-CO', {
+    return d.toLocaleString('es-NI', {
+      timeZone: 'America/Managua',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
+      hour12: false,
+    });
+  };
+
+  const formatDateShort = (isoString) => {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    return d.toLocaleString('es-NI', {
+      timeZone: 'America/Managua',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
     });
   };
 
   const formatNumber = (num) => {
     if (!num) return '0';
-    return num.toLocaleString('es-CO');
+    return num.toLocaleString('es-NI');
   };
+
+  // Obtener info de gestiones de las tablas
+  const getGestionInfo = () => {
+    if (!syncStatus.tables) return null;
+    const gestionTable = syncStatus.tables.find(
+      t => t.table_name === 'ominicontacto_app_customformgestion'
+    );
+    return gestionTable || null;
+  };
+
+  const gestionInfo = getGestionInfo();
 
   const hasError = syncStatus.error ||
     (syncStatus.tables && syncStatus.tables.some(t => t.sync_status === 'error'));
@@ -54,7 +79,7 @@ const SyncStatusBadge = () => {
       <button
         onClick={() => setShowDetail(!showDetail)}
         className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${bgColor} ${statusColor} hover:opacity-80 transition-opacity`}
-        title="Estado de sincronizacion"
+        title="Estado de sincronizacion - Click para detalles"
       >
         <span className={`w-2 h-2 rounded-full ${dotColor}`}></span>
         <span>
@@ -62,7 +87,7 @@ const SyncStatusBadge = () => {
         </span>
         {syncStatus.last_sync_time && !hasError && (
           <span className="text-gray-500">
-            {formatDate(syncStatus.last_sync_time)}
+            {formatDateShort(syncStatus.last_sync_time)}
           </span>
         )}
         {syncStatus.total_rows > 0 && (
@@ -74,7 +99,7 @@ const SyncStatusBadge = () => {
 
       {/* Panel desplegable con detalle */}
       {showDetail && (
-        <div className="absolute right-0 top-full mt-2 w-96 bg-white rounded-lg shadow-lg border border-gray-200 z-50 p-4">
+        <div className="absolute right-0 top-full mt-2 w-[420px] bg-white rounded-lg shadow-lg border border-gray-200 z-50 p-4">
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-sm font-semibold text-gray-800">
               Estado de Sincronizacion
@@ -87,6 +112,7 @@ const SyncStatusBadge = () => {
             </button>
           </div>
 
+          {/* Info general */}
           <div className="mb-3 p-2 rounded bg-gray-50 text-xs">
             <div className="flex justify-between">
               <span className="text-gray-500">Modo:</span>
@@ -95,7 +121,7 @@ const SyncStatusBadge = () => {
             <div className="flex justify-between mt-1">
               <span className="text-gray-500">Ultima sync:</span>
               <span className="font-medium">
-                {formatDate(syncStatus.last_sync_time)}
+                {formatDate(syncStatus.last_sync_time)} (NI)
               </span>
             </div>
             <div className="flex justify-between mt-1">
@@ -106,12 +132,63 @@ const SyncStatusBadge = () => {
             </div>
           </div>
 
+          {/* Tarjeta de Gestiones destacada */}
+          {gestionInfo && (
+            <div className={`mb-3 p-3 rounded-lg border ${
+              gestionInfo.sync_status === 'error'
+                ? 'bg-red-50 border-red-200'
+                : gestionInfo.sync_status === 'syncing'
+                ? 'bg-yellow-50 border-yellow-200'
+                : 'bg-green-50 border-green-200'
+            }`}>
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span className="text-xs font-semibold text-gray-700">Gestiones</span>
+                <span className={`ml-auto text-xs font-medium ${
+                  gestionInfo.sync_status === 'completed' ? 'text-green-600' :
+                  gestionInfo.sync_status === 'syncing' ? 'text-yellow-600' :
+                  gestionInfo.sync_status === 'error' ? 'text-red-600' : 'text-gray-500'
+                }`}>
+                  {gestionInfo.sync_status === 'completed' ? 'Sincronizado' :
+                   gestionInfo.sync_status === 'syncing' ? 'Sincronizando...' :
+                   gestionInfo.sync_status === 'error' ? 'Error' : 'Pendiente'}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div>
+                  <span className="text-gray-500 block">Registros</span>
+                  <span className="font-bold text-gray-800">{formatNumber(gestionInfo.rows_total)}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 block">Ultima sync</span>
+                  <span className="font-medium text-gray-700">
+                    {gestionInfo.last_sync_time ? formatDateShort(gestionInfo.last_sync_time) : '-'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-500 block">Duracion</span>
+                  <span className="font-medium text-gray-700">
+                    {gestionInfo.sync_duration_s ? `${gestionInfo.sync_duration_s}s` : '-'}
+                  </span>
+                </div>
+              </div>
+              {gestionInfo.error_message && (
+                <p className="mt-1 text-xs text-red-600 truncate" title={gestionInfo.error_message}>
+                  {gestionInfo.error_message}
+                </p>
+              )}
+            </div>
+          )}
+
           {syncStatus.error && (
             <div className="mb-3 p-2 rounded bg-red-50 text-xs text-red-700">
               {syncStatus.error}
             </div>
           )}
 
+          {/* Detalle por tabla */}
           <div className="space-y-1">
             <div className="grid grid-cols-4 gap-1 text-xs font-medium text-gray-500 border-b pb-1">
               <span>Tabla</span>
@@ -146,6 +223,11 @@ const SyncStatusBadge = () => {
                 </span>
               </div>
             ))}
+          </div>
+
+          {/* Zona horaria */}
+          <div className="mt-3 pt-2 border-t border-gray-100 text-xs text-gray-400 text-center">
+            Hora Nicaragua (UTC-6)
           </div>
         </div>
       )}

@@ -22,7 +22,6 @@ const DashboardMejorado = () => {
   // Estados
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('resumen');
-  const [lastUpdate, setLastUpdate] = useState(new Date());
   const [dataLoaded, setDataLoaded] = useState(false);
   
   // Calcular filtros por defecto: HOY
@@ -196,7 +195,6 @@ const DashboardMejorado = () => {
         setAgentesData([]);  // Establecer array vacío
       }
 
-      setLastUpdate(new Date());
       console.log('✅ Datos principales cargados - mostrando dashboard');
 
       // Ocultar loading para mostrar gráficos inmediatamente
@@ -363,9 +361,6 @@ const DashboardMejorado = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">📊 OmniLeads Analytics Pro</h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Última actualización: {format(lastUpdate, 'dd/MM/yyyy HH:mm:ss')}
-              </p>
             </div>
             <div className="flex items-center gap-4">
               <SyncStatusBadge />

@@ -414,6 +414,19 @@ class AnalyticsAPI {
   async getGestionesPorIncidencia(filters = {}) {
     return this.fetchData('gestiones/por-incidencia', filters);
   }
+
+  // ── Sync Status ──────────────────────────────────────────────
+
+  async getSyncStatus() {
+    try {
+      const response = await fetch(`${API_URL}/api/analytics/sync/status`);
+      if (!response.ok) return null;
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching sync status:', error);
+      return null;
+    }
+  }
 }
 
 export default new AnalyticsAPI();

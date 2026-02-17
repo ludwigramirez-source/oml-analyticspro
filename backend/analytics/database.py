@@ -28,25 +28,44 @@ def _initialize_engine():
         return engine
 
     try:
-        # URL de conexión a PostgreSQL desde variables de entorno
-        database_url = config.get_database_url()
+        # Determinar BD activa (local o remota)
+        use_local = config.USE_LOCAL_DB
+        database_url = config.get_active_database_url()
 
-        logger.info(f"Conectando a PostgreSQL: {config.OMNILEADS_DB_HOST}:{config.OMNILEADS_DB_PORT}/{config.OMNILEADS_DB_NAME}")
+        if use_local:
+            logger.info(
+                f"Conectando a BD LOCAL: "
+                f"{config.LOCAL_DB_HOST}:{config.LOCAL_DB_PORT}/"
+                f"{config.LOCAL_DB_NAME}"
+            )
+            connect_args = {
+                "options": "-c statement_timeout=30000",
+                "connect_timeout": 10,
+            }
+        else:
+            logger.info(
+                f"Conectando a BD REMOTA: "
+                f"{config.OMNILEADS_DB_HOST}:{config.OMNILEADS_DB_PORT}/"
+                f"{config.OMNILEADS_DB_NAME}"
+            )
+            connect_args = {
+                "options": (
+                    "-c default_transaction_read_only=on "
+                    "-c statement_timeout=30000"
+                ),
+                "connect_timeout": 10,
+            }
 
-        # Crear engine con configuración READ-ONLY, timeout y pool optimizado
+        # Crear engine con pool optimizado
         engine = create_engine(
             database_url,
-            # OPTIMIZACIÓN: Pool de conexiones configurado para mejor concurrencia
-            pool_size=20,          # Conexiones permanentes (default: 5)
-            max_overflow=40,       # Conexiones adicionales (default: 10)
-            pool_timeout=30,       # Timeout para obtener conexión del pool
-            pool_pre_ping=True,    # Verificar conexión antes de usar
-            pool_recycle=3600,     # Reciclar conexiones cada hora
-            echo=False,            # Cambiar a True para debug SQL
-            connect_args={
-                "options": "-c default_transaction_read_only=on -c statement_timeout=30000",  # 30 segundos timeout
-                "connect_timeout": 10  # Timeout de conexión inicial
-            }
+            pool_size=20,
+            max_overflow=40,
+            pool_timeout=30,
+            pool_pre_ping=True,
+            pool_recycle=3600,
+            echo=False,
+            connect_args=connect_args,
         )
 
         # Crear sesión

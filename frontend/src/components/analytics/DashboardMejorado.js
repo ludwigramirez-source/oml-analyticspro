@@ -16,6 +16,7 @@ import AgentesAvanzado from './reportes/AgentesAvanzado';
 import Transferencias from './reportes/Transferencias';
 import TablaDistribucionHoraria from './reportes/TablaDistribucionHoraria';
 import Gestiones from './reportes/Gestiones';
+import SyncStatusBadge from './SyncStatusBadge';
 
 const DashboardMejorado = () => {
   // Estados
@@ -366,10 +367,11 @@ const DashboardMejorado = () => {
                 Última actualización: {format(lastUpdate, 'dd/MM/yyyy HH:mm:ss')}
               </p>
             </div>
-            <div className="flex items-center">
-              <img 
-                src="/logo-iptegra.png" 
-                alt="Iptegra Logo" 
+            <div className="flex items-center gap-4">
+              <SyncStatusBadge />
+              <img
+                src="/logo-iptegra.png"
+                alt="Iptegra Logo"
                 className="h-12 object-contain"
               />
             </div>

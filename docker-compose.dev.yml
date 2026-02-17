@@ -21,11 +21,19 @@ services:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key-change-in-production}
       - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
       - TIMEZONE_DB=${TIMEZONE_DB:-America/Bogota}
+      # Local DB (sync) — puerto interno 5432 en Docker network
+      - USE_LOCAL_DB=${USE_LOCAL_DB:-true}
+      - LOCAL_DB_HOST=postgres-local
+      - LOCAL_DB_PORT=5432
+      - LOCAL_DB_NAME=${LOCAL_DB_NAME:-omnileads_local}
+      - LOCAL_DB_USER=${LOCAL_DB_USER:-analytics}
+      - LOCAL_DB_PASSWORD=${LOCAL_DB_PASSWORD:-analytics_password}
     volumes:
       - ./backend:/app
       - /app/__pycache__
     depends_on:
       - postgres-omnileads
+      - postgres-local
     networks:
       - oml-network
     restart: unless-stopped
@@ -74,6 +82,69 @@ services:
       timeout: 5s
       retries: 5
 
+  # PostgreSQL Local (replica sincronizada)
+  postgres-local:
+    image: postgres:16-alpine
+    container_name: oml-postgres-local-dev
+    ports:
+      - "${LOCAL_DB_PORT:-5433}:5432"
+    environment:
+      - POSTGRES_USER=${LOCAL_DB_USER:-analytics}
+      - POSTGRES_PASSWORD=${LOCAL_DB_PASSWORD:-analytics_password}
+      - POSTGRES_DB=${LOCAL_DB_NAME:-omnileads_local}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8
+      - TZ=${TIMEZONE_DB:-America/Bogota}
+      - PGTZ=${TIMEZONE_DB:-America/Bogota}
+    volumes:
+      - postgres-local-data:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c timezone=${TIMEZONE_DB:-America/Bogota}
+      -c log_timezone=${TIMEZONE_DB:-America/Bogota}
+    networks:
+      - oml-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${LOCAL_DB_USER:-analytics}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Sync Service (sincroniza OmniLeads remoto → BD local)
+  sync-service:
+    build:
+      context: .
+      dockerfile: ./compose/dev/sync/sync.dev.dockerfile
+    container_name: oml-sync-service-dev
+    environment:
+      - PYTHONUNBUFFERED=1
+      # Source DB (OmniLeads remota)
+      - OMNILEADS_DB_HOST=${OMNILEADS_DB_HOST:-postgres-omnileads}
+      - OMNILEADS_DB_PORT=${OMNILEADS_DB_PORT:-5432}
+      - OMNILEADS_DB_USER=${OMNILEADS_DB_USER:-postgres}
+      - OMNILEADS_DB_PASSWORD=${OMNILEADS_DB_PASSWORD:-postgres}
+      - OMNILEADS_DB_NAME=${OMNILEADS_DB_NAME:-omnileads}
+      # Local DB — puerto interno 5432 en Docker network
+      - LOCAL_DB_HOST=postgres-local
+      - LOCAL_DB_PORT=5432
+      - LOCAL_DB_NAME=${LOCAL_DB_NAME:-omnileads_local}
+      - LOCAL_DB_USER=${LOCAL_DB_USER:-analytics}
+      - LOCAL_DB_PASSWORD=${LOCAL_DB_PASSWORD:-analytics_password}
+      # Sync config
+      - SYNC_INTERVAL_EVENT_LOGS=${SYNC_INTERVAL_EVENT_LOGS:-300}
+      - SYNC_INTERVAL_REFERENCE=${SYNC_INTERVAL_REFERENCE:-3600}
+      - SYNC_BATCH_SIZE=${SYNC_BATCH_SIZE:-10000}
+      - SYNC_INITIAL_BATCH_SIZE=${SYNC_INITIAL_BATCH_SIZE:-50000}
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+    depends_on:
+      postgres-local:
+        condition: service_healthy
+    networks:
+      - oml-network
+    restart: unless-stopped
+
   # pgAdmin for database management (development only)
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -97,4 +168,5 @@ networks:
 
 volumes:
   postgres-omnileads-data:
+  postgres-local-data:
   pgadmin-data:

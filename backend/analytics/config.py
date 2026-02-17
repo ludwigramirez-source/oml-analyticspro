@@ -30,13 +30,36 @@ class OmniLeadsConfig:
     # pero OmniLeads graba el offset de este timezone.
     TIMEZONE_DB = os.getenv('TIMEZONE_DB', 'America/Bogota')
 
+    # ── BD Local (replica sincronizada) ──────────────────────────
+    USE_LOCAL_DB = os.getenv('USE_LOCAL_DB', 'false').lower() == 'true'
+    LOCAL_DB_HOST = os.getenv('LOCAL_DB_HOST', 'postgres-local')
+    LOCAL_DB_PORT = os.getenv('LOCAL_DB_PORT', '5432')
+    LOCAL_DB_NAME = os.getenv('LOCAL_DB_NAME', 'omnileads_local')
+    LOCAL_DB_USER = os.getenv('LOCAL_DB_USER', 'analytics')
+    LOCAL_DB_PASSWORD = os.getenv('LOCAL_DB_PASSWORD', 'analytics_password')
+
     @classmethod
     def get_database_url(cls) -> str:
-        """Retorna la URL de conexión a PostgreSQL"""
+        """Retorna la URL de conexión a PostgreSQL (source remota)"""
         return (
             f"postgresql://{cls.OMNILEADS_DB_USER}:{cls.OMNILEADS_DB_PASSWORD}"
             f"@{cls.OMNILEADS_DB_HOST}:{cls.OMNILEADS_DB_PORT}/{cls.OMNILEADS_DB_NAME}"
         )
+
+    @classmethod
+    def get_local_database_url(cls) -> str:
+        """Retorna la URL de conexión a la BD local"""
+        return (
+            f"postgresql://{cls.LOCAL_DB_USER}:{cls.LOCAL_DB_PASSWORD}"
+            f"@{cls.LOCAL_DB_HOST}:{cls.LOCAL_DB_PORT}/{cls.LOCAL_DB_NAME}"
+        )
+
+    @classmethod
+    def get_active_database_url(cls) -> str:
+        """Retorna la URL de la BD activa (local o remota)"""
+        if cls.USE_LOCAL_DB:
+            return cls.get_local_database_url()
+        return cls.get_database_url()
 
     @classmethod
     def get_connection_params(cls) -> dict:

@@ -698,3 +698,83 @@ async def get_gestiones_por_incidencia(
     service = GestionAnalyticsService(db)
     return service.get_gestiones_por_incidencia(filters)
 
+
+# ── Sync Status ──────────────────────────────────────────────────
+
+@router.get("/sync/status")
+async def get_sync_status():
+    """
+    Retorna el estado de sincronización de la BD local.
+    Incluye última fecha/hora de sync y conteos por tabla.
+    """
+    from ..config import config
+
+    if not config.USE_LOCAL_DB:
+        return {
+            'enabled': False,
+            'mode': 'remote',
+            'message': 'Conectado directamente a BD remota',
+        }
+
+    try:
+        import psycopg2
+        conn = psycopg2.connect(
+            host=config.LOCAL_DB_HOST,
+            port=config.LOCAL_DB_PORT,
+            dbname=config.LOCAL_DB_NAME,
+            user=config.LOCAL_DB_USER,
+            password=config.LOCAL_DB_PASSWORD,
+            connect_timeout=5,
+        )
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT table_name, last_synced_id, last_sync_time,
+                   sync_status, rows_synced, rows_total,
+                   error_message, sync_duration_s
+            FROM public.sync_metadata
+            ORDER BY table_name
+        """)
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        tables = []
+        last_sync_time = None
+        total_rows = 0
+
+        for r in rows:
+            table_info = {
+                'table_name': r[0],
+                'last_synced_id': r[1],
+                'last_sync_time': r[2].isoformat() if r[2] else None,
+                'sync_status': r[3],
+                'rows_synced': r[4],
+                'rows_total': r[5],
+                'error_message': r[6],
+                'sync_duration_s': r[7],
+            }
+            tables.append(table_info)
+
+            if r[2]:
+                if last_sync_time is None or r[2] > last_sync_time:
+                    last_sync_time = r[2]
+            total_rows += r[5] or 0
+
+        return {
+            'enabled': True,
+            'mode': 'local',
+            'last_sync_time': (
+                last_sync_time.isoformat() if last_sync_time else None
+            ),
+            'total_rows': total_rows,
+            'tables': tables,
+        }
+
+    except Exception as e:
+        return {
+            'enabled': True,
+            'mode': 'local',
+            'error': str(e),
+            'tables': [],
+        }
+

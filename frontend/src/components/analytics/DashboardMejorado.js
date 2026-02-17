@@ -15,6 +15,7 @@ import CausasDetalladas from './reportes/CausasDetalladas';
 import AgentesAvanzado from './reportes/AgentesAvanzado';
 import Transferencias from './reportes/Transferencias';
 import TablaDistribucionHoraria from './reportes/TablaDistribucionHoraria';
+import Gestiones from './reportes/Gestiones';
 
 const DashboardMejorado = () => {
   // Estados
@@ -62,6 +63,22 @@ const DashboardMejorado = () => {
     }
   }, [activeTab]);
 
+  // Cargar llamadas atendidas solo cuando se abre la pestaña
+  useEffect(() => {
+    if (activeTab === 'atendidas' && llamadasDetalladas.length === 0) {
+      console.log('🔄 Cargando TODAS las llamadas atendidas...');
+      loadAllLlamadasAtendidas();
+    }
+  }, [activeTab]);
+
+  // Cargar llamadas abandonadas solo cuando se abre la pestaña
+  useEffect(() => {
+    if (activeTab === 'abandonadas' && llamadasAbandonadas.length === 0) {
+      console.log('🔄 Cargando TODAS las llamadas abandonadas...');
+      loadAllLlamadasAbandonadas();
+    }
+  }, [activeTab]);
+
   const loadInitialData = async () => {
     try {
       console.log('🔵 Cargando datos iniciales...');
@@ -91,7 +108,11 @@ const DashboardMejorado = () => {
   const loadDashboardData = async () => {
     setLoading(true);
     console.log('📊 Cargando datos del dashboard...');
-    
+
+    // Limpiar llamadas detalladas para forzar recarga con nuevos filtros
+    setLlamadasDetalladas([]);
+    setLlamadasAbandonadas([]);
+
     try {
       // Cargar KPIs mejorados
       const kpisRes = await analyticsApi.getKPIs(filters);
@@ -173,66 +194,85 @@ const DashboardMejorado = () => {
 
       setLastUpdate(new Date());
       console.log('✅ Datos principales cargados - mostrando dashboard');
-      
+
       // Ocultar loading para mostrar gráficos inmediatamente
       setLoading(false);
 
-      // Cargar llamadas detalladas en segundo plano (no bloquea la UI)
-      loadDetailedCalls(filters);
-      
+      // ✅ OPTIMIZACIÓN: Las llamadas detalladas se cargarán solo cuando el usuario abra la pestaña
+      // (Eliminado: loadDetailedCalls que hacía 63 peticiones HTTP)
+
     } catch (error) {
       console.error('❌ Error loading dashboard data:', error);
       setLoading(false);
     }
   };
 
-  const loadDetailedCalls = async (filters) => {
+  // Cargar TODAS las llamadas atendidas (paginación automática)
+  const loadAllLlamadasAtendidas = async () => {
     try {
-      console.log('📋 Cargando llamadas detalladas en segundo plano...');
-      
-      // Cargar TODAS las llamadas atendidas (con paginación automática)
-      const todasLlamadasAtendidas = [];
-      let currentPage = 1;
-      let hasMorePages = true;
-      
-      while (hasMorePages) {
-        const llamadasRes = await analyticsApi.getLlamadasAtendidas(currentPage, 200, filters);
-        console.log(`✅ Página ${currentPage} de llamadas atendidas:`, llamadasRes.data.length);
-        todasLlamadasAtendidas.push(...(llamadasRes.data || []));
-        
-        if (currentPage >= llamadasRes.total_pages) {
-          hasMorePages = false;
-        } else {
-          currentPage++;
-        }
-      }
-      
-      console.log('✅ Total llamadas atendidas cargadas:', todasLlamadasAtendidas.length);
-      setLlamadasDetalladas(todasLlamadasAtendidas);
+      console.log(`📋 Cargando TODAS las llamadas atendidas...`);
 
-      // Cargar TODAS las llamadas abandonadas (con paginación automática)
-      const todasLlamadasAbandonadas = [];
-      let currentPageAband = 1;
-      let hasMorePagesAband = true;
-      
-      while (hasMorePagesAband) {
-        const abandonadasRes = await analyticsApi.getLlamadasAbandonadas(currentPageAband, 200, filters);
-        console.log(`✅ Página ${currentPageAband} de llamadas abandonadas:`, abandonadasRes.data.length);
-        todasLlamadasAbandonadas.push(...(abandonadasRes.data || []));
-        
-        if (currentPageAband >= abandonadasRes.total_pages) {
-          hasMorePagesAband = false;
-        } else {
-          currentPageAband++;
+      const allLlamadas = [];
+      let currentPage = 1;
+      let totalPages = 1;
+      const perPage = 200; // Máximo permitido por el backend
+
+      // Cargar páginas hasta obtener todas las llamadas
+      while (currentPage <= totalPages) {
+        console.log(`📄 Cargando página ${currentPage}/${totalPages}...`);
+        const result = await analyticsApi.getLlamadasAtendidas(currentPage, perPage, filters);
+
+        // Agregar datos de esta página
+        allLlamadas.push(...(result.data || []));
+
+        // Actualizar total de páginas (solo en la primera iteración)
+        if (currentPage === 1) {
+          totalPages = result.total_pages || 1;
+          console.log(`📊 Total de registros: ${result.total}, páginas: ${totalPages}`);
         }
+
+        currentPage++;
       }
-      
-      console.log('✅ Total llamadas abandonadas cargadas:', todasLlamadasAbandonadas.length);
-      setLlamadasAbandonadas(todasLlamadasAbandonadas);
-      
-      console.log('✅ ¡Todas las llamadas detalladas cargadas!');
+
+      setLlamadasDetalladas(allLlamadas);
+      console.log(`✅ Cargadas ${allLlamadas.length} llamadas atendidas en total`);
     } catch (error) {
-      console.error('❌ Error loading detailed calls:', error);
+      console.error('❌ Error cargando llamadas atendidas:', error);
+      setLlamadasDetalladas([]);
+    }
+  };
+
+  const loadAllLlamadasAbandonadas = async () => {
+    try {
+      console.log(`📋 Cargando TODAS las llamadas abandonadas...`);
+
+      const allLlamadas = [];
+      let currentPage = 1;
+      let totalPages = 1;
+      const perPage = 200; // Máximo permitido por el backend
+
+      // Cargar páginas hasta obtener todas las llamadas
+      while (currentPage <= totalPages) {
+        console.log(`📄 Cargando página ${currentPage}/${totalPages}...`);
+        const result = await analyticsApi.getLlamadasAbandonadas(currentPage, perPage, filters);
+
+        // Agregar datos de esta página
+        allLlamadas.push(...(result.data || []));
+
+        // Actualizar total de páginas (solo en la primera iteración)
+        if (currentPage === 1) {
+          totalPages = result.total_pages || 1;
+          console.log(`📊 Total de registros: ${result.total}, páginas: ${totalPages}`);
+        }
+
+        currentPage++;
+      }
+
+      setLlamadasAbandonadas(allLlamadas);
+      console.log(`✅ Cargadas ${allLlamadas.length} llamadas abandonadas en total`);
+    } catch (error) {
+      console.error('❌ Error cargando llamadas abandonadas:', error);
+      setLlamadasAbandonadas([]);
     }
   };
 
@@ -462,7 +502,8 @@ const DashboardMejorado = () => {
                 { id: 'abandonadas', label: '❌ Llamadas No Atendidas', icon: '❌' },
                 { id: 'agentes', label: '👥 Agentes', icon: '👥' },
                 { id: 'agentes-avanzado', label: '👥📊 Agentes Avanzado', icon: '👥' },
-                { id: 'transferencias', label: '🔄 Transferencias', icon: '🔄' }
+                { id: 'transferencias', label: '🔄 Transferencias', icon: '🔄' },
+                { id: 'gestiones', label: '📋 Gestiones', icon: '📋' }
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -602,12 +643,16 @@ const DashboardMejorado = () => {
 
             {/* Tab: Llamadas Atendidas */}
             {activeTab === 'atendidas' && (
-              <TablaLlamadas llamadas={llamadasDetalladas} />
+              <TablaLlamadas
+                llamadas={llamadasDetalladas}
+              />
             )}
 
             {/* Tab: Llamadas Abandonadas */}
             {activeTab === 'abandonadas' && (
-              <TablaAbandonadas llamadas={llamadasAbandonadas} />
+              <TablaAbandonadas
+                llamadas={llamadasAbandonadas}
+              />
             )}
 
             {/* Tab: Agentes */}
@@ -638,6 +683,11 @@ const DashboardMejorado = () => {
             {/* Tab: Transferencias */}
             {activeTab === 'transferencias' && (
               <Transferencias filters={filters} />
+            )}
+
+            {/* Tab: Gestiones */}
+            {activeTab === 'gestiones' && (
+              <Gestiones filters={filters} />
             )}
           </div>
         </div>

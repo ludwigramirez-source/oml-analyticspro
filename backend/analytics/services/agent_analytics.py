@@ -23,7 +23,13 @@ logger = logging.getLogger(__name__)
 class AgentAnalyticsService:
     """Servicio para análisis de agentes"""
 
-    EVENTOS_ATENDIDAS = ['CONNECT', 'COMPLETEAGENT']
+    # Sincronizado con CallAnalyticsService
+    EVENTOS_ATENDIDAS = [
+        'COMPLETEAGENT',      # Agente cuelga
+        'COMPLETEOUTNUM',     # Cliente cuelga
+        'COMPLETE-BTOUT',     # Transfer ciego completado
+        'COMPLETE-CTOUT',     # Transfer consultivo completado
+    ]
 
     def __init__(self, db: Session):
         self.db = db
@@ -121,9 +127,11 @@ class AgentAnalyticsService:
 
         # Procesar estados en diccionario
         estados_dict = {}
-        ahora = datetime.now()
+        local_tz = config.get_timezone()
+        ahora = datetime.now(tz=local_tz)
         for activity in ultimas_actividades:
-            if (ahora - activity.time.replace(tzinfo=None)).seconds > 3600:
+            time_local = activity.time.astimezone(local_tz)
+            if (ahora - time_local).total_seconds() > 3600:
                 estado = 'offline'
             elif activity.event == 'ADDMEMBER':
                 estado = 'disponible'
@@ -193,8 +201,10 @@ class AgentAnalyticsService:
             return 'offline'
 
         # Verificar si fue hace menos de 1 hora
-        ahora = datetime.now()
-        if (ahora - ultima_actividad.time.replace(tzinfo=None)).seconds > 3600:
+        local_tz = config.get_timezone()
+        ahora = datetime.now(tz=local_tz)
+        time_local = ultima_actividad.time.astimezone(local_tz)
+        if (ahora - time_local).total_seconds() > 3600:
             return 'offline'
 
         # Determinar estado basado en evento
@@ -597,11 +607,12 @@ class AgentAnalyticsService:
         """
         filters = filters or {}
 
-        # Convertir filtros a timezone-aware (UTC) si existen
+        # Convertir filtros a timezone-aware (timezone local) si existen
+        local_tz = config.get_timezone()
         if filters.get('fecha_inicio') and filters['fecha_inicio'].tzinfo is None:
-            filters['fecha_inicio'] = filters['fecha_inicio'].replace(tzinfo=timezone.utc)
+            filters['fecha_inicio'] = filters['fecha_inicio'].replace(tzinfo=local_tz)
         if filters.get('fecha_fin') and filters['fecha_fin'].tzinfo is None:
-            filters['fecha_fin'] = filters['fecha_fin'].replace(tzinfo=timezone.utc)
+            filters['fecha_fin'] = filters['fecha_fin'].replace(tzinfo=local_tz)
 
         print(f"★★★ get_detalle_sesiones_agente - agente_id={agente_id}, filters={filters}")
         logger.info(f"get_detalle_sesiones_agente - agente_id={agente_id}, filters={filters}")
@@ -667,11 +678,12 @@ class AgentAnalyticsService:
         """
         filters = filters or {}
 
-        # Convertir filtros a timezone-aware (UTC) si existen
+        # Convertir filtros a timezone-aware (timezone local) si existen
+        local_tz = config.get_timezone()
         if filters.get('fecha_inicio') and filters['fecha_inicio'].tzinfo is None:
-            filters['fecha_inicio'] = filters['fecha_inicio'].replace(tzinfo=timezone.utc)
+            filters['fecha_inicio'] = filters['fecha_inicio'].replace(tzinfo=local_tz)
         if filters.get('fecha_fin') and filters['fecha_fin'].tzinfo is None:
-            filters['fecha_fin'] = filters['fecha_fin'].replace(tzinfo=timezone.utc)
+            filters['fecha_fin'] = filters['fecha_fin'].replace(tzinfo=local_tz)
 
         print(f"★★★ get_detalle_pausas_agente - agente_id={agente_id}, filters={filters}")
         logger.info(f"get_detalle_pausas_agente - agente_id={agente_id}, filters={filters}")

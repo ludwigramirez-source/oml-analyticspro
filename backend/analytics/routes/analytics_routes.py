@@ -8,6 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from ..config import config
 from ..database import get_db
 from ..models.omnileads_models import AgenteProfile, Campana, User
 from ..services.agent_analytics import AgentAnalyticsService
@@ -32,12 +33,17 @@ async def parse_filters(
     agente_ids: Optional[str] = Query(None, description="IDs de agentes separados por coma"),
     tipo_llamada: Optional[str] = Query(None, description="Tipo de llamada: entrantes o salientes")
 ) -> dict:
-    """Parse y retorna los filtros comunes"""
+    """Parse y retorna los filtros comunes con timezone local"""
+    local_tz = config.get_timezone()
     filters = {}
     if fecha_inicio:
-        filters['fecha_inicio'] = datetime.combine(fecha_inicio, datetime.min.time())
+        filters['fecha_inicio'] = datetime.combine(
+            fecha_inicio, datetime.min.time(), tzinfo=local_tz
+        )
     if fecha_fin:
-        filters['fecha_fin'] = datetime.combine(fecha_fin, datetime.max.time())
+        filters['fecha_fin'] = datetime.combine(
+            fecha_fin, datetime.max.time(), tzinfo=local_tz
+        )
 
     # Soportar tanto campana_id único como campana_ids múltiples
     if campana_ids:
@@ -68,11 +74,16 @@ async def parse_filters_no_agente(
     tipo_campana: Optional[int] = Query(None, description="Tipo de campaña")
 ) -> dict:
     """Parse filtros sin agente_id (para evitar conflicto con path params)"""
+    local_tz = config.get_timezone()
     filters = {}
     if fecha_inicio:
-        filters['fecha_inicio'] = datetime.combine(fecha_inicio, datetime.min.time())
+        filters['fecha_inicio'] = datetime.combine(
+            fecha_inicio, datetime.min.time(), tzinfo=local_tz
+        )
     if fecha_fin:
-        filters['fecha_fin'] = datetime.combine(fecha_fin, datetime.max.time())
+        filters['fecha_fin'] = datetime.combine(
+            fecha_fin, datetime.max.time(), tzinfo=local_tz
+        )
     if campana_id:
         filters['campana_id'] = campana_id
     if tipo_campana:
@@ -274,11 +285,16 @@ async def get_detalle_sesiones_agente(
 ):
     """Obtiene el detalle de sesiones de un agente específico"""
     try:
+        local_tz = config.get_timezone()
         filters = {}
         if fecha_inicio:
-            filters['fecha_inicio'] = datetime.combine(fecha_inicio, datetime.min.time())
+            filters['fecha_inicio'] = datetime.combine(
+                fecha_inicio, datetime.min.time(), tzinfo=local_tz
+            )
         if fecha_fin:
-            filters['fecha_fin'] = datetime.combine(fecha_fin, datetime.max.time())
+            filters['fecha_fin'] = datetime.combine(
+                fecha_fin, datetime.max.time(), tzinfo=local_tz
+            )
 
         service = AgentAnalyticsService(db)
         return service.get_detalle_sesiones_agente(agente_id, filters)
@@ -298,11 +314,16 @@ async def get_detalle_pausas_agente(
 ):
     """Obtiene el detalle de pausas de un agente específico"""
     try:
+        local_tz = config.get_timezone()
         filters = {}
         if fecha_inicio:
-            filters['fecha_inicio'] = datetime.combine(fecha_inicio, datetime.min.time())
+            filters['fecha_inicio'] = datetime.combine(
+                fecha_inicio, datetime.min.time(), tzinfo=local_tz
+            )
         if fecha_fin:
-            filters['fecha_fin'] = datetime.combine(fecha_fin, datetime.max.time())
+            filters['fecha_fin'] = datetime.combine(
+                fecha_fin, datetime.max.time(), tzinfo=local_tz
+            )
 
         service = AgentAnalyticsService(db)
         return service.get_detalle_pausas_agente(agente_id, filters)
@@ -583,4 +604,74 @@ async def get_tabla_distribucion_horaria(
     """
     service_ext = CallAnalyticsExtended(db)
     return service_ext.get_distribucion_horaria_detallada(filters, agrupar_por)
+
+
+# ==================== GESTIONES ====================
+
+@router.get("/gestiones/kpis")
+async def get_gestiones_kpis(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """KPIs principales de gestiones"""
+    from ..services.gestion_analytics import GestionAnalyticsService
+    service = GestionAnalyticsService(db)
+    return service.get_gestiones_kpis(filters)
+
+
+@router.get("/gestiones/por-agente")
+async def get_gestiones_por_agente(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Gestiones agrupadas por agente"""
+    from ..services.gestion_analytics import GestionAnalyticsService
+    service = GestionAnalyticsService(db)
+    return service.get_gestiones_por_agente(filters)
+
+
+@router.get("/gestiones/por-campana")
+async def get_gestiones_por_campana(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Gestiones agrupadas por campaña"""
+    from ..services.gestion_analytics import GestionAnalyticsService
+    service = GestionAnalyticsService(db)
+    return service.get_gestiones_por_campana(filters)
+
+
+@router.get("/gestiones/detalle")
+async def get_gestiones_detalle(
+    page: int = Query(1, ge=1, description="Pagina"),
+    per_page: int = Query(50, ge=1, le=200, description="Registros por pagina"),
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Detalle paginado de gestiones"""
+    from ..services.gestion_analytics import GestionAnalyticsService
+    service = GestionAnalyticsService(db)
+    return service.get_gestiones_detalle(filters, page, per_page)
+
+
+@router.get("/gestiones/por-dia")
+async def get_gestiones_por_dia(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Gestiones por día (tendencia)"""
+    from ..services.gestion_analytics import GestionAnalyticsService
+    service = GestionAnalyticsService(db)
+    return service.get_gestiones_por_dia(filters)
+
+
+@router.get("/gestiones/por-incidencia")
+async def get_gestiones_por_incidencia(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Gestiones agrupadas por tipo de incidencia"""
+    from ..services.gestion_analytics import GestionAnalyticsService
+    service = GestionAnalyticsService(db)
+    return service.get_gestiones_por_incidencia(filters)
 

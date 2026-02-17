@@ -4,9 +4,10 @@ Servicio de análisis de llamadas y métricas
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
-from sqlalchemy import and_, case, extract, func, or_
+from sqlalchemy import and_, case, extract, func, or_, text
 from sqlalchemy.orm import Session
 
+from ..config import config
 from ..models.omnileads_models import (
     ActividadAgenteLog,
     AgenteProfile,
@@ -20,55 +21,52 @@ from ..models.omnileads_models import (
 class CallAnalyticsService:
     """Servicio para análisis de llamadas"""
 
-    # Eventos que indican llamadas atendidas (conectadas con agente)
+    # Eventos que indican llamadas ATENDIDAS (conectadas con agente)
+    # Lista maestra unificada - usada por todos los endpoints
     EVENTOS_ATENDIDAS = [
         'COMPLETEAGENT',      # Agente cuelga
         'COMPLETEOUTNUM',     # Cliente cuelga
         'COMPLETE-BTOUT',     # Transfer ciego completado
         'COMPLETE-CTOUT',     # Transfer consultivo completado
-        'COMPLETE-CT'         # Transfer consultivo
     ]
 
-    # Eventos de llamadas ABANDONADAS (cliente abandona)
+    # Eventos de llamadas ABANDONADAS (cliente abandona o timeout)
+    # EXITWITHTIMEOUT incluido: el cliente esperó hasta que el sistema lo expulsó
     EVENTOS_ABANDONADAS = [
         'ABANDON',            # Abandono en cola
+        'ABANDONWEL',         # Abandono durante audio de bienvenida
         'ABANDON-CTOUT',      # Abandono durante transfer consultivo
-        'ABANDONWEL'          # Abandono durante audio de bienvenida
+        'EXITWITHTIMEOUT',    # Timeout en cola (abandono forzado)
     ]
 
-    # Otros eventos de llamadas NO atendidas
+    # Otros eventos de llamadas NO atendidas (errores/problemas)
     EVENTOS_NO_ATENDIDAS = [
-        'EXITWITHTIMEOUT',    # Timeout en cola
         'NOANSWER',           # No contesta (saliente)
         'CANCEL',             # Cancelada (saliente)
         'CHANUNAVAIL',        # Canal no disponible
-        'NONDIALPLAN'         # Sin ruta de marcado
+        'NONDIALPLAN',        # Sin ruta de marcado
+        'BUSY',               # Ocupado
+        'DIAL',               # Llamada que solo quedó en DIAL
+    ]
+
+    # Eventos intermedios que NO deberían ser "último evento" (anomalías)
+    EVENTOS_INTERMEDIOS = [
+        'ENTERQUEUE',         # Solo entrada en cola
+        'CONNECT',            # Solo conexión sin evento final
+        'BTOUT-TRY',          # Intento de transfer
+        'BTOUT-ANSWER',       # Respuesta de transfer
+        'ANSWER',             # Respuesta genérica
+        'HOLD',               # En espera
+        'UNHOLD',             # Fin de espera
+        'RINGNOANSWER',       # Timbrando sin respuesta (intermedio)
     ]
 
     # EVENTOS FINALES: Solo estos cuentan como "llamadas" en los totales
-    # Basado en la tabla oficial de eventos de OmniLeads y análisis de datos reales
-    EVENTOS_FINALES = [
-        # Llamadas completadas (atendidas)
-        'COMPLETEAGENT',      # Agente cuelga
-        'COMPLETEOUTNUM',     # Cliente cuelga
-        'COMPLETE-BTOUT',     # Transfer ciego completado
-        'COMPLETE-CTOUT',     # Transfer consultivo completado
-        'COMPLETE-CT',        # Transfer consultivo por agente
-        'COMPLETE-CAMPT',     # Transfer a campaña (encontrado en datos reales)
-
-        # Llamadas abandonadas
-        'ABANDON',            # Abandono en cola
-        'ABANDONWEL',         # Abandono en bienvenida
-        'ABANDON-CTOUT',      # Abandono durante transfer
-        'EXITWITHTIMEOUT',    # Timeout/Expirada
-
-        # Salientes no atendidas
-        'NOANSWER',           # No contestada
-        'CANCEL',             # Cancelada
-        'BUSY',               # Ocupado
-        'CHANUNAVAIL',        # Canal no disponible
-        'NONDIALPLAN'         # Sin ruta
-    ]
+    EVENTOS_FINALES = (
+        EVENTOS_ATENDIDAS
+        + EVENTOS_ABANDONADAS
+        + EVENTOS_NO_ATENDIDAS
+    )
 
     # Tipos de llamada (basado en estructura real de OmniLeads)
     TIPO_SALIENTE = 1      # Llamadas manuales salientes
@@ -82,6 +80,22 @@ class CallAnalyticsService:
 
     def __init__(self, db: Session):
         self.db = db
+        # Timezone offset string para PostgreSQL AT TIME ZONE
+        # Ej: TIMEZONE_OFFSET=-6 → 'UTC-6' → pero PostgreSQL
+        # interpreta signos al revés en POSIX, así que usamos
+        # interval para hacer el ajuste
+        self._tz_offset = config.TIMEZONE_OFFSET  # -6
+
+    def _local_time(self, column):
+        """
+        Convierte una columna timestamp a hora local usando
+        el TIMEZONE_OFFSET configurado.
+        Ej: con offset=-6, resta 6 horas.
+        PostgreSQL: column + interval 'N hours'
+        """
+        return column + text(
+            f"interval '{self._tz_offset} hours'"
+        )
 
     def _apply_filters(self, query, filters: Dict):
         """Aplica filtros comunes a las consultas"""
@@ -119,11 +133,11 @@ class CallAnalyticsService:
     def _build_last_event_subquery(self, filters: Dict, event_list: List[str] = None):
         """
         Helper para construir subquery de último evento por callid con filtros aplicados.
-        OPTIMIZACIÓN: Centraliza la lógica de filtros para evitar duplicación.
+        Usa MAX(id) como desempate cuando hay múltiples eventos con el mismo timestamp.
         """
         subquery = self.db.query(
             LlamadaLog.callid,
-            func.max(LlamadaLog.time).label('ultimo_tiempo')
+            func.max(LlamadaLog.id).label('ultimo_id')
         ).filter(
             LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE])
         )
@@ -177,13 +191,34 @@ class CallAnalyticsService:
             last_events_subq,
             and_(
                 LlamadaLog.callid == last_events_subq.c.callid,
-                LlamadaLog.time == last_events_subq.c.ultimo_tiempo
+                LlamadaLog.id == last_events_subq.c.ultimo_id
             )
         ).first()
 
         llamadas_atendidas = call_counts.atendidas or 0
         llamadas_abandonadas = call_counts.abandonadas or 0
         llamadas_no_atendidas_otras = call_counts.no_atendidas or 0
+
+        # Anomalías: llamadas cuyo último evento no está en ninguna categoría final
+        todas_categorias = (
+            self.EVENTOS_ATENDIDAS
+            + self.EVENTOS_ABANDONADAS
+            + self.EVENTOS_NO_ATENDIDAS
+        )
+        clasificadas = llamadas_atendidas + llamadas_abandonadas + llamadas_no_atendidas_otras
+
+        # Total de llamadas únicas basadas en último evento
+        total_unicas = self.db.query(
+            func.count(func.distinct(LlamadaLog.callid))
+        ).join(
+            last_events_subq,
+            and_(
+                LlamadaLog.callid == last_events_subq.c.callid,
+                LlamadaLog.id == last_events_subq.c.ultimo_id
+            )
+        ).scalar() or 0
+
+        anomalias = max(0, total_unicas - clasificadas)
 
         # Total no atendidas = abandonadas + otras
         llamadas_no_atendidas_total = llamadas_abandonadas + llamadas_no_atendidas_otras
@@ -361,6 +396,12 @@ class CallAnalyticsService:
                 'cambio': '+4%',
                 'tendencia': 'positivo' if (ocupacion >= 70 and ocupacion <= 90) else 'neutro',
                 'icono': '📊'
+            },
+            'anomalias': {
+                'valor': anomalias,
+                'tendencia': 'negativo' if anomalias > 0 else 'neutro',
+                'icono': '⚠️',
+                'label': 'Anomalias'
             }
         }
 
@@ -458,9 +499,10 @@ class CallAnalyticsService:
         query = self.db.query(LlamadaLog)
         query = self._apply_filters(query, filters)
 
-        # Obtener datos agrupados
+        # Obtener datos agrupados (hora convertida a timezone local)
+        local_time = self._local_time(LlamadaLog.time)
         resultados = query.with_entities(
-            extract('hour', LlamadaLog.time).label('hora'),
+            extract('hour', local_time).label('hora'),
             LlamadaLog.tipo_llamada,
             LlamadaLog.event,
             func.count(LlamadaLog.id).label('total')
@@ -496,9 +538,10 @@ class CallAnalyticsService:
         query = self.db.query(LlamadaLog)
         query = self._apply_filters(query, filters)
 
-        # Agrupar por hora
+        # Agrupar por hora (convertida a timezone local)
+        local_time = self._local_time(LlamadaLog.time)
         resultados = query.with_entities(
-            extract('hour', LlamadaLog.time).label('hora'),
+            extract('hour', local_time).label('hora'),
             func.count(LlamadaLog.id).label('total')
         ).group_by('hora').order_by('hora').all()
 
@@ -600,10 +643,10 @@ class CallAnalyticsService:
         eventos_no_atendidas_todas = self.EVENTOS_ABANDONADAS + self.EVENTOS_NO_ATENDIDAS
 
         # Subquery para obtener el último evento de cada llamada no atendida
-        # SOLO tipo_llamada 1 (entrantes) y 3 (salientes)
+        # Usa MAX(id) como desempate para eventos con mismo timestamp
         subquery = self.db.query(
             LlamadaLog.callid,
-            func.max(LlamadaLog.time).label('ultimo_tiempo')
+            func.max(LlamadaLog.id).label('ultimo_id')
         ).filter(
             LlamadaLog.event.in_(eventos_no_atendidas_todas),
             LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE])
@@ -630,7 +673,7 @@ class CallAnalyticsService:
             subquery,
             and_(
                 LlamadaLog.callid == subquery.c.callid,
-                LlamadaLog.time == subquery.c.ultimo_tiempo
+                LlamadaLog.id == subquery.c.ultimo_id
             )
         ).outerjoin(
             Campana, LlamadaLog.campana_id == Campana.id
@@ -697,10 +740,10 @@ class CallAnalyticsService:
         filters = filters or {}
 
         # Subquery para obtener el último evento de cada llamada atendida
-        # SOLO tipo_llamada 1 (entrantes) y 3 (salientes)
+        # Usa MAX(id) como desempate para eventos con mismo timestamp
         subquery = self.db.query(
             LlamadaLog.callid,
-            func.max(LlamadaLog.time).label('ultimo_tiempo')
+            func.max(LlamadaLog.id).label('ultimo_id')
         ).filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
             LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE])
@@ -727,7 +770,7 @@ class CallAnalyticsService:
             subquery,
             and_(
                 LlamadaLog.callid == subquery.c.callid,
-                LlamadaLog.time == subquery.c.ultimo_tiempo
+                LlamadaLog.id == subquery.c.ultimo_id
             )
         ).outerjoin(
             Campana, LlamadaLog.campana_id == Campana.id
@@ -789,9 +832,10 @@ class CallAnalyticsService:
         filters = filters or {}
 
         # Subquery para obtener el último evento de cada llamada
+        # Usa MAX(id) como desempate para eventos con mismo timestamp
         subquery = self.db.query(
             LlamadaLog.callid,
-            func.max(LlamadaLog.time).label('ultimo_tiempo')
+            func.max(LlamadaLog.id).label('ultimo_id')
         ).filter(
             LlamadaLog.tipo_llamada == 3  # Solo entrantes
         )
@@ -824,7 +868,7 @@ class CallAnalyticsService:
             subquery,
             and_(
                 LlamadaLog.callid == subquery.c.callid,
-                LlamadaLog.time == subquery.c.ultimo_tiempo
+                LlamadaLog.id == subquery.c.ultimo_id
             )
         ).outerjoin(
             AgenteProfile, LlamadaLog.agente_id == AgenteProfile.id
@@ -969,9 +1013,10 @@ class CallAnalyticsService:
         """
         filters = filters or {}
 
-        # Consultar llamadas agrupadas por semana
+        # Consultar llamadas agrupadas por semana (timezone local)
+        local_time = self._local_time(LlamadaLog.time)
         query = self.db.query(
-            func.date_trunc('week', LlamadaLog.time).label('semana'),
+            func.date_trunc('week', local_time).label('semana'),
             func.count(LlamadaLog.id).label('total'),
             func.sum(
                 case((LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS), 1), else_=0)
@@ -986,9 +1031,9 @@ class CallAnalyticsService:
 
         resultados = query.group_by('semana').order_by('semana').all()
 
-        # Consultar agentes activos por semana
+        # Consultar agentes activos por semana (timezone local)
         agentes_query = self.db.query(
-            func.date_trunc('week', LlamadaLog.time).label('semana'),
+            func.date_trunc('week', local_time).label('semana'),
             func.count(func.distinct(LlamadaLog.agente_id)).label('agentes_activos')
         )
 

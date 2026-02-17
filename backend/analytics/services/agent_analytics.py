@@ -602,7 +602,6 @@ class AgentAnalyticsService:
             ActividadAgenteLog.agente_id == agente_id
         ).order_by(ActividadAgenteLog.time).all()
 
-        print(f"★★★ Total actividades encontradas: {len(actividades)}")
         logger.info(f"Total actividades encontradas: {len(actividades)}")
 
         sesiones = []
@@ -618,9 +617,12 @@ class AgentAnalyticsService:
                 duracion_segundos = (actividad.time - tiempo_login).total_seconds()
 
                 # Aplicar filtros de fecha DESPUÉS de emparejar
+                # Comparar como naive (strip tz) para evitar error
                 incluir_sesion = True
                 if filters.get('fecha_inicio') and filters.get('fecha_fin'):
-                    if actividad.time < filters['fecha_inicio'] or tiempo_login > filters['fecha_fin']:
+                    t_logout = actividad.time.replace(tzinfo=None)
+                    t_login = tiempo_login.replace(tzinfo=None)
+                    if t_logout < filters['fecha_inicio'] or t_login > filters['fecha_fin']:
                         incluir_sesion = False
 
                 if incluir_sesion:
@@ -638,7 +640,6 @@ class AgentAnalyticsService:
 
                 tiempo_login = None
 
-        print(f"★★★ Sesiones totales: {sesiones_totales}, filtradas: {sesiones_filtradas}")
         logger.info(f"Sesiones totales encontradas: {sesiones_totales}, después de filtros: {sesiones_filtradas}")
         return sesiones
 
@@ -655,7 +656,6 @@ class AgentAnalyticsService:
             ActividadAgenteLog.agente_id == agente_id
         ).order_by(ActividadAgenteLog.time).all()
 
-        print(f"★★★ Total actividades encontradas: {len(actividades)}")
         logger.info(f"Total actividades encontradas: {len(actividades)}")
 
         # Obtener tipos de pausas
@@ -686,9 +686,12 @@ class AgentAnalyticsService:
                 duracion_segundos = (actividad.time - tiempo_pausa_inicio).total_seconds()
 
                 # Aplicar filtros de fecha DESPUÉS de emparejar
+                # Comparar como naive (strip tz) para evitar error
                 incluir_pausa = True
                 if filters.get('fecha_inicio') and filters.get('fecha_fin'):
-                    if actividad.time < filters['fecha_inicio'] or tiempo_pausa_inicio > filters['fecha_fin']:
+                    t_fin = actividad.time.replace(tzinfo=None)
+                    t_ini = tiempo_pausa_inicio.replace(tzinfo=None)
+                    if t_fin < filters['fecha_inicio'] or t_ini > filters['fecha_fin']:
                         incluir_pausa = False
 
                 if incluir_pausa:

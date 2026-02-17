@@ -5,7 +5,7 @@ Métodos adicionales para reportes premium
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
-from sqlalchemy import and_, case, distinct, extract, func, or_, text
+from sqlalchemy import and_, case, distinct, extract, func, or_
 from sqlalchemy.orm import Session
 
 from ..config import config
@@ -84,13 +84,15 @@ class CallAnalyticsExtended:
 
     def __init__(self, db: Session):
         self.db = db
-        self._tz_offset = config.TIMEZONE_OFFSET  # -6
+        self._tz_name = config.TIMEZONE_NAME  # 'America/Managua'
 
     def _local_time(self, column):
-        """Convierte columna timestamp a hora local usando TIMEZONE_OFFSET"""
-        return column + text(
-            f"interval '{self._tz_offset} hours'"
-        )
+        """
+        Convierte columna timestamptz a hora local.
+        Usa AT TIME ZONE para convertir desde el TZ de la BD
+        al TZ del cliente.
+        """
+        return func.timezone(self._tz_name, column)
 
     def _build_last_event_subquery(self, filters: Dict = None):
         """

@@ -4,7 +4,7 @@ Tablas: ominicontacto_app_customformgestion + ominicontacto_app_customformincide
 """
 from typing import Dict, List
 
-from sqlalchemy import func, text
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..config import config
@@ -318,8 +318,8 @@ class GestionAnalyticsService:
         filters = filters or {}
 
         # Convertir fecha a timezone local para agrupar
-        local_fecha = CustomFormGestion.fecha + text(
-            f"interval '{config.TIMEZONE_OFFSET} hours'"
+        local_fecha = func.timezone(
+            config.TIMEZONE_NAME, CustomFormGestion.fecha
         )
 
         query = self.db.query(

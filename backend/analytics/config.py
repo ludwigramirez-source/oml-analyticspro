@@ -27,6 +27,11 @@ class OmniLeadsConfig:
 
     # Timezone Configuration (default GMT-6 for Central America)
     TIMEZONE_OFFSET = int(os.getenv('TIMEZONE_OFFSET', '-6'))
+    # Nombre IANA del timezone local (para PostgreSQL AT TIME ZONE)
+    # Se puede sobreescribir con TIMEZONE_NAME en .env
+    TIMEZONE_NAME = os.getenv(
+        'TIMEZONE_NAME', 'America/Managua'
+    )
 
     @classmethod
     def get_database_url(cls) -> str:

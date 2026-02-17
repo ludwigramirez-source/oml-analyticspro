@@ -4,7 +4,7 @@ Servicio de análisis de llamadas y métricas
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
-from sqlalchemy import and_, case, extract, func, or_, text
+from sqlalchemy import and_, case, extract, func, or_
 from sqlalchemy.orm import Session
 
 from ..config import config
@@ -80,22 +80,17 @@ class CallAnalyticsService:
 
     def __init__(self, db: Session):
         self.db = db
-        # Timezone offset string para PostgreSQL AT TIME ZONE
-        # Ej: TIMEZONE_OFFSET=-6 → 'UTC-6' → pero PostgreSQL
-        # interpreta signos al revés en POSIX, así que usamos
-        # interval para hacer el ajuste
-        self._tz_offset = config.TIMEZONE_OFFSET  # -6
+        self._tz_name = config.TIMEZONE_NAME  # 'America/Managua'
 
     def _local_time(self, column):
         """
-        Convierte una columna timestamp a hora local usando
-        el TIMEZONE_OFFSET configurado.
-        Ej: con offset=-6, resta 6 horas.
-        PostgreSQL: column + interval 'N hours'
+        Convierte una columna timestamptz a hora local usando
+        PostgreSQL AT TIME ZONE.
+        Ej: time AT TIME ZONE 'America/Managua'
+        Esto convierte correctamente desde el timezone de la BD
+        (America/Bogota UTC-5) al timezone del cliente (UTC-6).
         """
-        return column + text(
-            f"interval '{self._tz_offset} hours'"
-        )
+        return func.timezone(self._tz_name, column)
 
     def _apply_filters(self, query, filters: Dict):
         """Aplica filtros comunes a las consultas"""

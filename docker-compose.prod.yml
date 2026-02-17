@@ -19,7 +19,18 @@ services:
       - OMNILEADS_DB_NAME=${OMNILEADS_DB_NAME}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - TIMEZONE_DB=${TIMEZONE_DB:-America/Bogota}
+      # Local DB (sync)
+      - USE_LOCAL_DB=${USE_LOCAL_DB:-true}
+      - LOCAL_DB_HOST=postgres-local
+      - LOCAL_DB_PORT=5432
+      - LOCAL_DB_NAME=${LOCAL_DB_NAME:-omnileads_local}
+      - LOCAL_DB_USER=${LOCAL_DB_USER:-analytics}
+      - LOCAL_DB_PASSWORD=${LOCAL_DB_PASSWORD:-analytics_password}
     restart: always
+    depends_on:
+      postgres-local:
+        condition: service_healthy
     networks:
       - oml-network
     healthcheck:
@@ -41,14 +52,12 @@ services:
           cpus: '0.5'
           memory: 256M
 
-  # Frontend Service
+  # Frontend Service (Nginx + React build)
   frontend:
     build:
       context: .
       dockerfile: ./compose/prod/frontend/frontend.prod.dockerfile
     container_name: oml-frontend-prod
-    # expose:
-    #   - "80"
     ports:
       - "${NGINX_PORT:-80}:80"
       # - "${NGINX_SSL_PORT:-443}:443"
@@ -77,6 +86,92 @@ services:
     volumes:
       - /app/node_modules
 
+  # PostgreSQL Local (replica sincronizada)
+  postgres-local:
+    image: postgres:16-alpine
+    container_name: oml-postgres-local-prod
+    # No exponer puerto al exterior en produccion (solo red interna)
+    # Para acceso externo temporal, descomentar:
+    # ports:
+    #   - "127.0.0.1:5433:5432"
+    environment:
+      - POSTGRES_USER=${LOCAL_DB_USER:-analytics}
+      - POSTGRES_PASSWORD=${LOCAL_DB_PASSWORD:-analytics_password}
+      - POSTGRES_DB=${LOCAL_DB_NAME:-omnileads_local}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8
+      - TZ=${TIMEZONE_DB:-America/Bogota}
+      - PGTZ=${TIMEZONE_DB:-America/Bogota}
+    volumes:
+      - postgres-local-data:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c timezone=${TIMEZONE_DB:-America/Bogota}
+      -c log_timezone=${TIMEZONE_DB:-America/Bogota}
+      -c shared_buffers=256MB
+      -c effective_cache_size=512MB
+      -c work_mem=16MB
+      -c maintenance_work_mem=128MB
+      -c max_connections=100
+    networks:
+      - oml-network
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${LOCAL_DB_USER:-analytics}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # Sync Service (sincroniza OmniLeads remoto -> BD local)
+  sync-service:
+    build:
+      context: .
+      dockerfile: ./compose/prod/sync/sync.prod.dockerfile
+    container_name: oml-sync-service-prod
+    environment:
+      - PYTHONUNBUFFERED=1
+      # Source DB (OmniLeads remota)
+      - OMNILEADS_DB_HOST=${OMNILEADS_DB_HOST}
+      - OMNILEADS_DB_PORT=${OMNILEADS_DB_PORT}
+      - OMNILEADS_DB_USER=${OMNILEADS_DB_USER}
+      - OMNILEADS_DB_PASSWORD=${OMNILEADS_DB_PASSWORD}
+      - OMNILEADS_DB_NAME=${OMNILEADS_DB_NAME}
+      # Local DB
+      - LOCAL_DB_HOST=postgres-local
+      - LOCAL_DB_PORT=5432
+      - LOCAL_DB_NAME=${LOCAL_DB_NAME:-omnileads_local}
+      - LOCAL_DB_USER=${LOCAL_DB_USER:-analytics}
+      - LOCAL_DB_PASSWORD=${LOCAL_DB_PASSWORD:-analytics_password}
+      # Sync config
+      - SYNC_INTERVAL_EVENT_LOGS=${SYNC_INTERVAL_EVENT_LOGS:-300}
+      - SYNC_INTERVAL_REFERENCE=${SYNC_INTERVAL_REFERENCE:-3600}
+      - SYNC_BATCH_SIZE=${SYNC_BATCH_SIZE:-10000}
+      - SYNC_INITIAL_BATCH_SIZE=${SYNC_INITIAL_BATCH_SIZE:-50000}
+    depends_on:
+      postgres-local:
+        condition: service_healthy
+    networks:
+      - oml-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
 networks:
   oml-network:
     driver: bridge
+
+volumes:
+  postgres-local-data:

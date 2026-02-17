@@ -10,23 +10,29 @@ class AnalyticsAPI {
    */
   buildQueryString(filters = {}) {
     const params = new URLSearchParams();
-    
+
     if (filters.fecha_inicio) {
       params.append('fecha_inicio', filters.fecha_inicio);
     }
     if (filters.fecha_fin) {
       params.append('fecha_fin', filters.fecha_fin);
     }
-    if (filters.campana_id) {
+    // Soportar campana_ids (múltiples) y campana_id (único)
+    if (filters.campana_ids && filters.campana_ids.length > 0) {
+      params.append('campana_ids', filters.campana_ids.join(','));
+    } else if (filters.campana_id) {
       params.append('campana_id', filters.campana_id);
     }
     if (filters.tipo_campana) {
       params.append('tipo_campana', filters.tipo_campana);
     }
-    if (filters.agente_id) {
+    // Soportar agente_ids (múltiples) y agente_id (único)
+    if (filters.agente_ids && filters.agente_ids.length > 0) {
+      params.append('agente_ids', filters.agente_ids.join(','));
+    } else if (filters.agente_id) {
       params.append('agente_id', filters.agente_id);
     }
-    
+
     return params.toString();
   }
 

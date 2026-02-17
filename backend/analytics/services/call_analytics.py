@@ -158,11 +158,7 @@ class CallAnalyticsService:
         query = query.filter(LlamadaLog.event.in_(self.EVENTOS_FINALES))
         query = query.filter(LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE]))
 
-        # OPTIMIZACIÓN 1: Contar con scalar en lugar de .count()
-        total_llamadas = query.with_entities(func.count(LlamadaLog.id)).scalar() or 0
-
-        # OPTIMIZACIÓN 2: CONSOLIDAR 3 SUBQUERIES EN 1 - Mayor impacto!
-        # Single subquery para obtener último evento de cada llamada
+        # Subquery para obtener último evento de cada llamada (por callid)
         from sqlalchemy import case
 
         last_events_subq = self._build_last_event_subquery(filters)
@@ -202,7 +198,8 @@ class CallAnalyticsService:
         clasificadas = llamadas_atendidas + llamadas_abandonadas + llamadas_no_atendidas_otras
 
         # Total de llamadas únicas basadas en último evento
-        total_unicas = self.db.query(
+        # Este es el total real de llamadas (cada callid = 1 llamada)
+        total_llamadas = self.db.query(
             func.count(func.distinct(LlamadaLog.callid))
         ).join(
             last_events_subq,
@@ -212,7 +209,7 @@ class CallAnalyticsService:
             )
         ).scalar() or 0
 
-        anomalias = max(0, total_unicas - clasificadas)
+        anomalias = max(0, total_llamadas - clasificadas)
 
         # Total no atendidas = abandonadas + otras
         llamadas_no_atendidas_total = llamadas_abandonadas + llamadas_no_atendidas_otras
@@ -403,19 +400,44 @@ class CallAnalyticsService:
 
     def get_distribucion_llamadas(self, filters: Dict = None) -> Dict:
         """
-        Obtiene la distribución de llamadas por estado
+        Obtiene la distribución de llamadas por estado.
+        Usa MAX(id) por callid para contar llamadas únicas,
+        consistente con KPIs.
         """
+        from sqlalchemy import case
         filters = filters or {}
-        query = self.db.query(LlamadaLog)
-        query = self._apply_filters(query, filters)
 
-        atendidas = query.filter(LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)).count()
-        abandonadas = query.filter(LlamadaLog.event == 'ABANDON').count()
-        no_atendidas = query.filter(
-            LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS),
-            LlamadaLog.event != 'ABANDON'
-        ).count()
+        # Subquery: último evento de cada llamada (por callid)
+        last_events_subq = self._build_last_event_subquery(filters)
 
+        # Contar llamadas únicas por categoría del último evento
+        counts = self.db.query(
+            func.count(func.distinct(case(
+                (LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
+                 LlamadaLog.callid),
+                else_=None
+            ))).label('atendidas'),
+            func.count(func.distinct(case(
+                (LlamadaLog.event.in_(self.EVENTOS_ABANDONADAS),
+                 LlamadaLog.callid),
+                else_=None
+            ))).label('abandonadas'),
+            func.count(func.distinct(case(
+                (LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS),
+                 LlamadaLog.callid),
+                else_=None
+            ))).label('no_atendidas'),
+        ).join(
+            last_events_subq,
+            and_(
+                LlamadaLog.callid == last_events_subq.c.callid,
+                LlamadaLog.id == last_events_subq.c.ultimo_id
+            )
+        ).first()
+
+        atendidas = counts.atendidas or 0
+        abandonadas = counts.abandonadas or 0
+        no_atendidas = counts.no_atendidas or 0
         total = atendidas + abandonadas + no_atendidas
 
         return {
@@ -430,37 +452,47 @@ class CallAnalyticsService:
 
     def get_distribucion_por_tipo(self, filters: Dict = None) -> Dict:
         """
-        Obtiene la distribución de llamadas separada por tipo (entrantes vs salientes)
-        Para mostrar dos gráficos de pie separados
+        Distribución de llamadas por tipo (entrantes vs salientes).
+        Usa MAX(id) por callid para contar llamadas únicas,
+        consistente con KPIs.
         """
+        from sqlalchemy import case
         filters = filters or {}
 
-        # Consulta para llamadas entrantes
-        query_entrantes = self.db.query(LlamadaLog)
-        query_entrantes = self._apply_filters(query_entrantes, filters)
-        query_entrantes = query_entrantes.filter(LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE)
+        # Subquery GLOBAL: último evento de cada llamada
+        last_events_subq = self._build_last_event_subquery(filters)
 
-        entrantes_atendidas = query_entrantes.filter(
+        # Base: solo filas que son el último evento
+        base = self.db.query(LlamadaLog).join(
+            last_events_subq,
+            and_(
+                LlamadaLog.callid == last_events_subq.c.callid,
+                LlamadaLog.id == last_events_subq.c.ultimo_id
+            )
+        )
+
+        # --- ENTRANTES ---
+        q_ent = base.filter(
+            LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE
+        )
+        entrantes_atendidas = q_ent.filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
         ).count()
-        entrantes_abandonadas = query_entrantes.filter(
+        entrantes_abandonadas = q_ent.filter(
             LlamadaLog.event.in_(self.EVENTOS_ABANDONADAS)
         ).count()
-
         total_entrantes = entrantes_atendidas + entrantes_abandonadas
 
-        # Consulta para llamadas salientes
-        query_salientes = self.db.query(LlamadaLog)
-        query_salientes = self._apply_filters(query_salientes, filters)
-        query_salientes = query_salientes.filter(LlamadaLog.tipo_llamada == self.TIPO_SALIENTE)
-
-        salientes_conectadas = query_salientes.filter(
+        # --- SALIENTES ---
+        q_sal = base.filter(
+            LlamadaLog.tipo_llamada == self.TIPO_SALIENTE
+        )
+        salientes_conectadas = q_sal.filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
         ).count()
-        salientes_no_conectadas = query_salientes.filter(
+        salientes_no_conectadas = q_sal.filter(
             LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS)
         ).count()
-
         total_salientes = salientes_conectadas + salientes_no_conectadas
 
         return {
@@ -623,50 +655,35 @@ class CallAnalyticsService:
 
     def get_llamadas_abandonadas(self, filters: Dict = None, page: int = 1, per_page: int = 50) -> Dict:
         """
-        Obtiene lista detallada de llamadas NO ATENDIDAS con paginación
-        Incluye: ABANDONADAS (entrantes) + NO ATENDIDAS (salientes)
-        - ABANDON, ABANDONWEL, EXITWITHTIMEOUT (abandonadas entrantes)
-        - NOANSWER, CANCEL, BUSY, etc. (no atendidas salientes)
-        Hora se muestra tal cual de la BD (hora local del servidor)
+        Obtiene lista detallada de llamadas NO ATENDIDAS con paginación.
+        Usa el último evento GLOBAL de cada llamada (MAX(id) por callid)
+        y filtra solo las cuyo último evento es ABANDONADA o NO_ATENDIDA.
+        Consistente con KPIs.
         """
         filters = filters or {}
 
         # Combinar eventos abandonadas + no atendidas
-        eventos_no_atendidas_todas = self.EVENTOS_ABANDONADAS + self.EVENTOS_NO_ATENDIDAS
-
-        # Subquery para obtener el último evento de cada llamada no atendida
-        # Usa MAX(id) como desempate para eventos con mismo timestamp
-        subquery = self.db.query(
-            LlamadaLog.callid,
-            func.max(LlamadaLog.id).label('ultimo_id')
-        ).filter(
-            LlamadaLog.event.in_(eventos_no_atendidas_todas),
-            LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE])
+        eventos_no_atendidas_todas = (
+            self.EVENTOS_ABANDONADAS + self.EVENTOS_NO_ATENDIDAS
         )
 
-        if filters.get('fecha_inicio'):
-            subquery = subquery.filter(LlamadaLog.time >= filters['fecha_inicio'])
-        if filters.get('fecha_fin'):
-            subquery = subquery.filter(LlamadaLog.time <= filters['fecha_fin'])
-        if filters.get('campana_ids'):
-            subquery = subquery.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
-        if filters.get('agente_ids'):
-            subquery = subquery.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
+        # Subquery GLOBAL: último evento de cada llamada
+        last_events_subq = self._build_last_event_subquery(filters)
 
-        subquery = subquery.group_by(LlamadaLog.callid).subquery()
-
-        # Query principal con JOIN a subquery para obtener solo últimos eventos
+        # Query principal: JOIN con subquery, filtrar NO ATENDIDAS
         query = self.db.query(
             LlamadaLog,
             Campana.nombre.label('campana_nombre'),
             User.first_name.label('agente_nombre'),
             User.last_name.label('agente_apellido')
         ).join(
-            subquery,
+            last_events_subq,
             and_(
-                LlamadaLog.callid == subquery.c.callid,
-                LlamadaLog.id == subquery.c.ultimo_id
+                LlamadaLog.callid == last_events_subq.c.callid,
+                LlamadaLog.id == last_events_subq.c.ultimo_id
             )
+        ).filter(
+            LlamadaLog.event.in_(eventos_no_atendidas_todas)
         ).outerjoin(
             Campana, LlamadaLog.campana_id == Campana.id
         ).outerjoin(
@@ -717,45 +734,30 @@ class CallAnalyticsService:
 
     def get_llamadas_detalladas(self, filters: Dict = None, page: int = 1, per_page: int = 50) -> Dict:
         """
-        Obtiene lista detallada de llamadas ATENDIDAS con paginación
-        Solo eventos finales: COMPLETEAGENT, COMPLETEOUTNUM
-        Hora se muestra tal cual de la BD (hora local del servidor)
+        Obtiene lista detallada de llamadas ATENDIDAS con paginación.
+        Usa el último evento GLOBAL de cada llamada (MAX(id) por callid)
+        y filtra solo las cuyo último evento es ATENDIDA.
+        Consistente con KPIs.
         """
         filters = filters or {}
 
-        # Subquery para obtener el último evento de cada llamada atendida
-        # Usa MAX(id) como desempate para eventos con mismo timestamp
-        subquery = self.db.query(
-            LlamadaLog.callid,
-            func.max(LlamadaLog.id).label('ultimo_id')
-        ).filter(
-            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
-            LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE])
-        )
+        # Subquery GLOBAL: último evento de cada llamada
+        last_events_subq = self._build_last_event_subquery(filters)
 
-        if filters.get('fecha_inicio'):
-            subquery = subquery.filter(LlamadaLog.time >= filters['fecha_inicio'])
-        if filters.get('fecha_fin'):
-            subquery = subquery.filter(LlamadaLog.time <= filters['fecha_fin'])
-        if filters.get('campana_ids'):
-            subquery = subquery.filter(LlamadaLog.campana_id.in_(filters['campana_ids']))
-        if filters.get('agente_ids'):
-            subquery = subquery.filter(LlamadaLog.agente_id.in_(filters['agente_ids']))
-
-        subquery = subquery.group_by(LlamadaLog.callid).subquery()
-
-        # Query principal con JOIN a subquery para obtener solo últimos eventos
+        # Query principal: JOIN con subquery, filtrar ATENDIDAS
         query = self.db.query(
             LlamadaLog,
             Campana.nombre.label('campana_nombre'),
             User.first_name.label('agente_nombre'),
             User.last_name.label('agente_apellido')
         ).join(
-            subquery,
+            last_events_subq,
             and_(
-                LlamadaLog.callid == subquery.c.callid,
-                LlamadaLog.id == subquery.c.ultimo_id
+                LlamadaLog.callid == last_events_subq.c.callid,
+                LlamadaLog.id == last_events_subq.c.ultimo_id
             )
+        ).filter(
+            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
         ).outerjoin(
             Campana, LlamadaLog.campana_id == Campana.id
         ).outerjoin(
@@ -930,54 +932,74 @@ class CallAnalyticsService:
 
     def get_llamadas_por_tipo(self, filters: Dict = None) -> Dict:
         """
-        Distribución de llamadas separando ENTRANTES y SALIENTES
-        Mejora de Power BI - Solo cuenta eventos finales
+        Distribución de llamadas separando ENTRANTES y SALIENTES.
+        Usa MAX(id) por callid para contar llamadas únicas,
+        consistente con KPIs.
         """
+        from sqlalchemy import case
         filters = filters or {}
-        query = self.db.query(LlamadaLog)
-        query = self._apply_filters(query, filters)
-        query = query.filter(LlamadaLog.event.in_(self.EVENTOS_FINALES))  # SOLO EVENTOS FINALES
 
-        # Llamadas ENTRANTES (tipo_llamada = 3)
-        entrantes_total = query.filter(LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE).count()
-        entrantes_atendidas = query.filter(
-            LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE,
+        # Subquery: último evento de cada llamada (por callid)
+        last_events_subq = self._build_last_event_subquery(filters)
+
+        # Query base: solo filas que son el último evento
+        base = self.db.query(LlamadaLog).join(
+            last_events_subq,
+            and_(
+                LlamadaLog.callid == last_events_subq.c.callid,
+                LlamadaLog.id == last_events_subq.c.ultimo_id
+            )
+        )
+
+        # --- ENTRANTES (tipo_llamada = 3) ---
+        q_ent = base.filter(
+            LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE
+        )
+        entrantes_total = q_ent.count()
+        entrantes_atendidas = q_ent.filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
         ).count()
-        entrantes_abandonadas = query.filter(
-            LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE,
+        entrantes_abandonadas = q_ent.filter(
             LlamadaLog.event.in_(self.EVENTOS_ABANDONADAS)
         ).count()
 
-        # Llamadas SALIENTES (tipo_llamada = 1)
-        salientes_total = query.filter(LlamadaLog.tipo_llamada == self.TIPO_SALIENTE).count()
-        salientes_atendidas = query.filter(
-            LlamadaLog.tipo_llamada == self.TIPO_SALIENTE,
+        # --- SALIENTES (tipo_llamada = 1) ---
+        q_sal = base.filter(
+            LlamadaLog.tipo_llamada == self.TIPO_SALIENTE
+        )
+        salientes_total = q_sal.count()
+        salientes_atendidas = q_sal.filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS)
         ).count()
-        # Para salientes: no atendidas = CANCEL, NOANSWER, BUSY, etc.
-        salientes_no_atendidas = query.filter(
-            LlamadaLog.tipo_llamada == self.TIPO_SALIENTE,
-            LlamadaLog.event.in_(['CANCEL', 'NOANSWER', 'BUSY', 'CHANUNAVAIL', 'NONDIALPLAN'])
+        salientes_no_atendidas = q_sal.filter(
+            LlamadaLog.event.in_(self.EVENTOS_NO_ATENDIDAS)
         ).count()
 
         # Calcular tasas
-        tasa_abandono_entrantes = round(entrantes_abandonadas / entrantes_total * 100, 2) if entrantes_total > 0 else 0
-        tasa_no_atencion_salientes = round(salientes_no_atendidas / salientes_total * 100, 2) if salientes_total > 0 else 0
+        tasa_abandono_entrantes = round(
+            entrantes_abandonadas / entrantes_total * 100, 2
+        ) if entrantes_total > 0 else 0
+        tasa_no_atencion_salientes = round(
+            salientes_no_atendidas / salientes_total * 100, 2
+        ) if salientes_total > 0 else 0
 
         return {
             'entrantes': {
                 'total': entrantes_total,
                 'atendidas': entrantes_atendidas,
                 'abandonadas': entrantes_abandonadas,
-                'nivel_atencion': round(entrantes_atendidas / entrantes_total * 100, 2) if entrantes_total > 0 else 0,
+                'nivel_atencion': round(
+                    entrantes_atendidas / entrantes_total * 100, 2
+                ) if entrantes_total > 0 else 0,
                 'tasa_abandono': tasa_abandono_entrantes
             },
             'salientes': {
                 'total': salientes_total,
                 'atendidas': salientes_atendidas,
                 'no_atendidas': salientes_no_atendidas,
-                'nivel_atencion': round(salientes_atendidas / salientes_total * 100, 2) if salientes_total > 0 else 0,
+                'nivel_atencion': round(
+                    salientes_atendidas / salientes_total * 100, 2
+                ) if salientes_total > 0 else 0,
                 'tasa_no_atencion': tasa_no_atencion_salientes
             }
         }

@@ -183,6 +183,13 @@ PERFORMANCE_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_actividadagente_agente_time ON public.reportes_app_actividadagentelog (agente_id, \"time\" DESC)",
     "CREATE INDEX IF NOT EXISTS idx_actividadagente_agente_event ON public.reportes_app_actividadagentelog (agente_id, event)",
     "CREATE INDEX IF NOT EXISTS idx_actividadagente_cover ON public.reportes_app_actividadagentelog (agente_id, \"time\", event) INCLUDE (pausa_id)",
+    # customformgestion
+    "CREATE INDEX IF NOT EXISTS idx_gestion_campana_id ON public.ominicontacto_app_customformgestion (campana_id)",
+    "CREATE INDEX IF NOT EXISTS idx_gestion_agent_id ON public.ominicontacto_app_customformgestion (agent_id)",
+    "CREATE INDEX IF NOT EXISTS idx_gestion_fecha ON public.ominicontacto_app_customformgestion (fecha)",
+    "CREATE INDEX IF NOT EXISTS idx_gestion_incidencia_id ON public.ominicontacto_app_customformgestion (incidencia_id)",
+    "CREATE INDEX IF NOT EXISTS idx_gestion_call_id ON public.ominicontacto_app_customformgestion (call_id)",
+    "CREATE INDEX IF NOT EXISTS idx_gestion_campana_fecha ON public.ominicontacto_app_customformgestion (campana_id, fecha)",
 ]
 
 

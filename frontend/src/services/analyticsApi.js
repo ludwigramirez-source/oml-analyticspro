@@ -415,6 +415,17 @@ class AnalyticsAPI {
     return this.fetchData('gestiones/por-incidencia', filters);
   }
 
+  async getAuditoriaGestiones(filters = {}) {
+    return this.fetchData('gestiones/auditoria', filters);
+  }
+
+  async getLlamadasSinGestion(filters = {}, page = 1, perPage = 50) {
+    return this.fetchData(
+      `gestiones/sin-gestion?page=${page}&per_page=${perPage}`,
+      filters
+    );
+  }
+
   // ── Sync Status ──────────────────────────────────────────────
 
   async getSyncStatus() {

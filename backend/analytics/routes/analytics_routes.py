@@ -699,6 +699,36 @@ async def get_gestiones_por_incidencia(
     return service.get_gestiones_por_incidencia(filters)
 
 
+@router.get("/gestiones/auditoria")
+async def get_auditoria_gestiones(
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """KPIs de auditoría: atendidas vs gestiones vs sin gestión"""
+    from ..services.gestion_analytics import GestionAnalyticsService
+    service = GestionAnalyticsService(db)
+    return service.get_auditoria_gestiones(filters)
+
+
+@router.get("/gestiones/sin-gestion")
+async def get_llamadas_sin_gestion(
+    page: int = Query(
+        1, ge=1, description="Pagina"
+    ),
+    per_page: int = Query(
+        50, ge=1, le=200, description="Registros por pagina"
+    ),
+    filters: dict = Depends(parse_filters),
+    db: Session = Depends(get_db)
+):
+    """Llamadas atendidas que no tienen gestión registrada"""
+    from ..services.gestion_analytics import GestionAnalyticsService
+    service = GestionAnalyticsService(db)
+    return service.get_llamadas_sin_gestion(
+        filters, page, per_page
+    )
+
+
 # ── Sync Status ──────────────────────────────────────────────────
 
 @router.get("/sync/status")

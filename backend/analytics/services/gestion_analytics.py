@@ -4,7 +4,7 @@ Tablas: ominicontacto_app_customformgestion + ominicontacto_app_customformincide
 """
 from typing import Dict, List
 
-from sqlalchemy import func
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from ..config import config
@@ -13,8 +13,21 @@ from ..models.omnileads_models import (
     Campana,
     CustomFormGestion,
     CustomFormIncidencias,
+    LlamadaLog,
     User,
 )
+
+# Eventos que indican llamadas ATENDIDAS
+EVENTOS_ATENDIDAS = [
+    'COMPLETEAGENT',
+    'COMPLETEOUTNUM',
+    'COMPLETE-BTOUT',
+    'COMPLETE-CTOUT',
+]
+
+# Tipos de llamada
+TIPO_ENTRANTE = 3
+TIPO_SALIENTE = 1
 
 
 class GestionAnalyticsService:
@@ -338,3 +351,225 @@ class GestionAnalyticsService:
             }
             for r in resultados
         ]
+
+    # ── Auditoría: Llamadas atendidas sin gestión ──────────────
+
+    def _apply_llamada_filters(self, query, filters: Dict):
+        """Aplica filtros a queries sobre LlamadaLog"""
+        if filters.get('fecha_inicio'):
+            query = query.filter(
+                LlamadaLog.time >= filters['fecha_inicio']
+            )
+        if filters.get('fecha_fin'):
+            query = query.filter(
+                LlamadaLog.time <= filters['fecha_fin']
+            )
+        if filters.get('campana_ids'):
+            query = query.filter(
+                LlamadaLog.campana_id.in_(
+                    filters['campana_ids']
+                )
+            )
+        elif filters.get('campana_id'):
+            query = query.filter(
+                LlamadaLog.campana_id == filters['campana_id']
+            )
+        if filters.get('agente_ids'):
+            query = query.filter(
+                LlamadaLog.agente_id.in_(
+                    filters['agente_ids']
+                )
+            )
+        elif filters.get('agente_id'):
+            query = query.filter(
+                LlamadaLog.agente_id == filters['agente_id']
+            )
+        return query
+
+    def get_auditoria_gestiones(
+        self, filters: Dict = None
+    ) -> Dict:
+        """
+        KPIs de auditoría: total atendidas vs total gestiones
+        vs llamadas sin gestión.
+        """
+        filters = filters or {}
+
+        # 1) Subquery: último evento por callid (MAX(id))
+        last_event_sq = self.db.query(
+            LlamadaLog.callid,
+            func.max(LlamadaLog.id).label('ultimo_id'),
+        ).filter(
+            LlamadaLog.tipo_llamada.in_(
+                [TIPO_ENTRANTE, TIPO_SALIENTE]
+            ),
+            LlamadaLog.event.in_(EVENTOS_ATENDIDAS),
+        )
+        last_event_sq = self._apply_llamada_filters(
+            last_event_sq, filters
+        )
+        last_event_sq = last_event_sq.group_by(
+            LlamadaLog.callid
+        ).subquery()
+
+        # 2) Total llamadas atendidas (callids únicos)
+        total_atendidas = self.db.query(
+            func.count(last_event_sq.c.callid)
+        ).scalar() or 0
+
+        # 3) Total gestiones en el rango
+        q_gestiones = self.db.query(
+            func.count(CustomFormGestion.id)
+        )
+        q_gestiones = self._apply_filters(q_gestiones, filters)
+        total_gestiones = q_gestiones.scalar() or 0
+
+        # 4) Callids que tienen gestión
+        gestion_callids_sq = self.db.query(
+            CustomFormGestion.call_id
+        ).filter(
+            CustomFormGestion.call_id.isnot(None),
+            CustomFormGestion.call_id != '',
+        )
+        gestion_callids_sq = self._apply_filters(
+            gestion_callids_sq, filters
+        )
+        gestion_callids_sq = gestion_callids_sq.subquery()
+
+        # 5) Llamadas atendidas sin gestión
+        sin_gestion = self.db.query(
+            func.count(last_event_sq.c.callid)
+        ).filter(
+            ~last_event_sq.c.callid.in_(
+                self.db.query(gestion_callids_sq.c.call_id)
+            )
+        ).scalar() or 0
+
+        # Porcentaje de cobertura
+        cobertura = (
+            round(
+                (total_gestiones / total_atendidas) * 100, 1
+            )
+            if total_atendidas > 0 else 0
+        )
+
+        return {
+            'total_atendidas': total_atendidas,
+            'total_gestiones': total_gestiones,
+            'sin_gestion': sin_gestion,
+            'cobertura_pct': cobertura,
+        }
+
+    def get_llamadas_sin_gestion(
+        self,
+        filters: Dict = None,
+        page: int = 1,
+        per_page: int = 50,
+    ) -> Dict:
+        """
+        Lista paginada de llamadas atendidas que NO tienen
+        registro en customformgestion.
+        """
+        filters = filters or {}
+
+        # Subquery: último evento atendido por callid
+        last_event_sq = self.db.query(
+            LlamadaLog.callid,
+            func.max(LlamadaLog.id).label('ultimo_id'),
+        ).filter(
+            LlamadaLog.tipo_llamada.in_(
+                [TIPO_ENTRANTE, TIPO_SALIENTE]
+            ),
+            LlamadaLog.event.in_(EVENTOS_ATENDIDAS),
+        )
+        last_event_sq = self._apply_llamada_filters(
+            last_event_sq, filters
+        )
+        last_event_sq = last_event_sq.group_by(
+            LlamadaLog.callid
+        ).subquery()
+
+        # Subquery: callids que SÍ tienen gestión
+        gestion_callids_sq = self.db.query(
+            CustomFormGestion.call_id
+        ).filter(
+            CustomFormGestion.call_id.isnot(None),
+            CustomFormGestion.call_id != '',
+        )
+        gestion_callids_sq = self._apply_filters(
+            gestion_callids_sq, filters
+        )
+        gestion_callids_sq = gestion_callids_sq.subquery()
+
+        # Query principal: llamadas sin gestión
+        query = self.db.query(
+            LlamadaLog,
+            Campana.nombre.label('campana_nombre'),
+            User.first_name.label('agente_nombre'),
+            User.last_name.label('agente_apellido'),
+        ).join(
+            last_event_sq,
+            and_(
+                LlamadaLog.callid == last_event_sq.c.callid,
+                LlamadaLog.id == last_event_sq.c.ultimo_id,
+            ),
+        ).filter(
+            ~LlamadaLog.callid.in_(
+                self.db.query(gestion_callids_sq.c.call_id)
+            )
+        ).outerjoin(
+            Campana, LlamadaLog.campana_id == Campana.id
+        ).outerjoin(
+            AgenteProfile,
+            LlamadaLog.agente_id == AgenteProfile.id,
+        ).outerjoin(
+            User, AgenteProfile.user_id == User.id
+        )
+
+        total = query.count()
+
+        offset = (page - 1) * per_page
+        resultados = (
+            query.order_by(LlamadaLog.time.desc())
+            .offset(offset)
+            .limit(per_page)
+            .all()
+        )
+
+        llamadas = []
+        for r in resultados:
+            ll = r.LlamadaLog
+            local_time = ll.time
+            llamadas.append({
+                'callid': ll.callid or '',
+                'fecha': local_time.strftime('%Y-%m-%d'),
+                'hora': local_time.strftime('%H:%M:%S'),
+                'numero': ll.numero_marcado or '',
+                'evento': ll.event or '',
+                'duracion': ll.duracion_llamada or 0,
+                'espera': ll.bridge_wait_time or 0,
+                'agente': (
+                    f'{r.agente_nombre or ""} '
+                    f'{r.agente_apellido or ""}'.strip()
+                    or f'Agente {ll.agente_id}'
+                ),
+                'campana': (
+                    r.campana_nombre
+                    or f'Campana {ll.campana_id}'
+                ),
+                'tipo_llamada': (
+                    'Entrante'
+                    if ll.tipo_llamada == TIPO_ENTRANTE
+                    else 'Saliente'
+                ),
+            })
+
+        return {
+            'data': llamadas,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (
+                (total + per_page - 1) // per_page
+            ),
+        }

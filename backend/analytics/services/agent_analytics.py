@@ -232,11 +232,13 @@ class AgentAnalyticsService:
 
     def get_ocupacion_agentes(self, filters: Dict = None) -> Dict:
         """
-        Obtiene la ocupación de agentes (tiempo en llamadas vs disponible)
+        Obtiene la ocupación de agentes usando datos reales de sesión.
+        Tiempo en llamada, pausa y disponible calculados desde
+        ActividadAgenteLog (sesiones reales, no jornada fija).
         """
         filters = filters or {}
 
-        # Obtener todos los agentes activos
+        # Obtener agentes con rendimiento básico
         agentes = self.get_rendimiento_agentes(filters)
 
         if not agentes:
@@ -249,26 +251,114 @@ class AgentAnalyticsService:
                 ]
             }
 
-        # Tomar top 10 agentes por llamadas
+        # Top 10 agentes por llamadas
         top_agentes = agentes[:10]
+        top_ids = [a['agente_id'] for a in top_agentes]
 
-        labels = [a['nombre'] for a in top_agentes]
+        # Batch: tiempo al habla por agente
+        habla_query = self.db.query(
+            LlamadaLog.agente_id,
+            func.sum(LlamadaLog.duracion_llamada).label('tiempo_habla')
+        ).filter(
+            LlamadaLog.agente_id.in_(top_ids),
+            LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
+            LlamadaLog.duracion_llamada.isnot(None)
+        )
+        if filters.get('fecha_inicio'):
+            habla_query = habla_query.filter(
+                LlamadaLog.time >= filters['fecha_inicio']
+            )
+        if filters.get('fecha_fin'):
+            habla_query = habla_query.filter(
+                LlamadaLog.time <= filters['fecha_fin']
+            )
+        habla_dict = {
+            r.agente_id: int(r.tiempo_habla or 0)
+            for r in habla_query.group_by(LlamadaLog.agente_id).all()
+        }
+
+        # Batch: actividades de los top agentes
+        act_query = self.db.query(ActividadAgenteLog).filter(
+            ActividadAgenteLog.agente_id.in_(top_ids)
+        )
+        if filters.get('fecha_inicio'):
+            act_query = act_query.filter(
+                ActividadAgenteLog.time >= filters['fecha_inicio']
+            )
+        if filters.get('fecha_fin'):
+            act_query = act_query.filter(
+                ActividadAgenteLog.time <= filters['fecha_fin']
+            )
+        actividades = act_query.order_by(
+            ActividadAgenteLog.agente_id,
+            ActividadAgenteLog.time
+        ).all()
+
+        # Agrupar por agente
+        acts_por_agente = {}
+        for act in actividades:
+            if act.agente_id not in acts_por_agente:
+                acts_por_agente[act.agente_id] = []
+            acts_por_agente[act.agente_id].append(act)
+
+        # Batch: tipos de pausa
+        all_pausa_ids = set()
+        for acts in acts_por_agente.values():
+            for act in acts:
+                if (act.event == 'PAUSEALL' and act.pausa_id
+                        and str(act.pausa_id).isdigit()):
+                    all_pausa_ids.add(int(act.pausa_id))
+        pausas_tipo = {}
+        if all_pausa_ids:
+            for p in self.db.query(Pausa).filter(
+                Pausa.id.in_(all_pausa_ids)
+            ).all():
+                pausas_tipo[str(p.id)] = p.tipo
+
+        # Calcular tiempos reales por agente
+        labels = []
         tiempo_llamada = []
         tiempo_disponible = []
         tiempo_pausa = []
 
         for agente in top_agentes:
-            # Tiempo en llamadas (TMO * llamadas atendidas)
-            t_llamada = (agente['tmo'] * agente['atendidas']) / 60  # En minutos
-            t_pausa = agente['tiempo_pausa'] / 60  # En minutos
+            aid = agente['agente_id']
+            acts = acts_por_agente.get(aid, [])
 
-            # Asumiendo 8 horas de trabajo = 480 minutos
-            t_total = 480
-            t_disponible = max(0, t_total - t_llamada - t_pausa)
+            t_sesion = 0
+            t_pausa_total = 0
+            tiempo_login = None
+            tiempo_pausa_inicio = None
+            pausa_id_actual = None
 
-            tiempo_llamada.append(round(t_llamada, 2))
-            tiempo_pausa.append(round(t_pausa, 2))
-            tiempo_disponible.append(round(t_disponible, 2))
+            for act in acts:
+                if act.event == 'ADDMEMBER':
+                    tiempo_login = act.time
+                elif act.event == 'REMOVEMEMBER':
+                    if tiempo_login:
+                        t_sesion += (
+                            act.time - tiempo_login
+                        ).total_seconds()
+                        tiempo_login = None
+                elif act.event == 'PAUSEALL':
+                    tiempo_pausa_inicio = act.time
+                    pausa_id_actual = act.pausa_id
+                elif act.event == 'UNPAUSEALL' and tiempo_pausa_inicio:
+                    t_pausa_total += (
+                        act.time - tiempo_pausa_inicio
+                    ).total_seconds()
+                    tiempo_pausa_inicio = None
+                    pausa_id_actual = None
+
+            t_habla = habla_dict.get(aid, 0) / 60  # minutos
+            t_pausa_min = t_pausa_total / 60  # minutos
+            t_sesion_min = t_sesion / 60  # minutos
+            t_disp = max(0, t_sesion_min - t_habla - t_pausa_min)
+
+            labels.append(agente['nombre'])
+            tiempo_llamada.append(round(t_habla, 2))
+            tiempo_pausa.append(round(t_pausa_min, 2))
+            tiempo_disponible.append(round(t_disp, 2))
 
         return {
             'labels': labels,

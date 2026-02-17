@@ -289,9 +289,8 @@ class CallAnalyticsService:
             func.count(func.distinct(LlamadaLog.agente_id))
         ).scalar() or 0
 
-        # Ocupación - Cálculo simplificado basado en tiempo de llamadas
-        # Ocupación = Tiempo total en llamadas / Tiempo disponible de agentes
-        # Tiempo disponible estimado = Agentes activos × Duración del período en segundos
+        # Ocupación = Tiempo hablando / Tiempo productivo (sesión - pausas recreativas)
+        # Usa datos reales de ActividadAgenteLog para sesiones y pausas
 
         tiempo_total_llamadas = query.filter(
             LlamadaLog.event.in_(self.EVENTOS_ATENDIDAS),
@@ -300,28 +299,83 @@ class CallAnalyticsService:
             func.sum(LlamadaLog.duracion_llamada)
         ).scalar() or 0
 
-        # Calcular duración del período en segundos
-        if filters.get('fecha_inicio') and filters.get('fecha_fin'):
-            # Si hay filtros de fecha, usar esos
-            fecha_inicio = filters['fecha_inicio']
-            fecha_fin = filters['fecha_fin']
+        # Obtener actividades de todos los agentes activos en el período
+        actividades_query = self.db.query(ActividadAgenteLog).filter(
+            ActividadAgenteLog.agente_id.isnot(None)
+        )
+        if filters.get('fecha_inicio'):
+            actividades_query = actividades_query.filter(
+                ActividadAgenteLog.time >= filters['fecha_inicio']
+            )
+        if filters.get('fecha_fin'):
+            actividades_query = actividades_query.filter(
+                ActividadAgenteLog.time <= filters['fecha_fin']
+            )
 
-            # Convertir a datetime si son date
-            if not isinstance(fecha_inicio, datetime):
-                fecha_inicio = datetime.combine(fecha_inicio, datetime.min.time())
-            if not isinstance(fecha_fin, datetime):
-                fecha_fin = datetime.combine(fecha_fin, datetime.max.time())
+        actividades = actividades_query.order_by(
+            ActividadAgenteLog.agente_id,
+            ActividadAgenteLog.time
+        ).all()
 
-            duracion_periodo_segundos = (fecha_fin - fecha_inicio).total_seconds()
-        else:
-            # Sin filtros, asumir 1 día laboral (8 horas)
-            duracion_periodo_segundos = 8 * 3600
+        # Agrupar actividades por agente
+        actividades_por_agente = {}
+        for act in actividades:
+            if act.agente_id not in actividades_por_agente:
+                actividades_por_agente[act.agente_id] = []
+            actividades_por_agente[act.agente_id].append(act)
 
-        # Tiempo disponible = agentes activos × duración del período
-        tiempo_disponible = agentes_activos * duracion_periodo_segundos
+        # Obtener tipos de pausa (batch)
+        all_pausa_ids = set()
+        for acts in actividades_por_agente.values():
+            for act in acts:
+                if (act.event == 'PAUSEALL' and act.pausa_id
+                        and str(act.pausa_id).isdigit()):
+                    all_pausa_ids.add(int(act.pausa_id))
+
+        pausas_dict = {}
+        if all_pausa_ids:
+            pausas_all = self.db.query(Pausa).filter(
+                Pausa.id.in_(all_pausa_ids)
+            ).all()
+            pausas_dict = {str(p.id): p.tipo for p in pausas_all}
+
+        # Calcular totales globales de sesión y pausas recreativas
+        total_tiempo_sesion = 0
+        total_pausas_recreativas = 0
+
+        for agente_id, acts in actividades_por_agente.items():
+            tiempo_login = None
+            tiempo_pausa_inicio = None
+            pausa_id_actual = None
+
+            for actividad in acts:
+                if actividad.event == 'ADDMEMBER':
+                    tiempo_login = actividad.time
+                elif actividad.event == 'REMOVEMEMBER':
+                    if tiempo_login:
+                        dur = (actividad.time - tiempo_login).total_seconds()
+                        total_tiempo_sesion += dur
+                        tiempo_login = None
+                elif actividad.event == 'PAUSEALL':
+                    tiempo_pausa_inicio = actividad.time
+                    pausa_id_actual = actividad.pausa_id
+                elif (actividad.event == 'UNPAUSEALL'
+                        and tiempo_pausa_inicio):
+                    dur = (actividad.time - tiempo_pausa_inicio).total_seconds()
+                    if (pausa_id_actual
+                            and pausa_id_actual in pausas_dict
+                            and pausas_dict[pausa_id_actual] == 'R'):
+                        total_pausas_recreativas += dur
+                    tiempo_pausa_inicio = None
+                    pausa_id_actual = None
+
+        # Tiempo productivo = sesión total - pausas recreativas
+        tiempo_productivo = total_tiempo_sesion - total_pausas_recreativas
 
         # Calcular ocupación
-        ocupacion = round((tiempo_total_llamadas / tiempo_disponible * 100), 2) if tiempo_disponible > 0 else 0
+        ocupacion = round(
+            (tiempo_total_llamadas / tiempo_productivo * 100), 2
+        ) if tiempo_productivo > 0 else 0
         ocupacion = min(ocupacion, 100)  # Cap al 100%
 
         # Calcular métricas adicionales

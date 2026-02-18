@@ -4,6 +4,7 @@ import KPICard from '../KPICard';
 import ApexChart from '../ApexChart';
 import Pagination from '../Pagination';
 import { ExportButtonAsync } from '../../../utils/excelExport';
+import { formatDuracion } from '../../../utils/formatters';
 
 const LlamadasSalientes = ({ filters }) => {
   const [loading, setLoading] = useState(true);
@@ -85,13 +86,7 @@ const LlamadasSalientes = ({ filters }) => {
       .filter(item => item.value > 0);
   };
 
-  const formatDuracion = (seconds) => {
-    if (!seconds && seconds !== 0) return '00:00';
-    const s = Math.round(Number(seconds) || 0);
-    const min = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-  };
+  // formatDuracion importado desde utils/formatters
 
   // Sorting server-side
   const handleSort = (field) => {

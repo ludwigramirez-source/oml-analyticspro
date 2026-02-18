@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
+import { formatDuration } from '../../utils/formatters';
 
 const TablaLlamadasOptimizada = ({ llamadasPaginated, onPageChange, filters }) => {
   const [currentPage, setCurrentPage] = useState(1);
@@ -48,13 +49,7 @@ const TablaLlamadasOptimizada = ({ llamadasPaginated, onPageChange, filters }) =
     XLSX.writeFile(wb, `llamadas_atendidas_pagina_${currentPage}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
-  const formatDuration = (seconds) => {
-    if (!seconds && seconds !== 0) return '00:00';
-    const sec = Math.round(Number(seconds) || 0);
-    const mins = Math.floor(sec / 60);
-    const secs = sec % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  };
+  // formatDuration importado desde utils/formatters
 
   return (
     <div className="bg-white rounded-lg border border-gray-200">

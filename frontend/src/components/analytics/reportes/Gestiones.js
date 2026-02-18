@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import analyticsApi from '../../../services/analyticsApi';
 import ApexChart from '../ApexChart';
 import { ExportButton, ExportButtonAsync } from '../../../utils/excelExport';
+import { formatDuration } from '../../../utils/formatters';
 import Pagination from '../Pagination';
 
 const Gestiones = ({ filters }) => {
@@ -127,13 +128,7 @@ const Gestiones = ({ filters }) => {
     return typeof num === 'number' ? num.toLocaleString('es-CO') : '0';
   };
 
-  const formatDuration = (seconds) => {
-    if (!seconds && seconds !== 0) return '00:00';
-    const sec = Math.round(Number(seconds) || 0);
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  };
+  // formatDuration importado desde utils/formatters
 
   // Sort para la tabla detalle (local, dentro de la pagina)
   const handleSort = (field) => {

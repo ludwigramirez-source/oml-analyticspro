@@ -8,6 +8,20 @@ from sqlalchemy import and_, case, extract, func, or_
 from sqlalchemy.orm import Session
 
 from ..config import config
+from ..constants import (
+    ABANDONMENT_THRESHOLD,
+    EVENTOS_ABANDONADAS,
+    EVENTOS_ATENDIDAS,
+    EVENTOS_EXCLUIDOS,
+    EVENTOS_FINALES,
+    EVENTOS_INTERMEDIOS,
+    EVENTOS_NO_ATENDIDAS,
+    NIVEL_ATENCION_CRITICO,
+    SLA_THRESHOLD_20,
+    SLA_THRESHOLD_60,
+    TIPO_ENTRANTE,
+    TIPO_SALIENTE,
+)
 from ..models.omnileads_models import (
     ActividadAgenteLog,
     AgenteProfile,
@@ -21,71 +35,19 @@ from ..models.omnileads_models import (
 class CallAnalyticsService:
     """Servicio para análisis de llamadas"""
 
-    # Eventos que indican llamadas ATENDIDAS (conectadas con agente)
-    # Lista maestra unificada - usada por todos los endpoints
-    EVENTOS_ATENDIDAS = [
-        'COMPLETEAGENT',      # Agente cuelga
-        'COMPLETEOUTNUM',     # Cliente cuelga
-        'COMPLETE-BTOUT',     # Transfer ciego completado
-        'COMPLETE-CTOUT',     # Transfer consultivo completado
-    ]
-
-    # Eventos de llamadas ABANDONADAS (cliente abandona o timeout)
-    # EXITWITHTIMEOUT incluido: el cliente esperó hasta que el sistema lo expulsó
-    EVENTOS_ABANDONADAS = [
-        'ABANDON',            # Abandono en cola
-        'ABANDONWEL',         # Abandono durante audio de bienvenida
-        'ABANDON-CTOUT',      # Abandono durante transfer consultivo
-        'EXITWITHTIMEOUT',    # Timeout en cola (abandono forzado)
-    ]
-
-    # Otros eventos de llamadas NO atendidas (errores/problemas)
-    # NOTA: NONDIALPLAN y CONGESTION excluidos - no son llamadas reales.
-    EVENTOS_NO_ATENDIDAS = [
-        'NOANSWER',           # No contesta (saliente)
-        'CANCEL',             # Cancelada (saliente)
-        'CHANUNAVAIL',        # Canal no disponible
-        'BUSY',               # Ocupado
-        'DIAL',               # Llamada que solo quedó en DIAL
-    ]
-
-    # Eventos intermedios que NO deberían ser "último evento" (anomalías)
-    EVENTOS_INTERMEDIOS = [
-        'ENTERQUEUE',         # Solo entrada en cola
-        'CONNECT',            # Solo conexión sin evento final
-        'BTOUT-TRY',          # Intento de transfer
-        'BTOUT-ANSWER',       # Respuesta de transfer
-        'ANSWER',             # Respuesta genérica
-        'HOLD',               # En espera
-        'UNHOLD',             # Fin de espera
-        'RINGNOANSWER',       # Timbrando sin respuesta (intermedio)
-        'CAMPT-TRY',          # Intento de transfer de campaña
-        'CAMPT-COMPLETE',     # Transfer de campaña completado
-        'CTOUT-TRY',          # Intento de transfer consultivo
-    ]
-
-    # Eventos EXCLUIDOS de todo conteo - no son llamadas reales
-    EVENTOS_EXCLUIDOS = [
-        'NONDIALPLAN',        # Click2call sin ruta válida (no es llamada)
-        'CONGESTION',         # Congestión de red (nunca conectó)
-    ]
-
-    # EVENTOS FINALES: Solo estos cuentan como "llamadas" en los totales
-    EVENTOS_FINALES = (
-        EVENTOS_ATENDIDAS
-        + EVENTOS_ABANDONADAS
-        + EVENTOS_NO_ATENDIDAS
-    )
-
-    # Tipos de llamada (basado en estructura real de OmniLeads)
-    TIPO_SALIENTE = 1      # Llamadas manuales salientes
-    TIPO_ENTRANTE = 3      # Llamadas entrantes (inbound)
-
-    # Umbrales estándar de la industria
-    SLA_THRESHOLD_60 = 60  # Nivel de servicio < 60 segundos
-    SLA_THRESHOLD_20 = 20  # Nivel de servicio < 20 segundos
-    ABANDONMENT_THRESHOLD = 0.05  # 5% tasa de abandono aceptable
-    NIVEL_ATENCION_CRITICO = 80  # Nivel de atención crítico < 80%
+    # Constantes importadas desde analytics.constants
+    EVENTOS_ATENDIDAS = EVENTOS_ATENDIDAS
+    EVENTOS_ABANDONADAS = EVENTOS_ABANDONADAS
+    EVENTOS_NO_ATENDIDAS = EVENTOS_NO_ATENDIDAS
+    EVENTOS_INTERMEDIOS = EVENTOS_INTERMEDIOS
+    EVENTOS_EXCLUIDOS = EVENTOS_EXCLUIDOS
+    EVENTOS_FINALES = EVENTOS_FINALES
+    TIPO_SALIENTE = TIPO_SALIENTE
+    TIPO_ENTRANTE = TIPO_ENTRANTE
+    SLA_THRESHOLD_60 = SLA_THRESHOLD_60
+    SLA_THRESHOLD_20 = SLA_THRESHOLD_20
+    ABANDONMENT_THRESHOLD = ABANDONMENT_THRESHOLD
+    NIVEL_ATENCION_CRITICO = NIVEL_ATENCION_CRITICO
 
     def __init__(self, db: Session):
         self.db = db
@@ -274,8 +236,8 @@ class CallAnalyticsService:
             )).label('llamadas_en_sla_20')
         ).first()
 
-        tmo_promedio = int(metrics.tmo_promedio) if metrics and metrics.tmo_promedio else 0
-        espera_promedio = int(metrics.espera_promedio) if metrics and metrics.espera_promedio else 0
+        tmo_promedio = int(metrics.tmo_promedio) if metrics and metrics.tmo_promedio is not None else 0
+        espera_promedio = int(metrics.espera_promedio) if metrics and metrics.espera_promedio is not None else 0
         llamadas_en_sla_60 = metrics.llamadas_en_sla_60 if metrics else 0
         llamadas_en_sla_20 = metrics.llamadas_en_sla_20 if metrics else 0
 
@@ -755,6 +717,8 @@ class CallAnalyticsService:
         y filtra solo las cuyo último evento es ABANDONADA o NO_ATENDIDA.
         Consistente con KPIs.
         """
+        page = max(1, page)
+        per_page = max(1, min(per_page, 200))
         filters = filters or {}
 
         # Combinar eventos abandonadas + no atendidas
@@ -847,6 +811,8 @@ class CallAnalyticsService:
         y filtra solo las cuyo último evento es ATENDIDA.
         Consistente con KPIs.
         """
+        page = max(1, page)
+        per_page = max(1, min(per_page, 200))
         filters = filters or {}
 
         # Subquery GLOBAL: último evento de cada llamada

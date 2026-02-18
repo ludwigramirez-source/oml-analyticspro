@@ -9,6 +9,7 @@ from sqlalchemy import and_, case, extract, func
 from sqlalchemy.orm import Session
 
 from ..config import config
+from ..constants import EVENTOS_ATENDIDAS, EVENTOS_EXCLUIDOS
 from ..models.omnileads_models import (
     ActividadAgenteLog,
     AgenteProfile,
@@ -23,13 +24,8 @@ logger = logging.getLogger(__name__)
 class AgentAnalyticsService:
     """Servicio para análisis de agentes"""
 
-    # Sincronizado con CallAnalyticsService
-    EVENTOS_ATENDIDAS = [
-        'COMPLETEAGENT',      # Agente cuelga
-        'COMPLETEOUTNUM',     # Cliente cuelga
-        'COMPLETE-BTOUT',     # Transfer ciego completado
-        'COMPLETE-CTOUT',     # Transfer consultivo completado
-    ]
+    # Constantes importadas desde analytics.constants
+    EVENTOS_ATENDIDAS = EVENTOS_ATENDIDAS
 
     def __init__(self, db: Session):
         self.db = db
@@ -40,9 +36,6 @@ class AgentAnalyticsService:
         OPTIMIZADO: Eliminación de N+1 queries mediante batch fetching.
         """
         filters = filters or {}
-
-        # Eventos a excluir
-        EVENTOS_EXCLUIDOS = ['NONDIALPLAN', 'CONGESTION']
 
         # Query para obtener métricas de llamadas por agente
         query = self.db.query(
@@ -479,12 +472,6 @@ class AgentAnalyticsService:
         from sqlalchemy import and_, func
 
         filters = filters or {}
-
-        # Constantes para eventos de llamadas atendidas
-        EVENTOS_ATENDIDAS = ['COMPLETEAGENT', 'COMPLETEOUTNUM', 'COMPLETE-BTOUT', 'COMPLETE-CTOUT']
-
-        # Eventos a excluir del conteo
-        EVENTOS_EXCLUIDOS = ['NONDIALPLAN', 'CONGESTION']
 
         # Obtener agentes con llamadas en el período
         subquery_agentes = self.db.query(

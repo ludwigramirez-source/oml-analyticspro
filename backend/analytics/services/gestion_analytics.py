@@ -8,6 +8,7 @@ from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from ..config import config
+from ..constants import EVENTOS_ATENDIDAS, TIPO_ENTRANTE, TIPO_SALIENTE
 from ..models.omnileads_models import (
     AgenteProfile,
     Campana,
@@ -16,18 +17,6 @@ from ..models.omnileads_models import (
     LlamadaLog,
     User,
 )
-
-# Eventos que indican llamadas ATENDIDAS
-EVENTOS_ATENDIDAS = [
-    'COMPLETEAGENT',
-    'COMPLETEOUTNUM',
-    'COMPLETE-BTOUT',
-    'COMPLETE-CTOUT',
-]
-
-# Tipos de llamada
-TIPO_ENTRANTE = 3
-TIPO_SALIENTE = 1
 
 
 class GestionAnalyticsService:
@@ -251,6 +240,8 @@ class GestionAnalyticsService:
     ) -> Dict:
         """Detalle paginado de gestiones con duración de llamada"""
         filters = filters or {}
+        page = max(1, page)
+        per_page = max(1, min(per_page, 200))
 
         # Subquery 1: hora real de la llamada (cualquier evento)
         # Matchea incluso llamadas en curso (ENTERQUEUE, CONNECT)
@@ -341,8 +332,8 @@ class GestionAnalyticsService:
                 'telefono': g.telefono,
                 'nis': g.nis,
                 'incidencia': r.incidencia_nombre or '',
-                'fecha': ts.strftime('%Y-%m-%d'),
-                'hora': ts.strftime('%H:%M:%S'),
+                'fecha': ts.strftime('%Y-%m-%d') if ts else '-',
+                'hora': ts.strftime('%H:%M:%S') if ts else '-',
                 'agente': (
                     f'{r.agente_nombre or ""} '
                     f'{r.agente_apellido or ""}'.strip()
@@ -520,6 +511,8 @@ class GestionAnalyticsService:
         registro en customformgestion.
         """
         filters = filters or {}
+        page = max(1, page)
+        per_page = max(1, min(per_page, 200))
 
         # Subquery: último evento atendido por callid
         last_event_sq = self.db.query(

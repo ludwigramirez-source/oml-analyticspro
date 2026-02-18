@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import analyticsApi from '../../../services/analyticsApi';
 import KPICard from '../KPICard';
 import { ExportButton } from '../../../utils/excelExport';
+import { formatDuracion } from '../../../utils/formatters';
 
 const Transferencias = ({ filters }) => {
   const [loading, setLoading] = useState(true);
@@ -31,11 +32,7 @@ const Transferencias = ({ filters }) => {
     }
   };
 
-  const formatDuracion = (seconds) => {
-    const min = Math.floor(seconds / 60);
-    const sec = seconds % 60;
-    return `${min}:${sec.toString().padStart(2, '0')}`;
-  };
+  // formatDuracion importado desde utils/formatters
 
   const getEventoBadge = (evento) => {
     const badges = {

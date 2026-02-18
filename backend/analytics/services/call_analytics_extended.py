@@ -9,6 +9,16 @@ from sqlalchemy import and_, case, distinct, extract, func, or_
 from sqlalchemy.orm import Session
 
 from ..config import config
+from ..constants import (
+    EVENTOS_ABANDONADAS,
+    EVENTOS_ATENDIDAS,
+    EVENTOS_FINALES,
+    EVENTOS_NO_ATENDIDAS,
+    EVENTOS_SALIENTES,
+    EVENTOS_TRANSFERENCIAS,
+    TIPO_ENTRANTE,
+    TIPO_SALIENTE,
+)
 from ..models.omnileads_models import (
     ActividadAgenteLog,
     AgenteProfile,
@@ -22,71 +32,13 @@ from ..models.omnileads_models import (
 class CallAnalyticsExtended:
     """Servicio extendido para reportes premium"""
 
-    # Eventos que indican llamadas ATENDIDAS - sincronizado con CallAnalyticsService
-    EVENTOS_ATENDIDAS = [
-        'COMPLETEAGENT',      # Agente cuelga
-        'COMPLETEOUTNUM',     # Cliente cuelga
-        'COMPLETE-BTOUT',     # Transfer ciego completado
-        'COMPLETE-CTOUT',     # Transfer consultivo completado
-    ]
-
-    # Eventos de llamadas ABANDONADAS - sincronizado con CallAnalyticsService
-    EVENTOS_ABANDONADAS = [
-        'ABANDON',            # Abandono en cola
-        'ABANDONWEL',         # Abandono durante audio de bienvenida
-        'ABANDON-CTOUT',      # Abandono durante transfer consultivo
-        'EXITWITHTIMEOUT',    # Timeout en cola (abandono forzado)
-    ]
-
-    # Otros eventos NO atendidas - sincronizado con CallAnalyticsService
-    # NOTA: NONDIALPLAN y CONGESTION excluidos - no son llamadas reales
-    EVENTOS_NO_ATENDIDAS = [
-        'NOANSWER',           # No contesta (saliente)
-        'CANCEL',             # Cancelada (saliente)
-        'CHANUNAVAIL',        # Canal no disponible
-        'BUSY',               # Ocupado
-        'DIAL',               # Solo quedó en DIAL
-    ]
-
-    # Eventos finales (último evento de cada llamada)
-    EVENTOS_FINALES = (
-        EVENTOS_ATENDIDAS
-        + EVENTOS_ABANDONADAS
-        + EVENTOS_NO_ATENDIDAS
-    )
-
-    # Eventos de llamadas salientes
-    EVENTOS_SALIENTES = {
-        'DIAL': 'Marcación iniciada',
-        'ANSWER': 'Llamada contestada',
-        'NOANSWER': 'No contestada',
-        'BUSY': 'Ocupado',
-        'CANCEL': 'Cancelada',
-        'CONGESTION': 'Congestión',
-        'CHANUNAVAIL': 'Canal no disponible'
-    }
-
-    # Eventos de transferencias (nombres reales de OmniLeads)
-    EVENTOS_TRANSFERENCIAS = {
-        # Transfer Ciego (Blind Transfer Out)
-        'BTOUT-TRY': 'Intento de transfer ciego',
-        'BTOUT-ANSWER': 'Transfer ciego atendido',
-        'BTOUT-NONDIALPLAN': 'Transfer ciego - sin ruta',
-        'BTOUT-CONGESTION': 'Transfer ciego - congestión',
-        'COMPLETE-BTOUT': 'Llamada completada vía transfer ciego',
-        # Transfer Consultivo (Consultive Transfer Out)
-        'CTOUT-TRY': 'Intento de transfer consultivo',
-        'CTOUT-ANSWER': 'Transfer consultivo atendido',
-        'CTOUT-NONDIALPLAN': 'Transfer consultivo - sin ruta',
-        'CTOUT-DISCARD': 'Transfer consultivo descartado',
-        'COMPLETE-CTOUT': 'Llamada completada vía transfer consultivo',
-        # Transfer de Campaña
-        'CAMPT-TRY': 'Intento de transfer a campaña',
-        'CAMPT-COMPLETE': 'Transfer a campaña completado',
-        'COMPLETE-CAMPT': 'Llamada completada vía transfer campaña',
-        # Cola
-        'ENTERQUEUE-TRANSFER': 'Llamada ingresó a cola por transferencia',
-    }
+    # Constantes importadas desde analytics.constants
+    EVENTOS_ATENDIDAS = EVENTOS_ATENDIDAS
+    EVENTOS_ABANDONADAS = EVENTOS_ABANDONADAS
+    EVENTOS_NO_ATENDIDAS = EVENTOS_NO_ATENDIDAS
+    EVENTOS_FINALES = EVENTOS_FINALES
+    EVENTOS_SALIENTES = EVENTOS_SALIENTES
+    EVENTOS_TRANSFERENCIAS = EVENTOS_TRANSFERENCIAS
 
     def __init__(self, db: Session):
         self.db = db
@@ -460,6 +412,8 @@ class CallAnalyticsExtended:
         Mismo patrón que get_llamadas_detalladas de CallAnalyticsService.
         Excluye NONDIALPLAN y CONGESTION (EVENTOS_EXCLUIDOS).
         """
+        page = max(1, page)
+        per_page = max(1, min(per_page, 200))
         filters = filters or {}
 
         # Subquery: último evento de cada llamada saliente

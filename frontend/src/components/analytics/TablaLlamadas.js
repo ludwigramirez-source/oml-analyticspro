@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ExportButtonAsync } from '../../utils/excelExport';
+import { formatDuracion } from '../../utils/formatters';
 import Pagination from './Pagination';
 
 /**
@@ -24,13 +25,7 @@ const TablaLlamadas = ({
   const currentPage = data?.page || 1;
   const totalPages = Math.ceil(totalItems / pageSize) || 1;
 
-  const formatDuracion = (seconds) => {
-    if (!seconds && seconds !== 0) return '00:00';
-    const s = Math.round(Number(seconds) || 0);
-    const min = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-  };
+  // formatDuracion importado desde utils/formatters
 
   // Sorting server-side: al hacer click, pedir al backend ordenado
   const handleSort = (field) => {

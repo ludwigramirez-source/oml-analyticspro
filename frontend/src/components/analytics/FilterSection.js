@@ -159,23 +159,7 @@ const FilterSection = ({ filters, setFilters, campanas, agentes, onSearch }) => 
       </div>
 
       {/* Filtros Adicionales */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        {/* Tipo de Llamada */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Tipo de Llamada
-          </label>
-          <select
-            value={filters.tipo_llamada || ''}
-            onChange={(e) => handleChange('tipo_llamada', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Todas</option>
-            <option value="entrantes">Entrantes</option>
-            <option value="salientes">Salientes</option>
-          </select>
-        </div>
-
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         {/* Campañas (Multi-select) */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">

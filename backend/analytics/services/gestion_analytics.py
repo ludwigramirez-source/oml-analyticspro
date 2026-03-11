@@ -8,7 +8,12 @@ from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from ..config import config
-from ..constants import EVENTOS_ATENDIDAS, TIPO_ENTRANTE, TIPO_SALIENTE
+from ..constants import (
+    EVENTOS_ATENDIDAS,
+    TIPO_ENTRANTE,
+    TIPO_SALIENTE,
+    TIPOS_LLAMADA_ACTIVOS,
+)
 from ..models.omnileads_models import (
     AgenteProfile,
     Campana,
@@ -441,7 +446,7 @@ class GestionAnalyticsService:
             func.max(LlamadaLog.id).label('ultimo_id'),
         ).filter(
             LlamadaLog.tipo_llamada.in_(
-                [TIPO_ENTRANTE, TIPO_SALIENTE]
+                TIPOS_LLAMADA_ACTIVOS
             ),
             LlamadaLog.event.in_(EVENTOS_ATENDIDAS),
         )
@@ -520,7 +525,7 @@ class GestionAnalyticsService:
             func.max(LlamadaLog.id).label('ultimo_id'),
         ).filter(
             LlamadaLog.tipo_llamada.in_(
-                [TIPO_ENTRANTE, TIPO_SALIENTE]
+                TIPOS_LLAMADA_ACTIVOS
             ),
             LlamadaLog.event.in_(EVENTOS_ATENDIDAS),
         )

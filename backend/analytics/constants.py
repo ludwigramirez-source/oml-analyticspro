@@ -4,6 +4,13 @@ Fuente única de verdad para clasificación de eventos y tipos de llamada.
 """
 
 # ============================================================================
+# MODO: SOLO ENTRANTES
+# Cuando True, TODAS las queries excluyen salientes (tipo_llamada=1).
+# Poner False para restaurar análisis entrantes+salientes.
+# ============================================================================
+INBOUND_ONLY_MODE = True
+
+# ============================================================================
 # EVENTOS DE LLAMADAS - Clasificación OmniLeads
 # ============================================================================
 
@@ -68,6 +75,12 @@ EVENTOS_FINALES = (
 
 TIPO_SALIENTE = 1      # Llamadas manuales salientes
 TIPO_ENTRANTE = 3      # Llamadas entrantes (inbound)
+
+# Tipos activos según modo (usado en queries de filtrado)
+TIPOS_LLAMADA_ACTIVOS = (
+    [TIPO_ENTRANTE] if INBOUND_ONLY_MODE
+    else [TIPO_ENTRANTE, TIPO_SALIENTE]
+)
 
 # ============================================================================
 # UMBRALES ESTÁNDAR DE LA INDUSTRIA

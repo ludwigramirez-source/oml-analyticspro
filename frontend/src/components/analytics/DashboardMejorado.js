@@ -5,15 +5,12 @@ import analyticsApi from '../../services/analyticsApi';
 import KPICard from './KPICard';
 import FilterSection from './FilterSection';
 import ApexChart from './ApexChart';
-import EntradasSalidas from './EntradasSalidas';
 import TablaLlamadas from './TablaLlamadas';
 import TablaAgentes from './TablaAgentes';
 import TablaAbandonadas from './TablaAbandonadas';
 import DistribucionAvanzada from './reportes/DistribucionAvanzada';
-import LlamadasSalientes from './reportes/LlamadasSalientes';
 import CausasDetalladas from './reportes/CausasDetalladas';
 import AgentesAvanzado from './reportes/AgentesAvanzado';
-import Transferencias from './reportes/Transferencias';
 import TablaDistribucionHoraria from './reportes/TablaDistribucionHoraria';
 import Gestiones from './reportes/Gestiones';
 import SyncStatusBadge from './SyncStatusBadge';
@@ -36,9 +33,7 @@ const DashboardMejorado = () => {
 
   // Datos
   const [kpis, setKpis] = useState({});
-  const [llamadasPorTipo, setLlamadasPorTipo] = useState(null);
   const [distribucionData, setDistribucionData] = useState([]);
-  const [distribucionPorTipo, setDistribucionPorTipo] = useState(null);
   const [evolucionData, setEvolucionData] = useState([]);
   const [horariaData, setHorariaData] = useState([]);
   const [nivelServicioData, setNivelServicioData] = useState([]);
@@ -122,27 +117,10 @@ const DashboardMejorado = () => {
       console.log('✅ KPIs recibidos:', kpisRes);
       setKpis(kpisRes);
 
-      // Cargar llamadas por tipo (CRÍTICO - Power BI)
-      const tipoRes = await analyticsApi.getLlamadasPorTipo(filters);
-      console.log('✅ Llamadas por tipo:', tipoRes);
-      setLlamadasPorTipo(tipoRes);
-
       // Cargar distribución
       const distribRes = await analyticsApi.getDistribucionLlamadas(filters);
       console.log('✅ Distribución:', distribRes);
       setDistribucionData(prepareDistribucion(distribRes));
-
-      // Cargar distribución por tipo (entrantes vs salientes)
-      try {
-        const distribTipoRes = await analyticsApi.getDistribucionPorTipo(filters);
-        console.log('✅ Distribución por tipo recibida:', distribTipoRes);
-        console.log('📊 Datos entrantes:', distribTipoRes?.entrantes);
-        console.log('📊 Datos salientes:', distribTipoRes?.salientes);
-        setDistribucionPorTipo(distribTipoRes);
-      } catch (err) {
-        console.error('❌ Error en distribución por tipo:', err);
-        setDistribucionPorTipo(null);
-      }
 
       // Cargar evolución por hora
       try {
@@ -275,22 +253,6 @@ const DashboardMejorado = () => {
     }));
   };
 
-  const prepareDistribucionEntrantes = (data) => {
-    if (!data || !data.labels) return [];
-    return data.labels.map((label, idx) => ({
-      name: label,
-      value: data.data[idx] || 0
-    }));
-  };
-
-  const prepareDistribucionSalientes = (data) => {
-    if (!data || !data.labels) return [];
-    return data.labels.map((label, idx) => ({
-      name: label,
-      value: data.data[idx] || 0
-    }));
-  };
-
   const prepareEvolucion = (data) => {
     if (!data || !data.labels) return [];
     return data.labels.map((label, idx) => ({
@@ -304,7 +266,6 @@ const DashboardMejorado = () => {
     return data.labels.map((label, idx) => ({
       name: label,
       entrantes: data.entrantes[idx] || 0,
-      salientes: data.salientes[idx] || 0,
       abandonadas: data.abandonadas[idx] || 0
     }));
   };
@@ -383,9 +344,6 @@ const DashboardMejorado = () => {
           agentes={agentes}
           onSearch={handleSearch}
         />
-
-        {/* Sección Entrantes vs Salientes */}
-        <EntradasSalidas datos={llamadasPorTipo} />
 
         {/* KPIs Mejorados - Grid de 11 KPIs */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-4 mb-6">
@@ -482,7 +440,6 @@ const DashboardMejorado = () => {
               {[
                 { id: 'resumen', label: '📈 Resumen', icon: '📈' },
                 { id: 'distribucion', label: '📊 Distribución', icon: '📊' },
-                { id: 'salientes', label: '📱 Salientes', icon: '📱' },
                 { id: 'causas', label: '🔍 Causas', icon: '🔍' },
                 { id: 'horaria', label: '🕐 Distribución Horaria', icon: '🕐' },
                 { id: 'campanas', label: '🎯 Campañas (Alertas)', icon: '🎯' },
@@ -490,7 +447,6 @@ const DashboardMejorado = () => {
                 { id: 'abandonadas', label: '❌ Llamadas No Atendidas', icon: '❌' },
                 { id: 'agentes', label: '👥 Agentes', icon: '👥' },
                 { id: 'agentes-avanzado', label: '👥📊 Agentes Avanzado', icon: '👥' },
-                { id: 'transferencias', label: '🔄 Transferencias', icon: '🔄' },
                 { id: 'gestiones', label: '📋 Gestiones', icon: '📋' }
               ].map(tab => (
                 <button
@@ -521,35 +477,29 @@ const DashboardMejorado = () => {
                   </div>
                 ) : (
                   <>
-                    {/* Distribución por tipo (Dos gráficos de pie) */}
+                    {/* Distribución de llamadas */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <ApexChart
                         type="pie"
-                        data={distribucionPorTipo?.entrantes ? prepareDistribucionEntrantes(distribucionPorTipo.entrantes) : []}
-                        title={`Distribución Llamadas Entrantes (Total: ${distribucionPorTipo?.entrantes?.total || 0})`}
-                        key={`entrantes-${JSON.stringify(distribucionPorTipo?.entrantes)}`}
-                      />
-                      <ApexChart
-                        type="pie"
-                        data={distribucionPorTipo?.salientes ? prepareDistribucionSalientes(distribucionPorTipo.salientes) : []}
-                        title={`Distribución Llamadas Salientes (Total: ${distribucionPorTipo?.salientes?.total || 0})`}
-                        key={`salientes-${JSON.stringify(distribucionPorTipo?.salientes)}`}
-                      />
-                    </div>
-                    
-                    {/* Otros gráficos */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <ApexChart
-                        type="line"
-                        data={evolucionData}
-                        title="Evolución por Hora"
-                        key={`evolucion-${JSON.stringify(evolucionData)}`}
+                        data={distribucionData}
+                        title="Distribución de Llamadas"
+                        key={`distribucion-${JSON.stringify(distribucionData)}`}
                       />
                       <ApexChart
                         type="bar"
                         data={nivelServicioData}
                         title="Nivel de Servicio (Tiempo de Espera)"
-                        key={`nivel-${JSON.stringify(nivelServicioData)}`}
+                        key={`nivel-resumen-${JSON.stringify(nivelServicioData)}`}
+                      />
+                    </div>
+                    
+                    {/* Evolución por hora */}
+                    <div className="grid grid-cols-1 gap-6">
+                      <ApexChart
+                        type="line"
+                        data={evolucionData}
+                        title="Evolución por Hora"
+                        key={`evolucion-${JSON.stringify(evolucionData)}`}
                       />
                     </div>
                   </>
@@ -661,11 +611,6 @@ const DashboardMejorado = () => {
               <DistribucionAvanzada filters={filters} />
             )}
 
-            {/* Tab: Llamadas Salientes */}
-            {activeTab === 'salientes' && (
-              <LlamadasSalientes filters={filters} />
-            )}
-
             {/* Tab: Causas Detalladas */}
             {activeTab === 'causas' && (
               <CausasDetalladas filters={filters} />
@@ -674,11 +619,6 @@ const DashboardMejorado = () => {
             {/* Tab: Agentes Avanzado */}
             {activeTab === 'agentes-avanzado' && (
               <AgentesAvanzado filters={filters} />
-            )}
-
-            {/* Tab: Transferencias */}
-            {activeTab === 'transferencias' && (
-              <Transferencias filters={filters} />
             )}
 
             {/* Tab: Gestiones */}

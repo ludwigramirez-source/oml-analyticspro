@@ -79,7 +79,7 @@ const TablaAbandonadas = ({
         <div>
           <h3 className="text-lg font-semibold text-red-800">Llamadas No Atendidas</h3>
           <p className="text-sm text-red-600 mt-1">
-            Total: {totalItems.toLocaleString('es-CO')} llamadas (abandonadas por clientes + no contestadas salientes)
+            Total: {totalItems.toLocaleString('es-CO')} llamadas no atendidas
           </p>
         </div>
         <ExportButtonAsync

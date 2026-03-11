@@ -557,7 +557,6 @@ const Gestiones = ({ filters }) => {
                   <tr>
                     <SortHeader field="fecha" onSortClick={handleSortSG} activeField={sortFieldSG} activeDirection={sortDirectionSG}>Fecha</SortHeader>
                     <SortHeader field="hora" onSortClick={handleSortSG} activeField={sortFieldSG} activeDirection={sortDirectionSG}>Hora</SortHeader>
-                    <SortHeader field="tipo_llamada" onSortClick={handleSortSG} activeField={sortFieldSG} activeDirection={sortDirectionSG}>Tipo</SortHeader>
                     <SortHeader field="numero" onSortClick={handleSortSG} activeField={sortFieldSG} activeDirection={sortDirectionSG}>Numero</SortHeader>
                     <SortHeader field="agente" onSortClick={handleSortSG} activeField={sortFieldSG} activeDirection={sortDirectionSG}>Agente</SortHeader>
                     <SortHeader field="campana" onSortClick={handleSortSG} activeField={sortFieldSG} activeDirection={sortDirectionSG}>Campana</SortHeader>
@@ -570,7 +569,7 @@ const Gestiones = ({ filters }) => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {sortedSinGestion.length === 0 ? (
                     <tr>
-                      <td colSpan="10" className="px-6 py-8 text-center text-gray-500">
+                      <td colSpan="9" className="px-6 py-8 text-center text-gray-500">
                         <div className="flex flex-col items-center gap-2">
                           <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -584,15 +583,6 @@ const Gestiones = ({ filters }) => {
                       <tr key={idx} className="hover:bg-red-50">
                         <td className="px-3 py-2 text-sm text-gray-900 whitespace-nowrap">{item.fecha}</td>
                         <td className="px-3 py-2 text-sm text-gray-600 whitespace-nowrap">{item.hora}</td>
-                        <td className="px-3 py-2 text-sm whitespace-nowrap">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                            item.tipo_llamada === 'Entrante'
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-orange-100 text-orange-700'
-                          }`}>
-                            {item.tipo_llamada}
-                          </span>
-                        </td>
                         <td className="px-3 py-2 text-sm text-gray-600 font-medium whitespace-nowrap">{item.numero}</td>
                         <td className="px-3 py-2 text-sm text-gray-900">{item.agente}</td>
                         <td className="px-3 py-2 text-sm text-gray-900">{item.campana}</td>

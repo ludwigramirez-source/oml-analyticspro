@@ -16,11 +16,13 @@ from ..constants import (
     EVENTOS_FINALES,
     EVENTOS_INTERMEDIOS,
     EVENTOS_NO_ATENDIDAS,
+    INBOUND_ONLY_MODE,
     NIVEL_ATENCION_CRITICO,
     SLA_THRESHOLD_20,
     SLA_THRESHOLD_60,
     TIPO_ENTRANTE,
     TIPO_SALIENTE,
+    TIPOS_LLAMADA_ACTIVOS,
 )
 from ..models.omnileads_models import (
     ActividadAgenteLog,
@@ -87,7 +89,11 @@ class CallAnalyticsService:
             query = query.filter(LlamadaLog.agente_id == filters['agente_id'])
 
         # Tipo de llamada: entrantes o salientes
-        if filters.get('tipo_llamada'):
+        if INBOUND_ONLY_MODE:
+            query = query.filter(
+                LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE
+            )
+        elif filters.get('tipo_llamada'):
             if filters['tipo_llamada'] == 'entrantes':
                 query = query.filter(LlamadaLog.tipo_llamada == self.TIPO_ENTRANTE)
             elif filters['tipo_llamada'] == 'salientes':
@@ -104,7 +110,7 @@ class CallAnalyticsService:
             LlamadaLog.callid,
             func.max(LlamadaLog.id).label('ultimo_id')
         ).filter(
-            LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE])
+            LlamadaLog.tipo_llamada.in_(TIPOS_LLAMADA_ACTIVOS)
         )
 
         # Filtrar por eventos específicos si se proporciona lista
@@ -147,11 +153,11 @@ class CallAnalyticsService:
         """
         filters = filters or {}
 
-        # Query base - SOLO EVENTOS FINALES y SOLO tipo_llamada 1 y 3
+        # Query base - SOLO EVENTOS FINALES y tipos activos
         query = self.db.query(LlamadaLog)
         query = self._apply_filters(query, filters)
         query = query.filter(LlamadaLog.event.in_(self.EVENTOS_FINALES))
-        query = query.filter(LlamadaLog.tipo_llamada.in_([self.TIPO_ENTRANTE, self.TIPO_SALIENTE]))
+        query = query.filter(LlamadaLog.tipo_llamada.in_(TIPOS_LLAMADA_ACTIVOS))
 
         # Subquery para obtener último evento de cada llamada (por callid)
         from sqlalchemy import case

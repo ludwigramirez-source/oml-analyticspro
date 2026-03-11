@@ -161,8 +161,10 @@ class GestionAnalyticsService:
 
         # Gestiones válidas = cruce de ambas
         # (call_id existe como callid atendido)
+        # Incluye llamada_id para resolver agente de la llamada
         gestiones_validas_sq = self.db.query(
             gestion_unica_sq.c.ultimo_gestion_id,
+            atendidas_sq.c.ultimo_id.label('llamada_id'),
         ).join(
             atendidas_sq,
             gestion_unica_sq.c.call_id == atendidas_sq.c.callid,
@@ -173,20 +175,22 @@ class GestionAnalyticsService:
             func.count(gestiones_validas_sq.c.ultimo_gestion_id)
         ).scalar() or 0
 
-        # Agentes y campañas activos (sobre gestiones válidas)
+        # Agentes (de la llamada, no de la gestión) y campañas
         stats = self.db.query(
             func.count(
-                func.distinct(CustomFormGestion.agent_id)
+                func.distinct(LlamadaLog.agente_id)
             ).label('agentes'),
             func.count(
                 func.distinct(CustomFormGestion.campana_id)
             ).label('campanas'),
-        ).filter(
-            CustomFormGestion.id.in_(
-                self.db.query(
-                    gestiones_validas_sq.c.ultimo_gestion_id
-                )
-            )
+        ).join(
+            gestiones_validas_sq,
+            CustomFormGestion.id
+            == gestiones_validas_sq.c.ultimo_gestion_id,
+        ).outerjoin(
+            LlamadaLog,
+            LlamadaLog.id
+            == gestiones_validas_sq.c.llamada_id,
         ).first()
 
         agentes_activos = stats.agentes if stats else 0
@@ -236,51 +240,56 @@ class GestionAnalyticsService:
     def get_gestiones_por_agente(
         self, filters: Dict = None
     ) -> List[Dict]:
-        """Gestiones agrupadas por agente (deduplicadas)"""
+        """
+        Gestiones agrupadas por agente de la LLAMADA
+        (no de la gestión), para consistencia con llamadas
+        atendidas por agente.
+        """
         filters = filters or {}
 
         atendidas_sq = self._build_llamadas_atendidas_sq(filters)
         gestion_unica_sq = self._build_gestion_unica_sq(filters)
 
-        # IDs de gestiones válidas
+        # IDs de gestiones válidas + llamada_id
         validas_sq = self.db.query(
             gestion_unica_sq.c.ultimo_gestion_id,
+            atendidas_sq.c.ultimo_id.label('llamada_id'),
         ).join(
             atendidas_sq,
             gestion_unica_sq.c.call_id == atendidas_sq.c.callid,
         ).subquery()
 
+        # Agrupar por agente de la llamada (LlamadaLog.agente_id)
         query = self.db.query(
-            CustomFormGestion.agent_id,
+            LlamadaLog.agente_id,
             User.first_name,
             User.last_name,
-            func.count(CustomFormGestion.id).label(
+            func.count(validas_sq.c.ultimo_gestion_id).label(
                 'total_gestiones'
             ),
-        ).filter(
-            CustomFormGestion.id.in_(
-                self.db.query(validas_sq.c.ultimo_gestion_id)
-            )
+        ).join(
+            validas_sq,
+            LlamadaLog.id == validas_sq.c.llamada_id,
         ).outerjoin(
             AgenteProfile,
-            CustomFormGestion.agent_id == AgenteProfile.id,
+            LlamadaLog.agente_id == AgenteProfile.id,
         ).outerjoin(
             User, AgenteProfile.user_id == User.id
         ).group_by(
-            CustomFormGestion.agent_id,
+            LlamadaLog.agente_id,
             User.first_name,
             User.last_name,
         ).order_by(
-            func.count(CustomFormGestion.id).desc()
+            func.count(validas_sq.c.ultimo_gestion_id).desc()
         ).all()
 
         return [
             {
-                'agente_id': r.agent_id,
+                'agente_id': r.agente_id,
                 'agente': (
                     f'{r.first_name or ""} '
                     f'{r.last_name or ""}'.strip()
-                    or f'Agente {r.agent_id}'
+                    or f'Agente {r.agente_id}'
                 ),
                 'total_gestiones': r.total_gestiones,
             }
@@ -405,41 +414,28 @@ class GestionAnalyticsService:
         # Subquery: 1 gestión por call_id (última)
         gestion_unica_sq = self._build_gestion_unica_sq(filters)
 
-        # Subquery: IDs de gestiones válidas
+        # Subquery: IDs de gestiones válidas + id del registro
+        # de llamada atendida (para obtener hora y duración
+        # con JOIN directo por PK, sin escanear toda la tabla)
         validas_sq = self.db.query(
             gestion_unica_sq.c.ultimo_gestion_id,
             gestion_unica_sq.c.call_id,
+            atendidas_sq.c.ultimo_id.label('llamada_id'),
         ).join(
             atendidas_sq,
             gestion_unica_sq.c.call_id == atendidas_sq.c.callid,
         ).subquery()
 
-        # Subquery: hora real de la llamada (cualquier evento)
-        hora_sq = self.db.query(
-            LlamadaLog.callid.label('callid'),
-            func.max(LlamadaLog.time).label('hora_llamada'),
-        ).filter(
-            LlamadaLog.callid.isnot(None),
-            LlamadaLog.callid != '',
-        ).group_by(
-            LlamadaLog.callid
-        ).subquery()
-
-        # Subquery: duración (solo eventos atendidos)
-        duracion_sq = self.db.query(
-            LlamadaLog.callid.label('callid'),
-            func.max(
-                LlamadaLog.duracion_llamada
-            ).label('duracion'),
-        ).filter(
-            LlamadaLog.event.in_(EVENTOS_ATENDIDAS),
-            LlamadaLog.callid.isnot(None),
-            LlamadaLog.callid != '',
-        ).group_by(
-            LlamadaLog.callid
-        ).subquery()
+        # Conteo rápido: solo cuenta gestiones válidas
+        # (sin JOINs de lookup = rápido)
+        total = self.db.query(
+            func.count(validas_sq.c.ultimo_gestion_id)
+        ).scalar() or 0
 
         # Query principal: solo gestiones válidas
+        # Hora y duración vienen del registro de llamada atendida
+        # (JOIN por PK = instantáneo, sin GROUP BY sobre toda
+        # la tabla llamadalog)
         query = self.db.query(
             CustomFormGestion,
             User.first_name.label('agente_nombre'),
@@ -448,15 +444,21 @@ class GestionAnalyticsService:
             CustomFormIncidencias.descripcion.label(
                 'incidencia_nombre'
             ),
-            duracion_sq.c.duracion.label('duracion_llamada'),
-            hora_sq.c.hora_llamada.label('hora_llamada'),
+            LlamadaLog.agente_id.label('ll_agente_id'),
+            LlamadaLog.duracion_llamada.label(
+                'duracion_llamada'
+            ),
+            LlamadaLog.time.label('hora_llamada'),
         ).join(
             validas_sq,
             CustomFormGestion.id
             == validas_sq.c.ultimo_gestion_id,
         ).outerjoin(
+            LlamadaLog,
+            LlamadaLog.id == validas_sq.c.llamada_id,
+        ).outerjoin(
             AgenteProfile,
-            CustomFormGestion.agent_id == AgenteProfile.id,
+            LlamadaLog.agente_id == AgenteProfile.id,
         ).outerjoin(
             User, AgenteProfile.user_id == User.id
         ).outerjoin(
@@ -465,15 +467,7 @@ class GestionAnalyticsService:
             CustomFormIncidencias,
             CustomFormGestion.incidencia_id
             == CustomFormIncidencias.id,
-        ).outerjoin(
-            hora_sq,
-            CustomFormGestion.call_id == hora_sq.c.callid,
-        ).outerjoin(
-            duracion_sq,
-            CustomFormGestion.call_id == duracion_sq.c.callid,
         )
-
-        total = query.count()
 
         offset = (page - 1) * per_page
         resultados = (
@@ -502,7 +496,7 @@ class GestionAnalyticsService:
                 'agente': (
                     f'{r.agente_nombre or ""} '
                     f'{r.agente_apellido or ""}'.strip()
-                    or f'Agente {g.agent_id}'
+                    or f'Agente {r.ll_agente_id}'
                 ),
                 'campana': (
                     r.campana_nombre
@@ -634,7 +628,17 @@ class GestionAnalyticsService:
         # Gestiones únicas por call_id
         gestion_unica_sq = self._build_gestion_unica_sq(filters)
 
-        # Query: llamadas sin gestión
+        # Conteo rápido: solo cuenta llamadas sin gestión
+        # (sin JOINs de lookup)
+        total = self.db.query(
+            func.count(atendidas_sq.c.callid)
+        ).filter(
+            ~atendidas_sq.c.callid.in_(
+                self.db.query(gestion_unica_sq.c.call_id)
+            )
+        ).scalar() or 0
+
+        # Query: llamadas sin gestión (con datos de lookup)
         query = self.db.query(
             LlamadaLog,
             Campana.nombre.label('campana_nombre'),
@@ -658,8 +662,6 @@ class GestionAnalyticsService:
         ).outerjoin(
             User, AgenteProfile.user_id == User.id
         )
-
-        total = query.count()
 
         offset = (page - 1) * per_page
         resultados = (

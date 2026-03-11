@@ -5,6 +5,7 @@ import analyticsApi from '../../services/analyticsApi';
 import KPICard from './KPICard';
 import FilterSection from './FilterSection';
 import ApexChart from './ApexChart';
+import EntradasSalidas from './EntradasSalidas';
 import TablaLlamadas from './TablaLlamadas';
 import TablaAgentes from './TablaAgentes';
 import TablaAbandonadas from './TablaAbandonadas';
@@ -33,6 +34,7 @@ const DashboardMejorado = () => {
 
   // Datos
   const [kpis, setKpis] = useState({});
+  const [llamadasPorTipo, setLlamadasPorTipo] = useState(null);
   const [distribucionData, setDistribucionData] = useState([]);
   const [evolucionData, setEvolucionData] = useState([]);
   const [horariaData, setHorariaData] = useState([]);
@@ -116,6 +118,10 @@ const DashboardMejorado = () => {
       const kpisRes = await analyticsApi.getKPIs(filters);
       console.log('✅ KPIs recibidos:', kpisRes);
       setKpis(kpisRes);
+
+      // Cargar llamadas por tipo (para card EntradasSalidas)
+      const tipoRes = await analyticsApi.getLlamadasPorTipo(filters);
+      setLlamadasPorTipo(tipoRes);
 
       // Cargar distribución
       const distribRes = await analyticsApi.getDistribucionLlamadas(filters);
@@ -345,6 +351,9 @@ const DashboardMejorado = () => {
           onSearch={handleSearch}
         />
 
+        {/* Sección Entrantes vs Salientes */}
+        <EntradasSalidas datos={llamadasPorTipo} />
+
         {/* KPIs Mejorados - Grid de 11 KPIs */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-4 mb-6">
           <KPICard
@@ -362,11 +371,11 @@ const DashboardMejorado = () => {
             trend={kpis.llamadas_atendidas?.tendencia || 'neutral'}
           />
           <KPICard
-            title="Llamadas Perdidas"
-            value={kpis.llamadas_perdidas?.valor || 0}
+            title="Llamadas Abandonadas"
+            value={kpis.llamadas_abandonadas?.valor || 0}
             icon="❌"
-            change={kpis.llamadas_perdidas?.cambio || '0%'}
-            trend={kpis.llamadas_perdidas?.tendencia || 'neutral'}
+            change={kpis.llamadas_abandonadas?.cambio || '0%'}
+            trend={kpis.llamadas_abandonadas?.tendencia || 'neutral'}
           />
           <KPICard
             title={kpis.aht?.label || 'AHT'}

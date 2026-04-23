@@ -10,7 +10,19 @@ REGLA: 1 llamada = 1 gestión.
 - Se excluyen: gestiones huérfanas, de llamadas salientes,
   de llamadas abandonadas/en curso/transferidas sin cierre,
   y gestiones de llamadas de otros días.
+
+UNIFICACIÓN DE FECHAS (flag USE_FECHA_LOGICA_LLAMADA):
+- Off (default): llamadas filtradas por LlamadaLog.time,
+  gestiones por CustomFormGestion.fecha. El agente que cierra
+  el formulario después de medianoche atribuye la gestión al día
+  siguiente aunque la llamada fue antes → diferencia con conteo
+  de llamadas.
+- On: ambos filtros usan la fecha lógica = día del primer evento
+  del callid (MIN(LlamadaLog.time) AT TIME ZONE TIMEZONE_DB). Toda
+  gestión cuenta en el mismo día que su llamada. Corrige ~0.7% de
+  gestiones +1 día detectadas en diagnóstico de 30 días.
 """
+from datetime import timedelta
 from typing import Dict, List
 
 from sqlalchemy import and_, func
@@ -107,20 +119,121 @@ class GestionAnalyticsService:
 
     # ── Subqueries reutilizables ─────────────────────────────
 
+    def _apply_llamada_filters_no_fecha(self, query, filters: Dict):
+        """Aplica filtros de LlamadaLog excepto fechas (para fecha_logica_sq)."""
+        if filters.get('campana_ids'):
+            query = query.filter(
+                LlamadaLog.campana_id.in_(filters['campana_ids'])
+            )
+        elif filters.get('campana_id'):
+            query = query.filter(
+                LlamadaLog.campana_id == filters['campana_id']
+            )
+        if filters.get('agente_ids'):
+            query = query.filter(
+                LlamadaLog.agente_id.in_(filters['agente_ids'])
+            )
+        elif filters.get('agente_id'):
+            query = query.filter(
+                LlamadaLog.agente_id == filters['agente_id']
+            )
+        return query
+
+    def _apply_gestion_filters_no_fecha(self, query, filters: Dict):
+        """Aplica filtros de CustomFormGestion excepto fechas."""
+        if filters.get('campana_ids'):
+            query = query.filter(
+                CustomFormGestion.campana_id.in_(filters['campana_ids'])
+            )
+        elif filters.get('campana_id'):
+            query = query.filter(
+                CustomFormGestion.campana_id == filters['campana_id']
+            )
+        if filters.get('agente_ids'):
+            query = query.filter(
+                CustomFormGestion.agent_id.in_(filters['agente_ids'])
+            )
+        elif filters.get('agente_id'):
+            query = query.filter(
+                CustomFormGestion.agent_id == filters['agente_id']
+            )
+        return query
+
+    def _build_fecha_logica_sq(self, filters: Dict):
+        """
+        Subquery: mapea callid → fecha_logica (día del primer evento
+        en TIMEZONE_DB). Retorna (callid, fecha_logica).
+
+        Ventana expandida ±1 día contra LlamadaLog.time para capturar
+        llamadas split-day; luego el HAVING restringe a fecha_logica
+        dentro del rango solicitado.
+        """
+        fecha_ini = filters.get('fecha_inicio')
+        fecha_fin = filters.get('fecha_fin')
+
+        first_event = func.min(LlamadaLog.time)
+        fecha_logica_expr = func.date(
+            func.timezone(config.TIMEZONE_DB, first_event)
+        )
+
+        q = self.db.query(
+            LlamadaLog.callid,
+            fecha_logica_expr.label('fecha_logica'),
+        ).filter(
+            LlamadaLog.tipo_llamada.in_(TIPOS_LLAMADA_ACTIVOS),
+        )
+
+        if fecha_ini is not None:
+            q = q.filter(
+                LlamadaLog.time >= fecha_ini - timedelta(days=1)
+            )
+        if fecha_fin is not None:
+            q = q.filter(
+                LlamadaLog.time <= fecha_fin + timedelta(days=1)
+            )
+
+        q = self._apply_llamada_filters_no_fecha(q, filters)
+        q = q.group_by(LlamadaLog.callid)
+
+        if fecha_ini is not None:
+            q = q.having(fecha_logica_expr >= fecha_ini.date())
+        if fecha_fin is not None:
+            q = q.having(fecha_logica_expr <= fecha_fin.date())
+
+        return q.subquery()
+
     def _build_llamadas_atendidas_sq(self, filters: Dict):
         """
         Subquery: callids de llamadas ENTRANTES ATENDIDAS
         (último evento = ATENDIDA) en el rango de fechas.
         Retorna (callid, ultimo_id).
+
+        USE_FECHA_LOGICA_LLAMADA=True → filtra por fecha lógica del
+        callid (día del primer evento), no por LlamadaLog.time directo.
         """
+        if not config.USE_FECHA_LOGICA_LLAMADA:
+            sq = self.db.query(
+                LlamadaLog.callid,
+                func.max(LlamadaLog.id).label('ultimo_id'),
+            ).filter(
+                LlamadaLog.tipo_llamada.in_(TIPOS_LLAMADA_ACTIVOS),
+                LlamadaLog.event.in_(EVENTOS_ATENDIDAS),
+            )
+            sq = self._apply_llamada_filters(sq, filters)
+            return sq.group_by(LlamadaLog.callid).subquery()
+
+        fecha_logica_sq = self._build_fecha_logica_sq(filters)
         sq = self.db.query(
             LlamadaLog.callid,
             func.max(LlamadaLog.id).label('ultimo_id'),
+        ).join(
+            fecha_logica_sq,
+            LlamadaLog.callid == fecha_logica_sq.c.callid,
         ).filter(
             LlamadaLog.tipo_llamada.in_(TIPOS_LLAMADA_ACTIVOS),
             LlamadaLog.event.in_(EVENTOS_ATENDIDAS),
         )
-        sq = self._apply_llamada_filters(sq, filters)
+        sq = self._apply_llamada_filters_no_fecha(sq, filters)
         return sq.group_by(LlamadaLog.callid).subquery()
 
     def _build_gestion_unica_sq(self, filters: Dict):
@@ -128,17 +241,47 @@ class GestionAnalyticsService:
         Subquery: 1 gestión por call_id (MAX id = última registrada).
         Solo gestiones con call_id no vacío.
         Retorna (call_id, ultimo_gestion_id).
+
+        USE_FECHA_LOGICA_LLAMADA=True → NO filtra por
+        CustomFormGestion.fecha; en su lugar, restringe a call_ids
+        cuya fecha_logica cae en el rango solicitado (vía JOIN a
+        fecha_logica_sq). Así una gestión guardada después de
+        medianoche queda en el día de la llamada, no de su registro.
         """
+        if not config.USE_FECHA_LOGICA_LLAMADA:
+            sq = self.db.query(
+                CustomFormGestion.call_id,
+                func.max(CustomFormGestion.id).label(
+                    'ultimo_gestion_id'
+                ),
+            ).filter(
+                CustomFormGestion.call_id.isnot(None),
+                CustomFormGestion.call_id != '',
+            )
+            sq = self._apply_filters(sq, filters)
+            return sq.group_by(
+                CustomFormGestion.call_id
+            ).subquery()
+
+        fecha_logica_sq = self._build_fecha_logica_sq(filters)
         sq = self.db.query(
             CustomFormGestion.call_id,
             func.max(CustomFormGestion.id).label(
                 'ultimo_gestion_id'
             ),
+            # fecha_logica es constante por callid, MAX() sirve
+            # solo para permitir el GROUP BY sobre call_id.
+            func.max(fecha_logica_sq.c.fecha_logica).label(
+                'fecha_logica'
+            ),
+        ).join(
+            fecha_logica_sq,
+            CustomFormGestion.call_id == fecha_logica_sq.c.callid,
         ).filter(
             CustomFormGestion.call_id.isnot(None),
             CustomFormGestion.call_id != '',
         )
-        sq = self._apply_filters(sq, filters)
+        sq = self._apply_gestion_filters_no_fecha(sq, filters)
         return sq.group_by(
             CustomFormGestion.call_id
         ).subquery()
@@ -518,11 +661,43 @@ class GestionAnalyticsService:
     def get_gestiones_por_dia(
         self, filters: Dict = None
     ) -> List[Dict]:
-        """Gestiones válidas agrupadas por día (timezone local)"""
+        """Gestiones válidas agrupadas por día (timezone local).
+
+        En modo USE_FECHA_LOGICA_LLAMADA=True agrupa por día de la
+        llamada (fecha_logica); en modo off agrupa por
+        CustomFormGestion.fecha como siempre.
+        """
         filters = filters or {}
 
         atendidas_sq = self._build_llamadas_atendidas_sq(filters)
         gestion_unica_sq = self._build_gestion_unica_sq(filters)
+
+        if config.USE_FECHA_LOGICA_LLAMADA:
+            # gestion_unica_sq ya expone fecha_logica por call_id
+            resultados = self.db.query(
+                gestion_unica_sq.c.fecha_logica.label('dia'),
+                func.count(
+                    gestion_unica_sq.c.ultimo_gestion_id
+                ).label('total'),
+            ).join(
+                atendidas_sq,
+                gestion_unica_sq.c.call_id
+                == atendidas_sq.c.callid,
+            ).group_by(
+                gestion_unica_sq.c.fecha_logica
+            ).order_by(
+                gestion_unica_sq.c.fecha_logica
+            ).all()
+
+            return [
+                {
+                    'dia': (
+                        r.dia.strftime('%Y-%m-%d') if r.dia else ''
+                    ),
+                    'total': r.total,
+                }
+                for r in resultados
+            ]
 
         validas_sq = self.db.query(
             gestion_unica_sq.c.ultimo_gestion_id,

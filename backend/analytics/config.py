@@ -30,6 +30,18 @@ class OmniLeadsConfig:
     # pero OmniLeads graba el offset de este timezone.
     TIMEZONE_DB = os.getenv('TIMEZONE_DB', 'America/Bogota')
 
+    # ── Unificación de fechas gestión ↔ llamada ──────────────────
+    # Cuando es True, las gestiones se filtran por el día de la
+    # primera aparición del callid en LlamadaLog (fecha lógica),
+    # en vez de CustomFormGestion.fecha (momento en que el agente
+    # guardó el formulario). Corrige desfase gestión +1 día cuando
+    # la llamada es antes de medianoche y el agente cierra el
+    # formulario después. Rollout: arrancar en False, validar
+    # conteos diarios en preview, luego switchear a True.
+    USE_FECHA_LOGICA_LLAMADA = os.getenv(
+        'USE_FECHA_LOGICA_LLAMADA', 'false'
+    ).lower() == 'true'
+
     # ── BD Local (replica sincronizada) ──────────────────────────
     USE_LOCAL_DB = os.getenv('USE_LOCAL_DB', 'false').lower() == 'true'
     LOCAL_DB_HOST = os.getenv('LOCAL_DB_HOST', 'postgres-local')

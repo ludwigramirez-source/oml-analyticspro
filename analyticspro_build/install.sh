@@ -107,15 +107,29 @@ while true; do
     fi
 done
 
-# 2. Zona horaria
-read -p "  Zona horaria de la BD [$SERVER_TZ]: " TZ_INPUT
-ANALYTICS_TZ="${TZ_INPUT:-$SERVER_TZ}"
+# 2. Zona horaria — mostrar opciones comunes para evitar errores de tipeo
+echo ""
+echo -e "  ${BOLD}Zona horaria de la BD:${NC}"
+echo "  Opciones comunes: America/Bogota, America/Lima, America/Managua,"
+echo "                    America/Mexico_City, America/Caracas, America/Santiago"
+echo "  (Detectada en el servidor: $SERVER_TZ)"
+while true; do
+    read -p "  Ingresa la zona horaria [$SERVER_TZ]: " TZ_INPUT
+    ANALYTICS_TZ="${TZ_INPUT:-$SERVER_TZ}"
+    # Validar que no sea una sola letra ni esté vacía de forma extraña
+    if [ ${#ANALYTICS_TZ} -gt 3 ] && [[ "$ANALYTICS_TZ" == *"/"* ]]; then
+        break
+    else
+        echo -e "  ${RED}Zona horaria inválida. Debe tener el formato Región/Ciudad (ej: America/Bogota).${NC}"
+    fi
+done
 
 # 3. Llamadas salientes
-read -p "  ¿Mostrar llamadas salientes en KPIs? [s/N]: " INBOUND_INPUT
+echo ""
+read -p "  ¿Mostrar llamadas salientes en KPIs? Escribe 'si' o 'no' [no]: " INBOUND_INPUT
 case "${INBOUND_INPUT,,}" in
-    s|si|yes|y) INBOUND_ONLY="False" ;;
-    *)          INBOUND_ONLY="True"  ;;
+    si|yes|y) INBOUND_ONLY="False" ;;
+    *)        INBOUND_ONLY="True"  ;;
 esac
 
 # ── Resumen + confirmación ────────────────────────────────────────────────────

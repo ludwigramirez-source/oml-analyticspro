@@ -37,6 +37,20 @@ def disponibilidad_heatmap(request):
 
 @login_required
 @require_analytics_access
+def rendimiento_completo(request):
+    filters = parse_filters(request)
+    return _json(_svc().get_rendimiento_completo(filters))
+
+
+@login_required
+@require_analytics_access
+def disponibilidad_heatmap_completo(request):
+    filters = parse_filters(request)
+    return _json(_svc().get_disponibilidad_heatmap_completo(filters))
+
+
+@login_required
+@require_analytics_access
 def sesiones(request, agente_id):
     filters = parse_filters(request)
     return _json(_svc().get_sesiones_agente(agente_id, filters))

@@ -48,6 +48,14 @@ def tabla_distribucion_horaria(request):
 
 @login_required
 @require_analytics_access
+def nivel_atencion_campanas(request):
+    filters = parse_filters(request)
+    umbral = int(request.GET.get('umbral', 80))
+    return _json(_svc().get_nivel_atencion_campanas(filters, umbral))
+
+
+@login_required
+@require_analytics_access
 def salientes_dashboard(request):
     filters = parse_filters(request)
     return _json(_svc().get_salientes_dashboard(filters))

@@ -94,18 +94,13 @@
   <!-- ── Tabs ── -->
   <ul class="nav nav-tabs" id="analytics-tabs" role="tablist">
     <li class="nav-item">
-      <a class="nav-link active" data-toggle="tab" href="#tab-resumen" role="tab">
+      <a class="nav-link active" data-toggle="tab" href="#tab-kpis" role="tab">
+        <i class="fas fa-star mr-1"></i>{% trans 'KPIs' %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-toggle="tab" href="#tab-resumen" role="tab">
         <i class="fas fa-tachometer-alt mr-1"></i>{% trans 'Resumen' %}
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link" data-toggle="tab" href="#tab-atendidas" role="tab">
-        <i class="fas fa-phone-alt mr-1"></i>{% trans 'Atendidas' %}
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link" data-toggle="tab" href="#tab-abandonadas" role="tab">
-        <i class="fas fa-phone-slash mr-1"></i>{% trans 'Abandonadas' %}
       </a>
     </li>
     <li class="nav-item">
@@ -114,13 +109,33 @@
       </a>
     </li>
     <li class="nav-item">
+      <a class="nav-link" data-toggle="tab" href="#tab-horaria" role="tab">
+        <i class="fas fa-clock mr-1"></i>{% trans 'Horaria' %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-toggle="tab" href="#tab-campanas" role="tab">
+        <i class="fas fa-bullhorn mr-1"></i>{% trans 'Campañas' %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-toggle="tab" href="#tab-atendidas" role="tab">
+        <i class="fas fa-check-circle mr-1"></i>{% trans 'Atendidas' %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-toggle="tab" href="#tab-abandonadas" role="tab">
+        <i class="fas fa-times-circle mr-1"></i>{% trans 'Abandonadas' %}
+      </a>
+    </li>
+    <li class="nav-item">
       <a class="nav-link" data-toggle="tab" href="#tab-agentes" role="tab">
         <i class="fas fa-users mr-1"></i>{% trans 'Agentes' %}
       </a>
     </li>
     <li class="nav-item">
-      <a class="nav-link" data-toggle="tab" href="#tab-horaria" role="tab">
-        <i class="fas fa-clock mr-1"></i>{% trans 'Horaria' %}
+      <a class="nav-link" data-toggle="tab" href="#tab-agentes-avanzado" role="tab">
+        <i class="fas fa-cogs mr-1"></i>{% trans 'Ag. Avanzado' %}
       </a>
     </li>
     <li class="nav-item">
@@ -137,8 +152,175 @@
 
   <div class="tab-content border border-top-0 bg-white p-3" id="analytics-tab-content">
 
+    <!-- ── TAB: KPIs ── -->
+    <div class="tab-pane fade show active" id="tab-kpis" role="tabpanel">
+
+      <!-- Top cards: Entrantes + Salientes -->
+      <div class="row mb-3" id="kpi-tipo-cards">
+        <div class="col-md-6 mb-2">
+          <div class="card border-success h-100">
+            <div class="card-header py-2 bg-success text-white d-flex justify-content-between align-items-center">
+              <span><i class="fas fa-phone-alt mr-1"></i>{% trans 'Llamadas Entrantes' %}</span>
+              <span class="h4 mb-0 font-weight-bold" id="kpi-ent-total">—</span>
+            </div>
+            <div class="card-body pb-2">
+              <div class="row text-center mb-2">
+                <div class="col border-right">
+                  <div class="h5 mb-0 text-success font-weight-bold" id="kpi-ent-atendidas">—</div>
+                  <div class="small text-muted">{% trans 'Atendidas' %}</div>
+                </div>
+                <div class="col">
+                  <div class="h5 mb-0 text-danger font-weight-bold" id="kpi-ent-no-atendidas">—</div>
+                  <div class="small text-muted">{% trans 'Abandonadas' %}</div>
+                </div>
+              </div>
+              <div class="d-flex justify-content-between small mb-1">
+                <span class="text-muted">{% trans 'Nivel de Atención' %}</span>
+                <strong class="text-success" id="kpi-ent-nivel">—</strong>
+              </div>
+              <div class="progress mb-1" style="height:8px;">
+                <div class="progress-bar bg-success" id="kpi-ent-bar" role="progressbar" style="width:0%;"></div>
+              </div>
+              <div class="small text-muted text-right">
+                {% trans 'Tasa de Abandono' %}: <span id="kpi-ent-tasa">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6 mb-2">
+          <div class="card border-primary h-100">
+            <div class="card-header py-2 bg-primary text-white d-flex justify-content-between align-items-center">
+              <span><i class="fas fa-phone-volume mr-1"></i>{% trans 'Llamadas Salientes' %}</span>
+              <span class="h4 mb-0 font-weight-bold" id="kpi-sal-total">—</span>
+            </div>
+            <div class="card-body pb-2">
+              <div class="row text-center mb-2">
+                <div class="col border-right">
+                  <div class="h5 mb-0 text-primary font-weight-bold" id="kpi-sal-atendidas">—</div>
+                  <div class="small text-muted">{% trans 'Atendidas' %}</div>
+                </div>
+                <div class="col">
+                  <div class="h5 mb-0 text-warning font-weight-bold" id="kpi-sal-no-atendidas">—</div>
+                  <div class="small text-muted">{% trans 'No Atendidas' %}</div>
+                </div>
+              </div>
+              <div class="d-flex justify-content-between small mb-1">
+                <span class="text-muted">{% trans 'Nivel de Contacto' %}</span>
+                <strong class="text-primary" id="kpi-sal-nivel">—</strong>
+              </div>
+              <div class="progress mb-1" style="height:8px;">
+                <div class="progress-bar bg-primary" id="kpi-sal-bar" role="progressbar" style="width:0%;"></div>
+              </div>
+              <div class="small text-muted text-right">
+                {% trans 'Tasa No Contacto' %}: <span id="kpi-sal-tasa">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI metric cards grid (11 metrics) -->
+      <div class="row" id="kpi-metric-cards">
+        <div class="col-6 col-md-3 mb-2">
+          <div class="card h-100 border-left-info">
+            <div class="card-body py-2 px-3">
+              <div class="small text-muted text-uppercase font-weight-bold">{% trans 'Total Llamadas' %}</div>
+              <div class="h3 mb-0 font-weight-bold" id="km-total">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3 mb-2">
+          <div class="card h-100 border-left-success">
+            <div class="card-body py-2 px-3">
+              <div class="small text-muted text-uppercase font-weight-bold">{% trans 'Atendidas' %}</div>
+              <div class="h3 mb-0 font-weight-bold text-success" id="km-atendidas">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3 mb-2">
+          <div class="card h-100 border-left-danger">
+            <div class="card-body py-2 px-3">
+              <div class="small text-muted text-uppercase font-weight-bold">{% trans 'Abandonadas' %}</div>
+              <div class="h3 mb-0 font-weight-bold text-danger" id="km-abandonadas">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3 mb-2">
+          <div class="card h-100 border-left-warning">
+            <div class="card-body py-2 px-3">
+              <div class="small text-muted text-uppercase font-weight-bold">{% trans 'Salientes No Atendidas' %}</div>
+              <div class="h3 mb-0 font-weight-bold text-warning" id="km-no-atendidas">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3 mb-2">
+          <div class="card h-100 border-left-primary">
+            <div class="card-body py-2 px-3">
+              <div class="small text-muted text-uppercase font-weight-bold">AHT <small class="text-lowercase font-weight-normal">(TMO)</small></div>
+              <div class="h3 mb-0 font-weight-bold" id="km-aht">—</div>
+              <div class="small text-muted">{% trans 'seg.' %}</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3 mb-2">
+          <div class="card h-100 border-left-primary">
+            <div class="card-body py-2 px-3">
+              <div class="small text-muted text-uppercase font-weight-bold">ASA <small class="text-lowercase font-weight-normal">(Espera)</small></div>
+              <div class="h3 mb-0 font-weight-bold" id="km-asa">—</div>
+              <div class="small text-muted">{% trans 'seg.' %}</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3 mb-2">
+          <div class="card h-100 border-left-info">
+            <div class="card-body py-2 px-3">
+              <div class="small text-muted text-uppercase font-weight-bold">{% trans 'SL &lt; 60s' %}</div>
+              <div class="h3 mb-0 font-weight-bold text-info" id="km-sla60">—</div>
+              <div class="small text-muted">%</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3 mb-2">
+          <div class="card h-100 border-left-info">
+            <div class="card-body py-2 px-3">
+              <div class="small text-muted text-uppercase font-weight-bold">{% trans 'SL &lt; 20s' %}</div>
+              <div class="h3 mb-0 font-weight-bold text-info" id="km-sla20">—</div>
+              <div class="small text-muted">%</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-4 mb-2">
+          <div class="card h-100 border-left-danger">
+            <div class="card-body py-2 px-3">
+              <div class="small text-muted text-uppercase font-weight-bold">{% trans 'Tasa Abandono' %}</div>
+              <div class="h3 mb-0 font-weight-bold text-danger" id="km-tasa-abandono">—</div>
+              <div class="small text-muted">%</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-4 mb-2">
+          <div class="card h-100 border-left-success">
+            <div class="card-body py-2 px-3">
+              <div class="small text-muted text-uppercase font-weight-bold">{% trans 'Agentes Activos' %}</div>
+              <div class="h3 mb-0 font-weight-bold text-success" id="km-agentes">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-4 mb-2">
+          <div class="card h-100 border-left-warning">
+            <div class="card-body py-2 px-3">
+              <div class="small text-muted text-uppercase font-weight-bold">{% trans 'Ocupación' %}</div>
+              <div class="h3 mb-0 font-weight-bold text-warning" id="km-ocupacion">—</div>
+              <div class="small text-muted">%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /#tab-kpis -->
+
     <!-- ── TAB: RESUMEN ── -->
-    <div class="tab-pane fade show active" id="tab-resumen" role="tabpanel">
+    <div class="tab-pane fade" id="tab-resumen" role="tabpanel">
 
       <!-- KPI Cards -->
       <div class="row mb-3" id="kpi-cards">
@@ -273,8 +455,11 @@
       <div class="row">
         <div class="col-12 mb-3">
           <div class="card">
-            <div class="card-header py-2 small font-weight-bold">
-              {% trans 'Distribución por campaña' %}
+            <div class="card-header py-2 small font-weight-bold d-flex justify-content-between align-items-center">
+              <span>{% trans 'Distribución por campaña' %}</span>
+              <button class="btn btn-sm btn-outline-success py-0" id="btn-export-dist">
+                <i class="fas fa-file-excel mr-1"></i>{% trans 'Exportar' %}
+              </button>
             </div>
             <div class="card-body p-0">
               <div class="table-responsive">
@@ -300,11 +485,45 @@
       </div>
     </div>
 
+    <!-- ── TAB: CAMPAÑAS (ALERTAS) ── -->
+    <div class="tab-pane fade" id="tab-campanas" role="tabpanel">
+      <div class="card">
+        <div class="card-header py-2 small font-weight-bold d-flex justify-content-between align-items-center">
+          <span><i class="fas fa-bullhorn mr-1 text-warning"></i>{% trans 'Nivel de atención por campaña' %}</span>
+          <button class="btn btn-sm btn-outline-success py-0" id="btn-export-campanas">
+            <i class="fas fa-file-excel mr-1"></i>{% trans 'Exportar' %}
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0" id="tbl-campanas-alertas">
+              <thead class="thead-light">
+                <tr>
+                  <th>{% trans 'Alerta' %}</th>
+                  <th>{% trans 'Campaña' %}</th>
+                  <th class="text-right">{% trans 'Total' %}</th>
+                  <th class="text-right">{% trans 'Atendidas' %}</th>
+                  <th class="text-right">{% trans 'Abandonadas' %}</th>
+                  <th class="text-right">{% trans 'Nivel Atención' %}</th>
+                  <th class="text-right">{% trans 'TMO (s)' %}</th>
+                  <th class="text-right">{% trans 'Espera Prom (s)' %}</th>
+                  <th class="text-right">{% trans 'Agentes Activos' %}</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-campanas-alertas">
+                <tr><td colspan="9" class="text-center text-muted">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── TAB: AGENTES ── -->
     <div class="tab-pane fade" id="tab-agentes" role="tabpanel">
       <div class="card mb-3">
         <div class="card-header py-2 small font-weight-bold d-flex justify-content-between">
-          <span>{% trans 'Rendimiento de agentes' %}</span>
+          <span>{% trans 'Disponibilidad y rendimiento de agentes' %}</span>
           <button class="btn btn-sm btn-outline-success py-0" id="btn-export-agentes">
             <i class="fas fa-file-excel mr-1"></i>{% trans 'Exportar' %}
           </button>
@@ -315,27 +534,116 @@
               <thead class="thead-light">
                 <tr>
                   <th>{% trans 'Agente' %}</th>
-                  <th>{% trans 'Extensión' %}</th>
-                  <th>{% trans 'Total' %}</th>
-                  <th>{% trans 'Atendidas' %}</th>
-                  <th>{% trans 'Abandonadas' %}</th>
-                  <th>{% trans 'TMO (s)' %}</th>
-                  <th>{% trans 'Espera prom (s)' %}</th>
+                  <th class="text-right">{% trans 'Llamadas' %}</th>
+                  <th class="text-right">{% trans 'Sesiones' %}</th>
+                  <th class="text-right">{% trans 'T. Sesión' %}</th>
+                  <th class="text-right">{% trans 'T. Habla' %}</th>
+                  <th class="text-right">{% trans 'Pausas' %}</th>
+                  <th class="text-right">{% trans 'T. Pausa' %}</th>
+                  <th class="text-right">{% trans '% Ocup.' %}</th>
+                  <th>{% trans 'Primer Login' %}</th>
+                  <th>{% trans 'Último Logout' %}</th>
                 </tr>
               </thead>
-              <tbody id="tbody-agentes"></tbody>
+              <tbody id="tbody-agentes">
+                <tr><td colspan="10" class="text-center text-muted">Cargando...</td></tr>
+              </tbody>
             </table>
           </div>
         </div>
       </div>
 
-      <!-- Disponibilidad heatmap -->
+      <!-- Disponibilidad heatmap (hora) -->
       <div class="card">
         <div class="card-header py-2 small font-weight-bold">
-          {% trans 'Disponibilidad por hora (agentes conectados)' %}
+          {% trans 'Agentes conectados por hora del día' %}
         </div>
         <div class="card-body p-2">
           <div id="chart-heatmap" style="min-height:200px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB: AGENTES AVANZADO ── -->
+    <div class="tab-pane fade" id="tab-agentes-avanzado" role="tabpanel">
+
+      <!-- KPI summary -->
+      <div class="row mb-3" id="agav-kpis">
+        <div class="col-md-3 col-sm-6 mb-2">
+          <div class="card kpi-card h-100 border-left-primary">
+            <div class="card-body py-2">
+              <div class="small text-muted kpi-label">{% trans 'Agentes con sesión' %}</div>
+              <div class="h3 mb-0 kpi-value font-weight-bold" id="agav-kpi-total">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-2">
+          <div class="card kpi-card h-100 border-left-success">
+            <div class="card-body py-2">
+              <div class="small text-muted kpi-label">{% trans 'T. Sesión Promedio' %}</div>
+              <div class="h3 mb-0 kpi-value font-weight-bold" id="agav-kpi-prom">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-2">
+          <div class="card kpi-card h-100 border-left-warning">
+            <div class="card-body py-2">
+              <div class="small text-muted kpi-label">{% trans 'T. Sesión Máximo' %}</div>
+              <div class="h3 mb-0 kpi-value font-weight-bold" id="agav-kpi-max">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-2">
+          <div class="card kpi-card h-100 border-left-info">
+            <div class="card-body py-2">
+              <div class="small text-muted kpi-label">{% trans 'T. Sesión Total' %}</div>
+              <div class="h3 mb-0 kpi-value font-weight-bold" id="agav-kpi-total-ses">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Heatmap dia × hora -->
+      <div class="card mb-3">
+        <div class="card-header py-2 small font-weight-bold">
+          <i class="fas fa-th mr-1 text-info"></i>{% trans 'Disponibilidad por Día y Hora (agentes conectados)' %}
+        </div>
+        <div class="card-body p-2">
+          <div class="table-responsive" id="agav-heatmap-container">
+            <p class="text-muted text-center p-3">Cargando...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table per agent with detail button -->
+      <div class="card">
+        <div class="card-header py-2 small font-weight-bold d-flex justify-content-between">
+          <span><i class="fas fa-list-ul mr-1"></i>{% trans 'Disponibilidad por Agente' %}</span>
+          <button class="btn btn-sm btn-outline-success py-0" id="btn-export-agav">
+            <i class="fas fa-file-excel mr-1"></i>{% trans 'Exportar' %}
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0" id="tbl-agav">
+              <thead class="thead-light">
+                <tr>
+                  <th>{% trans 'Agente' %}</th>
+                  <th class="text-right">{% trans 'Sesiones' %}</th>
+                  <th class="text-right">{% trans 'T. Sesión Total' %}</th>
+                  <th class="text-right">{% trans 'T. Sesión Prom.' %}</th>
+                  <th class="text-right">{% trans 'Pausas' %}</th>
+                  <th class="text-right">{% trans 'T. Pausa Rec.' %}</th>
+                  <th class="text-right">{% trans 'T. Pausa Prod.' %}</th>
+                  <th class="text-right">{% trans 'T. Pausa Total' %}</th>
+                  <th class="text-center">{% trans 'Detalles' %}</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-agav">
+                <tr><td colspan="9" class="text-center text-muted">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -387,8 +695,11 @@
     <div class="tab-pane fade" id="tab-salientes" role="tabpanel">
       <div class="row mb-3" id="salientes-kpis"></div>
       <div class="card">
-        <div class="card-header py-2 small font-weight-bold">
-          {% trans 'Salientes por agente' %}
+        <div class="card-header py-2 small font-weight-bold d-flex justify-content-between align-items-center">
+          <span>{% trans 'Salientes por agente' %}</span>
+          <button class="btn btn-sm btn-outline-success py-0" id="btn-export-salientes">
+            <i class="fas fa-file-excel mr-1"></i>{% trans 'Exportar' %}
+          </button>
         </div>
         <div class="card-body p-0">
           <div class="table-responsive">
@@ -459,12 +770,72 @@
 
 </div><!-- /analytics-wrapper -->
 
+<!-- ── Modal: Detalles de agente ── -->
+<div class="modal fade" id="modal-agente-detalle" tabindex="-1" role="dialog"
+     aria-labelledby="modal-agente-titulo" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white py-2">
+        <h6 class="modal-title mb-0" id="modal-agente-titulo">
+          <i class="fas fa-user mr-1"></i> Detalles del Agente
+        </h6>
+        <button type="button" class="close text-white" data-dismiss="modal">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body p-0">
+        <!-- Modal sub-tabs -->
+        <ul class="nav nav-tabs nav-fill px-3 pt-2" id="modal-tabs">
+          <li class="nav-item">
+            <a class="nav-link active" data-toggle="tab" href="#modal-tab-sesiones">
+              <i class="fas fa-sign-in-alt mr-1"></i>
+              {% trans 'Sesiones' %} (<span id="modal-ses-count">0</span>)
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#modal-tab-pausas">
+              <i class="fas fa-pause-circle mr-1"></i>
+              {% trans 'Pausas' %} (<span id="modal-pau-count">0</span>)
+            </a>
+          </li>
+        </ul>
+        <div class="tab-content p-3" style="max-height:420px;overflow-y:auto;">
+          <div class="tab-pane fade show active" id="modal-tab-sesiones">
+            <div id="modal-sesiones-body">
+              <div class="text-center p-4">
+                <div class="spinner-border text-primary" role="status"></div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-pane fade" id="modal-tab-pausas">
+            <div id="modal-pausas-body">
+              <p class="text-muted text-center p-3">Seleccione la pestaña Pausas</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-sm btn-outline-success mr-auto" id="btn-export-modal-ses">
+          <i class="fas fa-file-excel mr-1"></i>{% trans 'Exportar Sesiones' %}
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-success mr-1" id="btn-export-modal-pau">
+          <i class="fas fa-file-excel mr-1"></i>{% trans 'Exportar Pausas' %}
+        </button>
+        <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">
+          {% trans 'Cerrar' %}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Pass Django data to JS -->
 <script>
 var ANALYTICS_CONFIG = {
   csrfToken: '{{ csrf_token }}',
   urls: {
     kpis: '{% url "analyticspro:api_kpis" %}',
+    llamadasPorTipo: '{% url "analyticspro:api_llamadas_por_tipo" %}',
     distribucion: '{% url "analyticspro:api_distribucion_llamadas" %}',
     evolucionHora: '{% url "analyticspro:api_evolucion_hora" %}',
     evolucionDiaria: '{% url "analyticspro:api_evolucion_diaria" %}',
@@ -474,8 +845,13 @@ var ANALYTICS_CONFIG = {
     atendidas: '{% url "analyticspro:api_llamadas_atendidas" %}',
     abandonadas: '{% url "analyticspro:api_llamadas_abandonadas" %}',
     distCampana: '{% url "analyticspro:api_distribucion_campana_detalle" %}',
+    campanasAlertas: '{% url "analyticspro:api_nivel_atencion_campanas" %}',
     agentesRendimiento: '{% url "analyticspro:api_agentes_rendimiento" %}',
+    agentesCompleto: '{% url "analyticspro:api_agentes_rendimiento_completo" %}',
     heatmap: '{% url "analyticspro:api_agentes_heatmap" %}',
+    heatmapCompleto: '{% url "analyticspro:api_agentes_heatmap_completo" %}',
+    sesionesAgente: '{% url "analyticspro:api_agentes_sesiones" 999 %}'.replace('/999/', '/__ID__/'),
+    pausasAgente: '{% url "analyticspro:api_agentes_pausas" 999 %}'.replace('/999/', '/__ID__/'),
     horariaDet: '{% url "analyticspro:api_distribucion_horaria_detallada" %}',
     horariaTabla: '{% url "analyticspro:api_tabla_distribucion_horaria" %}',
     salientes: '{% url "analyticspro:api_salientes_dashboard" %}',

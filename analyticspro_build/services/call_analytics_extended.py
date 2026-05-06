@@ -342,6 +342,22 @@ class CallAnalyticsExtendedService(AnalyticsBaseService):
             'tasa_contacto': round(contestadas / total * 100, 2) if total > 0 else 0,
         }
 
+    # ─────────────────────────────────────────────────────────────
+    # Nivel de atención por campaña con alertas
+    # ─────────────────────────────────────────────────────────────
+
+    def get_nivel_atencion_campanas(self, filters=None, umbral=80):
+        """
+        Retorna la distribución por campaña con flag 'alerta' cuando
+        nivel_atencion < umbral (%).  Las campañas con alerta van primero.
+        """
+        rows = self.get_distribucion_por_campana_detalle(filters)
+        for r in rows:
+            r['alerta'] = (r.get('nivel_atencion', 100) < umbral)
+        # Sort: alertas primero, luego por total desc
+        rows.sort(key=lambda x: (not x['alerta'], -x.get('total', 0)))
+        return rows
+
     def get_salientes_por_agente(self, filters=None):
         filters = filters or {}
 

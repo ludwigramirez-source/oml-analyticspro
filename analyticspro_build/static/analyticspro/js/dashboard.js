@@ -392,6 +392,7 @@
   function loadDistCampana(filters) {
     return apiFetch(ANALYTICS_CONFIG.urls.distCampana, filters)
       .done(function (rows) {
+        _distData = rows || [];
         var $tbody = $('#tbody-dist-campana').empty();
         if (!rows || !rows.length) {
           $tbody.append('<tr><td colspan="8" class="text-center text-muted">Sin datos</td></tr>');
@@ -413,27 +414,286 @@
       });
   }
 
-  // ── Table: Rendimiento agentes ───────────────────────────────────
+  // ── Table: Agentes (rendimiento completo) ───────────────────────
 
   function loadAgentesRendimiento(filters) {
-    return apiFetch(ANALYTICS_CONFIG.urls.agentesRendimiento, filters)
+    return apiFetch(ANALYTICS_CONFIG.urls.agentesCompleto, filters)
       .done(function (rows) {
         var $tbody = $('#tbody-agentes').empty();
         if (!rows || !rows.length) {
-          $tbody.append('<tr><td colspan="7" class="text-center text-muted">Sin datos</td></tr>');
+          $tbody.append(
+            '<tr><td colspan="10" class="text-center text-muted">Sin datos</td></tr>'
+          );
           return;
         }
         $.each(rows, function (_, r) {
+          var occ = parseFloat(r.ocupacion || 0);
+          var occColor = occ >= 70 ? '#28a745' : occ >= 40 ? '#fd7e14' : '#dc3545';
           $tbody.append('<tr>' +
-            '<td>' + (r.agente_nombre || r.nombre || '—') + '</td>' +
-            '<td>' + (r.extension || r.sip_extension || '—') + '</td>' +
-            '<td class="text-right">' + fmtNum(r.total_llamadas || r.total) + '</td>' +
-            '<td class="text-right">' + fmtNum(r.atendidas) + '</td>' +
-            '<td class="text-right">' + fmtNum(r.abandonadas) + '</td>' +
-            '<td class="text-right">' + fmtNum(r.tmo_prom) + '</td>' +
-            '<td class="text-right">' + fmtNum(r.espera_prom) + '</td>' +
+            '<td class="font-weight-bold">' + (r.nombre || '—') + '</td>' +
+            '<td class="text-right">' + fmtNum(r.llamadas_contestadas) + '</td>' +
+            '<td class="text-right">' + fmtNum(r.num_sesiones) + '</td>' +
+            '<td class="text-right">' + fmtTiempo(r.tiempo_total_sesion) + '</td>' +
+            '<td class="text-right text-primary">' + fmtTiempo(r.tiempo_al_habla) + '</td>' +
+            '<td class="text-right">' + fmtNum(r.num_pausas) + '</td>' +
+            '<td class="text-right">' + fmtTiempo(r.tiempo_total_pausa) + '</td>' +
+            '<td class="text-right font-weight-bold" style="color:' + occColor + '">' +
+              fmtNum(occ, 1) + '%</td>' +
+            '<td class="small text-muted">' + fmtDt(r.primer_login) + '</td>' +
+            '<td class="small text-muted">' + fmtDt(r.ultimo_logout) + '</td>' +
           '</tr>');
         });
+      })
+      .fail(function () {
+        // Fallback to basic endpoint if completo not yet available
+        apiFetch(ANALYTICS_CONFIG.urls.agentesRendimiento, filters)
+          .done(function (rows) {
+            var $tbody = $('#tbody-agentes').empty();
+            $.each(rows || [], function (_, r) {
+              $tbody.append('<tr>' +
+                '<td class="font-weight-bold">' + (r.agente_nombre || r.nombre || '—') + '</td>' +
+                '<td class="text-right">' + fmtNum(r.atendidas) + '</td>' +
+                '<td class="text-right">—</td>' +
+                '<td class="text-right">—</td>' +
+                '<td class="text-right">' + fmtTiempo(r.tmo_prom) + '</td>' +
+                '<td class="text-right">—</td>' +
+                '<td class="text-right">—</td>' +
+                '<td class="text-right">—</td>' +
+                '<td>—</td><td>—</td>' +
+              '</tr>');
+            });
+          });
+      });
+  }
+
+  // ── Tab: Campañas Alertas ─────────────────────────────────────
+
+  function loadCampanas(filters) {
+    return apiFetch(ANALYTICS_CONFIG.urls.campanasAlertas, filters)
+      .done(function (rows) {
+        var $tbody = $('#tbody-campanas-alertas').empty();
+        if (!rows || !rows.length) {
+          $tbody.append(
+            '<tr><td colspan="9" class="text-center text-muted">Sin datos</td></tr>'
+          );
+          return;
+        }
+        $.each(rows, function (_, r) {
+          var alerta = r.alerta;
+          var rowCls = alerta ? 'table-danger' : '';
+          var alertaBadge = alerta
+            ? '<span class="badge badge-danger"><i class="fas fa-exclamation-triangle mr-1"></i>ALERTA</span>'
+            : '<span class="badge badge-success">OK</span>';
+          var nivel = parseFloat(r.nivel_atencion || 0);
+          var nivelColor = nivel >= 80 ? '#28a745' : nivel >= 60 ? '#fd7e14' : '#dc3545';
+          $tbody.append('<tr class="' + rowCls + '">' +
+            '<td>' + alertaBadge + '</td>' +
+            '<td class="font-weight-bold">' + (r.campana_nombre || r.campana_id || '—') + '</td>' +
+            '<td class="text-right">' + fmtNum(r.total) + '</td>' +
+            '<td class="text-right text-success">' + fmtNum(r.atendidas) + '</td>' +
+            '<td class="text-right text-danger">' + fmtNum(r.abandonadas) + '</td>' +
+            '<td class="text-right font-weight-bold" style="color:' + nivelColor + '">' +
+              fmtNum(nivel, 2) + '%</td>' +
+            '<td class="text-right">' + fmtNum(r.tmo_prom) + '</td>' +
+            '<td class="text-right">' + fmtNum(r.espera_prom) + '</td>' +
+            '<td class="text-right">' + fmtNum(r.agentes_activos) + '</td>' +
+          '</tr>');
+        });
+      });
+  }
+
+  var _distData     = [];  // cache Distribución export
+  var _salData      = [];  // cache Salientes export
+  var _modalSesData = [];  // cache modal sesiones export
+  var _modalPauData = [];  // cache modal pausas export
+
+  // ── Tab: Agentes Avanzado ─────────────────────────────────────
+
+  var _agavData = [];  // cache for export
+
+  function fmtTiempoHMS(s) {
+    s = Math.round(s || 0);
+    if (s <= 0) return '00:00:00';
+    var h = Math.floor(s / 3600);
+    var m = Math.floor((s % 3600) / 60);
+    var sec = s % 60;
+    return (h < 10 ? '0' + h : h) + ':' +
+           (m < 10 ? '0' + m : m) + ':' +
+           (sec < 10 ? '0' + sec : sec);
+  }
+
+  function renderAgavHeatmap(data) {
+    var $c = $('#agav-heatmap-container');
+    if (!data || !data.dias || !data.dias.length) {
+      $c.html('<p class="text-muted text-center p-3">Sin datos de disponibilidad</p>');
+      return;
+    }
+    var dias = data.dias;
+    var horas = data.horas;
+    var mat = data.matriz;
+    // Find max value for color scaling
+    var maxVal = 0;
+    mat.forEach(function (row) {
+      row.forEach(function (v) { if (v > maxVal) maxVal = v; });
+    });
+    var html = '<table class="table table-sm table-bordered mb-0 horaria-tbl">';
+    html += '<thead class="thead-light"><tr><th>Día / Hora</th>';
+    horas.forEach(function (h) { html += '<th class="text-center">' + h + '</th>'; });
+    html += '</tr></thead><tbody>';
+    dias.forEach(function (dia, di) {
+      html += '<tr><td class="font-weight-bold small">' + dia + '</td>';
+      mat[di].forEach(function (v) {
+        var pct = maxVal > 0 ? v / maxVal : 0;
+        var cls = v === 0 ? 'heat-0' :
+                  pct < 0.2 ? 'heat-1' :
+                  pct < 0.4 ? 'heat-2' :
+                  pct < 0.6 ? 'heat-3' :
+                  pct < 0.8 ? 'heat-4' : 'heat-5';
+        html += '<td class="' + cls + ' text-center small">' + (v > 0 ? v : '') + '</td>';
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    $c.html(html);
+  }
+
+  function renderAgavKpis(rows) {
+    var conSesion = rows.filter(function (r) { return r.num_sesiones > 0; });
+    var total = conSesion.length;
+    if (!total) {
+      $('#agav-kpi-total').text('0');
+      $('#agav-kpi-prom, #agav-kpi-max, #agav-kpi-total-ses').text('—');
+      return;
+    }
+    var tiempos = conSesion.map(function (r) { return r.tiempo_total_sesion || 0; });
+    var tTotal = tiempos.reduce(function (a, b) { return a + b; }, 0);
+    var tProm = Math.floor(tTotal / total);
+    var tMax = Math.max.apply(null, tiempos);
+    $('#agav-kpi-total').text(total);
+    $('#agav-kpi-prom').text(fmtTiempo(tProm));
+    $('#agav-kpi-max').text(fmtTiempo(tMax));
+    $('#agav-kpi-total-ses').text(fmtTiempo(tTotal));
+  }
+
+  function renderAgavTable(rows) {
+    _agavData = rows || [];
+    var $tbody = $('#tbody-agav').empty();
+    if (!rows || !rows.length) {
+      $tbody.append('<tr><td colspan="9" class="text-center text-muted">Sin datos</td></tr>');
+      return;
+    }
+    $.each(rows, function (_, r) {
+      $tbody.append('<tr>' +
+        '<td class="font-weight-bold">' + (r.nombre || '—') + '</td>' +
+        '<td class="text-right">' + fmtNum(r.num_sesiones) + '</td>' +
+        '<td class="text-right text-primary">' + fmtTiempo(r.tiempo_total_sesion) + '</td>' +
+        '<td class="text-right">' + fmtTiempo(r.tiempo_promedio_sesion) + '</td>' +
+        '<td class="text-right">' + fmtNum(r.num_pausas) + '</td>' +
+        '<td class="text-right text-warning">' + fmtTiempo(r.tiempo_pausa_recreativa) + '</td>' +
+        '<td class="text-right text-info">' + fmtTiempo(r.tiempo_pausa_productiva) + '</td>' +
+        '<td class="text-right">' + fmtTiempo(r.tiempo_total_pausa) + '</td>' +
+        '<td class="text-center">' +
+          '<button class="btn btn-xs btn-outline-primary py-0 px-1 btn-agav-detalle" ' +
+          'data-id="' + r.agente_id + '" data-nombre="' + (r.nombre || '') + '">' +
+          '<i class="fas fa-eye mr-1"></i>Ver</button>' +
+        '</td>' +
+      '</tr>');
+    });
+  }
+
+  function loadAgentesAvanzado(filters) {
+    return $.when(
+      apiFetch(ANALYTICS_CONFIG.urls.agentesCompleto, filters),
+      apiFetch(ANALYTICS_CONFIG.urls.heatmapCompleto, filters)
+    ).done(function (compData, heatData) {
+      // $.when wraps each ajax result as [data, textStatus, jqXHR]
+      // when multiple deferreds are used, so always use index [0].
+      var rows = (compData && compData[0]) || [];
+      var heat = (heatData && heatData[0]) || {};
+      renderAgavKpis(rows);
+      renderAgavHeatmap(heat);
+      renderAgavTable(rows);
+    });
+  }
+
+  // ── Modal: Detalle de agente ─────────────────────────────────
+
+  function abrirDetalleAgente(agenteId, nombre) {
+    $('#modal-agente-titulo').html('<i class="fas fa-user mr-1"></i> ' + nombre);
+    $('#modal-ses-count, #modal-pau-count').text('…');
+    $('#modal-sesiones-body').html(
+      '<div class="text-center p-4"><div class="spinner-border text-primary" role="status"></div></div>'
+    );
+    $('#modal-pausas-body').html('');
+    // Reset to sesiones tab
+    $('#modal-tabs a[href="#modal-tab-sesiones"]').tab('show');
+    $('#modal-agente-detalle').modal('show');
+
+    var f = state.filters;
+    var sesUrl = ANALYTICS_CONFIG.urls.sesionesAgente.replace('__ID__', agenteId);
+    var pauUrl = ANALYTICS_CONFIG.urls.pausasAgente.replace('__ID__', agenteId);
+
+    $.when(apiFetch(sesUrl, f), apiFetch(pauUrl, f))
+      .done(function (sesData, pauData) {
+        var ses = (sesData && sesData[0]) || [];
+        var pau = (pauData && pauData[0]) || [];
+        _modalSesData = ses;
+        _modalPauData = pau;
+        $('#modal-ses-count').text(ses.length);
+        $('#modal-pau-count').text(pau.length);
+
+        // Sesiones table
+        if (!ses.length) {
+          $('#modal-sesiones-body').html(
+            '<p class="text-muted text-center p-3">Sin sesiones registradas</p>'
+          );
+        } else {
+          var html = '<table class="table table-sm table-bordered table-hover">';
+          html += '<thead class="thead-light"><tr>' +
+                  '<th>Inicio</th><th>Fin</th><th>Duración</th>' +
+                  '</tr></thead><tbody>';
+          ses.forEach(function (s) {
+            html += '<tr>' +
+              '<td class="small">' + fmtDt(s.inicio) + '</td>' +
+              '<td class="small">' + fmtDt(s.fin) + '</td>' +
+              '<td class="small">' + fmtTiempo(s.duracion_s) + '</td>' +
+            '</tr>';
+          });
+          html += '</tbody></table>';
+          $('#modal-sesiones-body').html(html);
+        }
+
+        // Pausas table
+        if (!pau.length) {
+          $('#modal-pausas-body').html(
+            '<p class="text-muted text-center p-3">Sin pausas registradas</p>'
+          );
+        } else {
+          var pHtml = '<table class="table table-sm table-bordered table-hover">';
+          pHtml += '<thead class="thead-light"><tr>' +
+                   '<th>Tipo</th><th>Nombre</th>' +
+                   '<th>Inicio</th><th>Fin</th><th>Duración</th>' +
+                   '</tr></thead><tbody>';
+          pau.forEach(function (p) {
+            var tipoBadge = p.tipo === 'P'
+              ? '<span class="badge badge-info">Productiva</span>'
+              : '<span class="badge badge-warning">Recreativa</span>';
+            pHtml += '<tr>' +
+              '<td>' + tipoBadge + '</td>' +
+              '<td class="small">' + (p.nombre || '—') + '</td>' +
+              '<td class="small">' + fmtDt(p.inicio) + '</td>' +
+              '<td class="small">' + fmtDt(p.fin) + '</td>' +
+              '<td class="small">' + fmtTiempo(p.duracion_s) + '</td>' +
+            '</tr>';
+          });
+          pHtml += '</tbody></table>';
+          $('#modal-pausas-body').html(pHtml);
+        }
+      })
+      .fail(function () {
+        $('#modal-sesiones-body').html(
+          '<div class="alert alert-danger m-3">Error cargando detalles</div>'
+        );
       });
   }
 
@@ -617,6 +877,7 @@
         );
       });
       var rows = agRes[0] || [];
+      _salData = rows;
       var $tbody = $('#tbody-salientes-agente').empty();
       if (!rows.length) {
         $tbody.append('<tr><td colspan="6" class="text-center text-muted">Sin datos</td></tr>');
@@ -685,6 +946,81 @@
     );
   }
 
+  // ── KPI Tab ──────────────────────────────────────────────────────
+
+  function loadKpisTab(filters) {
+    return $.when(
+      apiFetch(ANALYTICS_CONFIG.urls.kpis, filters),
+      apiFetch(ANALYTICS_CONFIG.urls.llamadasPorTipo, filters),
+      apiFetch(ANALYTICS_CONFIG.urls.agentesCompleto, filters)
+    ).done(function (kpiRes, tipoRes, agavRes) {
+      var kpi      = (kpiRes  && kpiRes[0])  || {};
+      var agavList = (agavRes && agavRes[0]) || [];
+
+      // ── Compute global ocupacion from agent data ──────────────────
+      var totalSesion = 0, totalHabla = 0;
+      if (Array.isArray(agavList)) {
+        agavList.forEach(function (a) {
+          totalSesion += (a.tiempo_total_sesion || 0);
+          totalHabla  += (a.tiempo_al_habla     || 0);
+        });
+      }
+      var ocupacion = totalSesion > 0
+        ? Math.min(totalHabla / totalSesion * 100, 100)
+        : 0;
+
+      // ── Top cards: Entrantes / Salientes ─────────────────────────
+      // API now returns a dict {entrantes:{...}, salientes:{...}}
+      var tipoDict = (tipoRes && tipoRes[0]) || {};
+      var ent = tipoDict.entrantes || {};
+      var sal = tipoDict.salientes || {};
+
+      function fillEntrantesCard(data) {
+        var total   = data.total          || 0;
+        var atend   = data.atendidas      || 0;
+        var noAtend = data.abandonadas    || 0;   // campo separado del servicio
+        var nivel   = data.nivel_atencion || 0;   // at / (at+ab) × 100
+        var tasa    = data.tasa_abandono  || 0;   // ab / (at+ab) × 100
+        $('#kpi-ent-total').text(fmtNum(total));
+        $('#kpi-ent-atendidas').text(fmtNum(atend));
+        $('#kpi-ent-no-atendidas').text(fmtNum(noAtend));
+        $('#kpi-ent-nivel').text(fmtNum(nivel, 1) + '%');
+        $('#kpi-ent-bar').css('width', Math.min(nivel, 100).toFixed(1) + '%');
+        $('#kpi-ent-tasa').text(fmtNum(tasa, 1) + '%');
+      }
+
+      function fillSalientesCard(data) {
+        var total   = data.total           || 0;
+        var atend   = data.atendidas       || 0;
+        var noAtend = data.no_atendidas    || 0;  // campo separado del servicio
+        var nivel   = data.nivel_atencion  || 0;  // at / (at+no_at) × 100
+        var tasa    = data.tasa_no_atencion || 0; // no_at / (at+no_at) × 100
+        $('#kpi-sal-total').text(fmtNum(total));
+        $('#kpi-sal-atendidas').text(fmtNum(atend));
+        $('#kpi-sal-no-atendidas').text(fmtNum(noAtend));
+        $('#kpi-sal-nivel').text(fmtNum(nivel, 1) + '%');
+        $('#kpi-sal-bar').css('width', Math.min(nivel, 100).toFixed(1) + '%');
+        $('#kpi-sal-tasa').text(fmtNum(tasa, 1) + '%');
+      }
+
+      fillEntrantesCard(ent);
+      fillSalientesCard(sal);
+
+      // ── Metric cards ─────────────────────────────────────────────
+      $('#km-total').text(fmtNum(kpi.total_llamadas));
+      $('#km-atendidas').text(fmtNum(kpi.llamadas_atendidas));
+      $('#km-abandonadas').text(fmtNum(kpi.llamadas_abandonadas));
+      $('#km-no-atendidas').text(fmtNum(sal.no_atendidas));  // salientes no contactadas
+      $('#km-aht').text(fmtNum(kpi.tmo_promedio));
+      $('#km-asa').text(fmtNum(kpi.espera_promedio));
+      $('#km-sla60').text(fmtNum(kpi.nivel_servicio_60, 1));
+      $('#km-sla20').text(fmtNum(kpi.nivel_servicio_20, 1));
+      $('#km-tasa-abandono').text(fmtNum(kpi.tasa_abandono, 1));
+      $('#km-agentes').text(fmtNum(kpi.agentes_activos));
+      $('#km-ocupacion').text(fmtNum(ocupacion, 1));
+    });
+  }
+
   // ── Refresh: load data for all visible content ────────────────────
 
   function refresh() {
@@ -694,17 +1030,20 @@
     loading(true);
     var req;
     switch (activeTab) {
+      case '#tab-kpis':         req = loadKpisTab(f); break;
       case '#tab-resumen':      req = loadResumen(f); break;
       case '#tab-atendidas':    req = loadAtendidas(f, 1); break;
       case '#tab-abandonadas':  req = loadAbandonadas(f, 1); break;
       case '#tab-distribucion': req = loadDistCampana(f); break;
+      case '#tab-campanas':     req = loadCampanas(f); break;
       case '#tab-agentes':
         req = $.when(loadAgentesRendimiento(f), loadHeatmap(f)); break;
+      case '#tab-agentes-avanzado': req = loadAgentesAvanzado(f); break;
       case '#tab-horaria':
         req = loadDistribucionHoraria(f, _horariaAgrup); break;
       case '#tab-salientes':    req = loadSalientes(f); break;
       case '#tab-transferencias': req = loadTransferencias(f); break;
-      default: req = loadResumen(f);
+      default: req = loadKpisTab(f);
     }
     if (req && req.always) {
       req.always(function () { loading(false); });
@@ -727,12 +1066,15 @@
     loading(true);
     var req;
     switch (tabHref) {
+      case '#tab-kpis':         req = loadKpisTab(f); break;
       case '#tab-resumen':      req = loadResumen(f); break;
       case '#tab-atendidas':    req = loadAtendidas(f, 1); break;
       case '#tab-abandonadas':  req = loadAbandonadas(f, 1); break;
       case '#tab-distribucion': req = loadDistCampana(f); break;
+      case '#tab-campanas':     req = loadCampanas(f); break;
       case '#tab-agentes':
         req = $.when(loadAgentesRendimiento(f), loadHeatmap(f)); break;
+      case '#tab-agentes-avanzado': req = loadAgentesAvanzado(f); break;
       case '#tab-horaria':
         req = loadDistribucionHoraria(f, _horariaAgrup); break;
       case '#tab-salientes':    req = loadSalientes(f); break;
@@ -877,9 +1219,152 @@
       triggerExport(ANALYTICS_CONFIG.urls.exportAgentes);
     });
 
+    // Export: campañas alertas (CSV client-side)
+    $('#btn-export-campanas').on('click', function () {
+      var $rows = $('#tbl-campanas-alertas tbody tr');
+      if (!$rows.length) return;
+      var lines = ['﻿Campaña,Total,Atendidas,Abandonadas,Nivel Atención %,TMO (s),Espera Prom (s),Alerta'];
+      $rows.each(function () {
+        var $td = $(this).find('td');
+        if ($td.length < 9) return;
+        var alerta = $(this).hasClass('table-danger') ? 'SI' : 'NO';
+        lines.push([
+          '"' + ($td.eq(1).text() || '') + '"',
+          $td.eq(2).text(), $td.eq(3).text(), $td.eq(4).text(),
+          $td.eq(5).text(), $td.eq(6).text(), $td.eq(7).text(), alerta
+        ].join(','));
+      });
+      var blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'campanas_alertas.csv';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    });
+
+    // Export: agentes avanzado (CSV client-side)
+    $('#btn-export-agav').on('click', function () {
+      if (!_agavData.length) return;
+      var lines = [
+        '﻿Agente,Sesiones,T.Sesión Total,T.Sesión Prom,Pausas,' +
+        'T.Pausa Rec,T.Pausa Prod,T.Pausa Total'
+      ];
+      _agavData.forEach(function (r) {
+        lines.push([
+          '"' + (r.nombre || '') + '"',
+          r.num_sesiones, r.tiempo_total_sesion, r.tiempo_promedio_sesion,
+          r.num_pausas, r.tiempo_pausa_recreativa,
+          r.tiempo_pausa_productiva, r.tiempo_total_pausa
+        ].join(','));
+      });
+      var blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'agentes_avanzado.csv';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    });
+
+    // Modal: click on "Ver" button in Agentes Avanzado table
+    $(document).on('click', '.btn-agav-detalle', function () {
+      var agenteId = $(this).data('id');
+      var nombre = $(this).data('nombre');
+      abrirDetalleAgente(agenteId, nombre);
+    });
+
+    // Export: Distribución por campaña (CSV client-side)
+    $('#btn-export-dist').on('click', function () {
+      if (!_distData.length) return;
+      var lines = ['﻿Campaña,Total,Atendidas,Abandonadas,No atendidas,Nivel Atención %,TMO (s),Espera Prom (s)'];
+      _distData.forEach(function (r) {
+        lines.push([
+          '"' + (r.campana_nombre || r.nombre || '') + '"',
+          r.total_llamadas || r.total || 0,
+          r.total_atendidas || r.atendidas || 0,
+          r.total_abandonadas || r.abandonadas || 0,
+          r.total_no_atendidas || r.no_atendidas || 0,
+          r.nivel_atencion != null ? (r.nivel_atencion).toFixed(2) : '',
+          Math.round(r.tmo_prom || 0),
+          Math.round(r.espera_prom || 0)
+        ].join(','));
+      });
+      var blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = 'distribucion_campanas.csv';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(a.href);
+    });
+
+    // Export: Salientes por agente (CSV client-side)
+    $('#btn-export-salientes').on('click', function () {
+      if (!_salData.length) return;
+      var lines = ['﻿Agente,Total,Atendidas,No atendidas,Tasa contacto %,TMO (s)'];
+      _salData.forEach(function (r) {
+        var atend = r.contestadas != null ? r.contestadas : (r.atendidas != null ? r.atendidas : 0);
+        var total = r.total_llamadas || r.total || 0;
+        var noAtend = r.no_contestadas != null ? r.no_contestadas
+                    : (r.no_atendidas != null ? r.no_atendidas : total - atend);
+        var tasa = r.tasa_contacto != null ? r.tasa_contacto
+                 : (total > 0 ? atend / total * 100 : 0);
+        lines.push([
+          '"' + (r.agente_nombre || r.nombre || '') + '"',
+          total, atend, noAtend,
+          tasa != null ? tasa.toFixed(2) : '',
+          Math.round(r.tmo_prom || 0)
+        ].join(','));
+      });
+      var blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = 'salientes_agente.csv';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(a.href);
+    });
+
+    // Export: Modal Sesiones (CSV client-side)
+    $('#btn-export-modal-ses').on('click', function () {
+      if (!_modalSesData.length) return;
+      var agente = $('#modal-agente-titulo').text().trim();
+      var lines = ['﻿Inicio,Fin,Duración (s)'];
+      _modalSesData.forEach(function (s) {
+        lines.push([
+          '"' + (s.inicio || '') + '"',
+          '"' + (s.fin || '') + '"',
+          s.duracion_s || 0
+        ].join(','));
+      });
+      var blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'sesiones_' + agente.replace(/\s+/g, '_') + '.csv';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(a.href);
+    });
+
+    // Export: Modal Pausas (CSV client-side)
+    $('#btn-export-modal-pau').on('click', function () {
+      if (!_modalPauData.length) return;
+      var agente = $('#modal-agente-titulo').text().trim();
+      var lines = ['﻿Tipo,Nombre,Inicio,Fin,Duración (s)'];
+      _modalPauData.forEach(function (p) {
+        lines.push([
+          '"' + (p.tipo === 'P' ? 'Productiva' : p.tipo === 'R' ? 'Recreativa' : (p.tipo || '')) + '"',
+          '"' + (p.nombre || '') + '"',
+          '"' + (p.inicio || '') + '"',
+          '"' + (p.fin || '') + '"',
+          p.duracion_s || 0
+        ].join(','));
+      });
+      var blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'pausas_' + agente.replace(/\s+/g, '_') + '.csv';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(a.href);
+    });
+
     // Initial load
     state.filters = buildFilters();
-    loadResumen(state.filters).always(function () { loading(false); });
+    loadKpisTab(state.filters).always(function () { loading(false); });
   }
 
   // ── Bootstrap ────────────────────────────────────────────────────

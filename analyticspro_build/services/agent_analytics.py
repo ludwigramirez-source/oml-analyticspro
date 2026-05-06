@@ -324,6 +324,206 @@ class AgentAnalyticsService(AnalyticsBaseService):
         return rows
 
     # ─────────────────────────────────────────────────────────────
+    # Rendimiento completo: llamadas + sesiones + pausas por agente
+    # ─────────────────────────────────────────────────────────────
+
+    def get_rendimiento_completo(self, filters=None):
+        """
+        Combina datos de llamadas (llamadalog) y sesiones/pausas
+        (actividadagentelog) para devolver una fila rica por agente.
+        Campos: nombre, extension, llamadas_contestadas, num_sesiones,
+                tiempo_total_sesion, tiempo_promedio_sesion, tiempo_al_habla,
+                num_pausas, tiempo_pausa_recreativa, tiempo_pausa_productiva,
+                tiempo_total_pausa, tiempo_promedio_pausa, ocupacion,
+                primer_login, ultimo_logout.
+        """
+        filters = filters or {}
+
+        # ── 1. Call data ─────────────────────────────────────────────
+        fin_ph, fin_params = self._events_placeholder(self.EVENTOS_FINALES)
+        at_ph, at_params = self._events_placeholder(self.EVENTOS_ATENDIDAS)
+        f_clauses, f_params = self._filters_sql(filters)
+        fin_clauses = ['l.event IN ({})'.format(fin_ph)] + f_clauses
+        where_fin = self._where(fin_clauses)
+
+        with self.cursor() as cur:
+            sql_calls = """
+            WITH last_ev AS (
+                SELECT callid, MAX(id) AS ultimo_id
+                FROM reportes_app_llamadalog l
+                {where_fin}
+                GROUP BY callid
+            )
+            SELECT
+                l.agente_id,
+                u.first_name || ' ' || u.last_name AS nombre,
+                ap.sip_extension AS extension,
+                COUNT(CASE WHEN l.event IN ({at_ph}) THEN 1 END)
+                    AS llamadas_contestadas,
+                COALESCE(SUM(CASE WHEN l.event IN ({at_ph})
+                    THEN l.duracion_llamada ELSE 0 END), 0) AS tiempo_al_habla
+            FROM reportes_app_llamadalog l
+            JOIN last_ev ev ON ev.callid = l.callid AND ev.ultimo_id = l.id
+            LEFT JOIN ominicontacto_app_agenteprofile ap ON ap.id = l.agente_id
+            LEFT JOIN ominicontacto_app_user u ON u.id = ap.user_id
+            WHERE l.agente_id IS NOT NULL
+            GROUP BY l.agente_id, u.first_name, u.last_name, ap.sip_extension
+            """.format(where_fin=where_fin, at_ph=at_ph)
+            call_params = fin_params + f_params + at_params + at_params
+            cur.execute(sql_calls, call_params)
+            call_rows = {r['agente_id']: r for r in self.fetchall_dict(cur)}
+
+        # ── 2. Activity filters ──────────────────────────────────────
+        act_clauses = []
+        act_params = []
+        if filters.get('fecha_inicio'):
+            act_clauses.append('a.time >= %s')
+            act_params.append(filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            act_clauses.append('a.time <= %s')
+            act_params.append(filters['fecha_fin'])
+        if filters.get('agente_ids'):
+            ids = filters['agente_ids']
+            act_clauses.append(
+                'a.agente_id IN ({})'.format(','.join(['%s'] * len(ids)))
+            )
+            act_params.extend(ids)
+        elif filters.get('agente_id'):
+            act_clauses.append('a.agente_id = %s')
+            act_params.append(filters['agente_id'])
+
+        act_extra = (
+            ' AND ' + ' AND '.join(act_clauses)
+        ) if act_clauses else ''
+
+        with self.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    a.agente_id,
+                    u.first_name || ' ' || u.last_name AS nombre,
+                    a.event,
+                    a.time,
+                    p.tipo AS pausa_tipo
+                FROM reportes_app_actividadagentelog a
+                LEFT JOIN ominicontacto_app_agenteprofile ap
+                    ON ap.id = a.agente_id
+                LEFT JOIN ominicontacto_app_user u ON u.id = ap.user_id
+                LEFT JOIN ominicontacto_app_pausa p
+                    ON p.id::TEXT = a.pausa_id
+                WHERE a.event IN
+                    ('ADDMEMBER','REMOVEMEMBER','PAUSEALL','UNPAUSEALL')
+                {extra}
+                ORDER BY a.agente_id, a.time
+            """.format(extra=act_extra), act_params)
+            actividades = self.fetchall_dict(cur)
+
+        # ── 3. State machine per agent ───────────────────────────────
+        agentes_acts = {}
+        for act in actividades:
+            aid = act['agente_id']
+            if aid not in agentes_acts:
+                agentes_acts[aid] = {
+                    'nombre': act.get('nombre', ''),
+                    'actividades': [],
+                }
+            agentes_acts[aid]['actividades'].append(act)
+
+        act_data = {}
+        for aid, data in agentes_acts.items():
+            num_ses = 0
+            num_pau = 0
+            t_ses = 0.0
+            t_pau_prod = 0.0
+            t_pau_rec = 0.0
+            login_t = None
+            pausa_t = None
+            pausa_tipo = 'R'
+            primer_login = None
+            ultimo_logout = None
+
+            for act in data['actividades']:
+                ev = act['event']
+                t = act['time']
+                if ev == 'ADDMEMBER':
+                    login_t = t
+                    if primer_login is None:
+                        primer_login = t
+                elif ev == 'REMOVEMEMBER':
+                    ultimo_logout = t
+                    if login_t is not None:
+                        t_ses += (t - login_t).total_seconds()
+                        num_ses += 1
+                        login_t = None
+                elif ev == 'PAUSEALL':
+                    pausa_t = t
+                    pausa_tipo = act.get('pausa_tipo') or 'R'
+                elif ev == 'UNPAUSEALL' and pausa_t is not None:
+                    dur = (t - pausa_t).total_seconds()
+                    num_pau += 1
+                    if pausa_tipo == 'P':
+                        t_pau_prod += dur
+                    else:
+                        t_pau_rec += dur
+                    pausa_t = None
+
+            act_data[aid] = {
+                'nombre': data['nombre'],
+                'num_sesiones': num_ses,
+                'num_pausas': num_pau,
+                'tiempo_total_sesion': int(t_ses),
+                'tiempo_pausa_recreativa': int(t_pau_rec),
+                'tiempo_pausa_productiva': int(t_pau_prod),
+                'primer_login': str(primer_login) if primer_login else '',
+                'ultimo_logout': str(ultimo_logout) if ultimo_logout else '',
+            }
+
+        # ── 4. Merge ─────────────────────────────────────────────────
+        all_ids = set(call_rows.keys()) | set(act_data.keys())
+        resultado = []
+        for aid in all_ids:
+            cr = call_rows.get(aid, {})
+            ar = act_data.get(aid, {})
+
+            nombre = cr.get('nombre') or ar.get('nombre', '')
+            if not nombre:
+                continue
+
+            lc = int(cr.get('llamadas_contestadas', 0) or 0)
+            tal = int(cr.get('tiempo_al_habla', 0) or 0)
+            ns = ar.get('num_sesiones', 0)
+            tts = ar.get('tiempo_total_sesion', 0)
+            np_ = ar.get('num_pausas', 0)
+            tpr = ar.get('tiempo_pausa_recreativa', 0)
+            tpp = ar.get('tiempo_pausa_productiva', 0)
+
+            t_total_pausa = tpr + tpp
+            t_prom_sesion = (tts // ns) if ns > 0 else 0
+            t_prom_pausa = (t_total_pausa // np_) if np_ > 0 else 0
+            ocupacion = round(tal / tts * 100, 2) if tts > 0 else 0
+
+            resultado.append({
+                'agente_id': aid,
+                'nombre': nombre,
+                'extension': cr.get('extension', ''),
+                'llamadas_contestadas': lc,
+                'num_sesiones': ns,
+                'tiempo_total_sesion': tts,
+                'tiempo_promedio_sesion': t_prom_sesion,
+                'tiempo_al_habla': tal,
+                'num_pausas': np_,
+                'tiempo_pausa_recreativa': tpr,
+                'tiempo_pausa_productiva': tpp,
+                'tiempo_total_pausa': t_total_pausa,
+                'tiempo_promedio_pausa': t_prom_pausa,
+                'ocupacion': ocupacion,
+                'primer_login': ar.get('primer_login', ''),
+                'ultimo_logout': ar.get('ultimo_logout', ''),
+            })
+
+        return sorted(resultado,
+                      key=lambda x: x['llamadas_contestadas'], reverse=True)
+
+    # ─────────────────────────────────────────────────────────────
     # Heatmap de disponibilidad
     # ─────────────────────────────────────────────────────────────
 
@@ -355,3 +555,77 @@ class AgentAnalyticsService(AnalyticsBaseService):
                 ORDER BY hora
             """, f_params)
             return self.fetchall_dict(cur)
+
+    # ─────────────────────────────────────────────────────────────
+    # Heatmap completo: matriz dia x hora
+    # ─────────────────────────────────────────────────────────────
+
+    def get_disponibilidad_heatmap_completo(self, filters=None):
+        """
+        Devuelve { dias: [...], horas: [...], matriz: [[...]] }
+        donde matriz[i][j] = cantidad de agentes conectados en dia i a hora j.
+        Usado por la pestaña Agentes Avanzado.
+        """
+        filters = filters or {}
+        tz = self.TZ_DB
+
+        act_clauses = []
+        act_params = []
+        if filters.get('fecha_inicio'):
+            act_clauses.append('a.time >= %s')
+            act_params.append(filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            act_clauses.append('a.time <= %s')
+            act_params.append(filters['fecha_fin'])
+
+        act_extra = (
+            ' AND ' + ' AND '.join(act_clauses)
+        ) if act_clauses else ''
+
+        with self.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    DATE(a.time AT TIME ZONE '{tz}') AS dia,
+                    EXTRACT(HOUR FROM (a.time AT TIME ZONE '{tz}'))::int
+                        AS hora,
+                    COUNT(DISTINCT a.agente_id) AS agentes
+                FROM reportes_app_actividadagentelog a
+                WHERE a.event = 'ADDMEMBER'
+                {extra}
+                GROUP BY dia, hora
+                ORDER BY dia, hora
+            """.format(tz=tz, extra=act_extra), act_params)
+            rows = self.fetchall_dict(cur)
+
+        if not rows:
+            return {'dias': [], 'horas': [], 'matriz': []}
+
+        dias_unicos = sorted(set(str(r['dia']) for r in rows))
+        horas = list(range(24))
+
+        data = {}
+        for r in rows:
+            key = (str(r['dia']), int(float(r['hora'])))
+            data[key] = int(r['agentes'] or 0)
+
+        matriz = []
+        for dia in dias_unicos:
+            row = []
+            for h in horas:
+                row.append(data.get((dia, h), 0))
+            matriz.append(row)
+
+        # Format dia labels as DD/MM
+        dia_labels = []
+        for dia in dias_unicos:
+            try:
+                parts = dia.split('-')
+                dia_labels.append('{}/{}'.format(parts[2], parts[1]))
+            except Exception:
+                dia_labels.append(str(dia))
+
+        return {
+            'dias': dia_labels,
+            'horas': ['{:02d}h'.format(h) for h in horas],
+            'matriz': matriz,
+        }

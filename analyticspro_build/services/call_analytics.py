@@ -510,58 +510,93 @@ class CallAnalyticsService(AnalyticsBaseService):
     # ─────────────────────────────────────────────────────────────
 
     def get_llamadas_por_tipo(self, filters=None):
+        """
+        Retorna {"entrantes": {...}, "salientes": {...}} con conteos correctos.
+        - Entrantes: total = atendidas + abandonadas (excluye no_atendidas salientes)
+        - Salientes: total = atendidas + no_atendidas (excluye abandonadas entrantes)
+        Aplica filtros de fecha y campaña pero NO de agente (vista global siempre).
+        """
         filters = filters or {}
         fin_ph, fin_params = self._events_placeholder(self.EVENTOS_FINALES)
-        at_ph, at_params = self._events_placeholder(self.EVENTOS_ATENDIDAS)
+        at_ph,  at_params  = self._events_placeholder(self.EVENTOS_ATENDIDAS)
+        ab_ph,  ab_params  = self._events_placeholder(self.EVENTOS_ABANDONADAS)
+        na_ph,  na_params  = self._events_placeholder(self.EVENTOS_NO_ATENDIDAS)
 
-        # Override tipo_llamada filter to get both types
-        f_clauses_raw = []
-        f_params_raw = []
+        # Filtros de fecha y campaña únicamente — sin agente, sin tipo_llamada
+        f_clauses = []
+        f_params  = []
         if filters.get('fecha_inicio'):
-            f_clauses_raw.append('l.time >= %s')
-            f_params_raw.append(filters['fecha_inicio'])
+            f_clauses.append('l.time >= %s')
+            f_params.append(filters['fecha_inicio'])
         if filters.get('fecha_fin'):
-            f_clauses_raw.append('l.time <= %s')
-            f_params_raw.append(filters['fecha_fin'])
+            f_clauses.append('l.time <= %s')
+            f_params.append(filters['fecha_fin'])
         if filters.get('campana_ids'):
             ids = filters['campana_ids']
-            f_clauses_raw.append(f"l.campana_id IN ({','.join(['%s']*len(ids))})")
-            f_params_raw.extend(ids)
+            f_clauses.append(
+                'l.campana_id IN (' + ','.join(['%s'] * len(ids)) + ')'
+            )
+            f_params.extend(ids)
         elif filters.get('campana_id'):
-            f_clauses_raw.append('l.campana_id = %s')
-            f_params_raw.append(filters['campana_id'])
+            f_clauses.append('l.campana_id = %s')
+            f_params.append(filters['campana_id'])
 
-        # Always include both types for this endpoint
-        f_clauses_raw.append(f'l.tipo_llamada IN (%s, %s)')
-        f_params_raw.extend([self.TIPO_ENTRANTE, self.TIPO_SALIENTE])
-
-        fin_clauses = [f'l.event IN ({fin_ph})'] + f_clauses_raw
-        where_fin = self._where(fin_clauses)
-
-        with self.cursor() as cur:
+        def _run_tipo(tipo_val):
+            tipo_clauses = (
+                [f'l.event IN ({fin_ph})', 'l.tipo_llamada = %s']
+                + f_clauses
+            )
+            where = self._where(tipo_clauses)
             sql = f"""
             WITH last_ev AS (
                 SELECT callid, MAX(id) AS ultimo_id
                 FROM reportes_app_llamadalog l
-                {where_fin}
+                {where}
                 GROUP BY callid
             )
             SELECT
-                CASE l.tipo_llamada
-                    WHEN {self.TIPO_ENTRANTE} THEN 'ENTRANTES'
-                    WHEN {self.TIPO_SALIENTE} THEN 'SALIENTES'
-                    ELSE 'OTRO'
-                END AS tipo,
-                COUNT(*) AS total,
-                COUNT(CASE WHEN l.event IN ({at_ph}) THEN 1 END) AS atendidas
+                COUNT(CASE WHEN l.event IN ({at_ph}) THEN 1 END) AS atendidas,
+                COUNT(CASE WHEN l.event IN ({ab_ph}) THEN 1 END) AS abandonadas,
+                COUNT(CASE WHEN l.event IN ({na_ph}) THEN 1 END) AS no_atendidas
             FROM reportes_app_llamadalog l
             JOIN last_ev ev ON ev.callid = l.callid AND ev.ultimo_id = l.id
-            GROUP BY l.tipo_llamada
-            ORDER BY l.tipo_llamada
             """
-            params = fin_params + f_params_raw + at_params
-            cur.execute(sql, params)
-            return self.fetchall_dict(cur)
+            params = fin_params + [tipo_val] + f_params + at_params + ab_params + na_params
+            with self.cursor() as cur:
+                cur.execute(sql, params)
+                return self.fetchone_dict(cur)
+
+        ent_row = _run_tipo(self.TIPO_ENTRANTE)
+        sal_row = _run_tipo(self.TIPO_SALIENTE)
+
+        ent_at    = int(ent_row.get('atendidas',  0) or 0)
+        ent_ab    = int(ent_row.get('abandonadas', 0) or 0)
+        ent_total = ent_at + ent_ab
+        nivel_atencion_ent = round(ent_at / ent_total * 100, 2) if ent_total > 0 else 0
+        tasa_abandono_ent  = round(ent_ab / ent_total * 100, 2) if ent_total > 0 else 0
+
+        sal_at    = int(sal_row.get('atendidas',   0) or 0)
+        sal_na    = int(sal_row.get('no_atendidas', 0) or 0)
+        sal_total = sal_at + sal_na
+        nivel_atencion_sal = round(sal_at / sal_total * 100, 2) if sal_total > 0 else 0
+        tasa_no_atencion   = round(sal_na / sal_total * 100, 2) if sal_total > 0 else 0
+
+        return {
+            'entrantes': {
+                'total':          ent_total,
+                'atendidas':      ent_at,
+                'abandonadas':    ent_ab,
+                'nivel_atencion': nivel_atencion_ent,
+                'tasa_abandono':  tasa_abandono_ent,
+            },
+            'salientes': {
+                'total':           sal_total,
+                'atendidas':       sal_at,
+                'no_atendidas':    sal_na,
+                'nivel_atencion':  nivel_atencion_sal,
+                'tasa_no_atencion': tasa_no_atencion,
+            },
+        }
 
     # ─────────────────────────────────────────────────────────────
     # Llamadas por campaña

@@ -1,0 +1,131 @@
+/* Analytics Pro — Dashboard styles */
+
+.analytics-wrapper {
+  position: relative;
+}
+
+/* KPI Cards */
+.kpi-card {
+  border-left: 4px solid #007bff !important;
+  transition: box-shadow 0.2s;
+}
+.kpi-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.kpi-card:nth-child(1) .card { border-left-color: #007bff !important; }
+.kpi-card:nth-child(2) .card { border-left-color: #28a745 !important; }
+.kpi-card:nth-child(3) .card { border-left-color: #dc3545 !important; }
+.kpi-card:nth-child(4) .card { border-left-color: #ffc107 !important; }
+
+.kpi-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.kpi-value { color: #333; font-size: 1.8rem; }
+.kpi-sub  { font-size: 0.75rem; }
+
+#kpi-cards .col-md-3:nth-child(1) .kpi-card { border-left-color: #007bff !important; }
+#kpi-cards .col-md-3:nth-child(2) .kpi-card { border-left-color: #28a745 !important; }
+#kpi-cards .col-md-3:nth-child(3) .kpi-card { border-left-color: #dc3545 !important; }
+#kpi-cards .col-md-3:nth-child(4) .kpi-card { border-left-color: #ffc107 !important; }
+
+/* Sync badge */
+#sync-badge.badge-success { background-color: #28a745; }
+#sync-badge.badge-danger  { background-color: #dc3545; }
+#sync-badge.badge-warning { background-color: #ffc107; color: #333; }
+
+/* Tab content border */
+.tab-content.border { border-color: #dee2e6 !important; }
+
+/* Tables */
+.table-sm td, .table-sm th { font-size: 0.82rem; }
+.table thead th { white-space: nowrap; }
+
+/* Pagination */
+#pag-atendidas, #pag-abandonadas {
+  font-size: 0.8rem;
+}
+.pag-btn { padding: 2px 8px; margin: 0 2px; border-radius: 3px; border: 1px solid #dee2e6; background: #fff; cursor: pointer; }
+.pag-btn:hover { background: #e9ecef; }
+.pag-btn.active { background: #007bff; color: #fff; border-color: #007bff; }
+.pag-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* Loading overlay */
+#loading-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255,255,255,0.5);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Filter card */
+#filter-card { border: 1px solid #dee2e6; }
+#filter-card .card-body { background: #f8f9fa; }
+
+/* Date range quick-select bar */
+.date-range-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.date-range-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #6c757d;
+  white-space: nowrap;
+  margin-right: 4px;
+}
+#date-range-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.btn-dr {
+  padding: 4px 14px;
+  font-size: 0.82rem;
+  font-weight: 400;
+  border-radius: 4px;
+  border: 1px solid #d0d5da;
+  background: #f0f2f4;
+  color: #555;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+.btn-dr:hover {
+  background: #e2e6ea;
+  border-color: #b8bfc8;
+  color: #333;
+}
+.btn-dr.active {
+  background: #28a745;
+  border-color: #28a745;
+  color: #fff;
+  font-weight: 600;
+}
+.btn-dr.active:hover {
+  background: #218838;
+  border-color: #1e7e34;
+}
+@media (max-width: 576px) {
+  .date-range-label { display: none; }
+  .btn-dr { font-size: 0.75rem; padding: 3px 8px; }
+}
+
+/* Horaria table (heat-style) */
+.horaria-tbl { font-size: 0.75rem; }
+.horaria-tbl td { text-align: center; min-width: 40px; }
+.heat-0 { background: #f8f9fa; }
+.heat-1 { background: #d4edda; }
+.heat-2 { background: #9edb9c; }
+.heat-3 { background: #5bb85a; color: #fff; }
+.heat-4 { background: #2d7a2c; color: #fff; }
+.heat-5 { background: #155316; color: #fff; }
+
+/* Responsive tab labels */
+@media (max-width: 768px) {
+  .nav-tabs .nav-link { padding: 0.4rem 0.6rem; font-size: 0.8rem; }
+  .kpi-value { font-size: 1.3rem; }
+}

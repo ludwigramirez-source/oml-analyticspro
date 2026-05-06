@@ -1,0 +1,476 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}Analytics Pro{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'analyticspro/css/dashboard.css' %}">
+{% endblock %}
+
+{% block head_js %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3/dist/apexcharts.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid analytics-wrapper" id="analyticspro-app">
+
+  <!-- ── Page Header ── -->
+  <div class="row mb-3 align-items-center">
+    <div class="col">
+      <h4 class="mb-0"><i class="fas fa-chart-line mr-2 text-primary"></i>Analytics Pro</h4>
+    </div>
+    <div class="col-auto">
+      <span id="sync-badge" class="badge badge-secondary">
+        <i class="fas fa-sync-alt mr-1"></i> <span id="sync-label">Verificando sync...</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- ── Filters ── -->
+  <div class="card mb-3" id="filter-card">
+    <div class="card-body py-2">
+
+      <!-- Date range quick-select -->
+      <div class="date-range-bar mb-2">
+        <span class="date-range-label">{% trans 'Rango de Fechas' %}</span>
+        <div id="date-range-btns" role="group">
+          <button type="button" class="btn-dr" data-range="hoy">{% trans 'Hoy' %}</button>
+          <button type="button" class="btn-dr" data-range="ayer">{% trans 'Ayer' %}</button>
+          <button type="button" class="btn-dr" data-range="7dias">{% trans 'Últimos 7 Días' %}</button>
+          <button type="button" class="btn-dr" data-range="30dias">{% trans 'Últimos 30 Días' %}</button>
+          <button type="button" class="btn-dr" data-range="este-mes">{% trans 'Este mes' %}</button>
+          <button type="button" class="btn-dr" data-range="ultimo-mes">{% trans 'Último Mes' %}</button>
+          <button type="button" class="btn-dr" data-range="custom">{% trans 'Custom Range' %}</button>
+        </div>
+      </div>
+
+      <form id="filter-form" onsubmit="return false;">
+        <!-- Row 1: dates + tipo + apply — all single-line, top-aligned -->
+        <div class="form-row align-items-end mb-2">
+          <div class="form-group col mb-0">
+            <label class="small mb-1">{% trans 'Desde' %}</label>
+            <input type="date" id="f-fecha-inicio" name="fecha_inicio" class="form-control form-control-sm"
+                   value="{{ fecha_default_inicio }}">
+          </div>
+          <div class="form-group col mb-0">
+            <label class="small mb-1">{% trans 'Hasta' %}</label>
+            <input type="date" id="f-fecha-fin" name="fecha_fin" class="form-control form-control-sm"
+                   value="{{ fecha_default_fin }}">
+          </div>
+          <div class="form-group col mb-0">
+            <label class="small mb-1">{% trans 'Tipo' %}</label>
+            <select id="f-tipo" class="form-control form-control-sm">
+              <option value="">{% trans 'Todas' %}</option>
+              <option value="entrantes">{% trans 'Entrantes' %}</option>
+              <option value="salientes">{% trans 'Salientes' %}</option>
+            </select>
+          </div>
+          <div class="form-group col-auto mb-0">
+            <button type="button" id="btn-apply" class="btn btn-primary btn-sm">
+              <i class="fas fa-filter mr-1"></i>{% trans 'Aplicar' %}
+            </button>
+          </div>
+        </div>
+        <!-- Row 2: Campaña + Agente multiselects -->
+        <div class="form-row">
+          <div class="form-group col-md-6 mb-0">
+            <label class="small mb-1">{% trans 'Campaña' %}</label>
+            <select id="f-campana" class="form-control form-control-sm" multiple size="3">
+              <!-- populated by JS -->
+            </select>
+          </div>
+          <div class="form-group col-md-6 mb-0">
+            <label class="small mb-1">{% trans 'Agente' %}</label>
+            <select id="f-agente" class="form-control form-control-sm" multiple size="3">
+              <!-- populated by JS -->
+            </select>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Tabs ── -->
+  <ul class="nav nav-tabs" id="analytics-tabs" role="tablist">
+    <li class="nav-item">
+      <a class="nav-link active" data-toggle="tab" href="#tab-resumen" role="tab">
+        <i class="fas fa-tachometer-alt mr-1"></i>{% trans 'Resumen' %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-toggle="tab" href="#tab-atendidas" role="tab">
+        <i class="fas fa-phone-alt mr-1"></i>{% trans 'Atendidas' %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-toggle="tab" href="#tab-abandonadas" role="tab">
+        <i class="fas fa-phone-slash mr-1"></i>{% trans 'Abandonadas' %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-toggle="tab" href="#tab-distribucion" role="tab">
+        <i class="fas fa-chart-bar mr-1"></i>{% trans 'Distribución' %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-toggle="tab" href="#tab-agentes" role="tab">
+        <i class="fas fa-users mr-1"></i>{% trans 'Agentes' %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-toggle="tab" href="#tab-horaria" role="tab">
+        <i class="fas fa-clock mr-1"></i>{% trans 'Horaria' %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-toggle="tab" href="#tab-salientes" role="tab">
+        <i class="fas fa-phone-volume mr-1"></i>{% trans 'Salientes' %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-toggle="tab" href="#tab-transferencias" role="tab">
+        <i class="fas fa-random mr-1"></i>{% trans 'Transferencias' %}
+      </a>
+    </li>
+  </ul>
+
+  <div class="tab-content border border-top-0 bg-white p-3" id="analytics-tab-content">
+
+    <!-- ── TAB: RESUMEN ── -->
+    <div class="tab-pane fade show active" id="tab-resumen" role="tabpanel">
+
+      <!-- KPI Cards -->
+      <div class="row mb-3" id="kpi-cards">
+        {% for kpi_id in "1234" %}
+        <div class="col-md-3 col-sm-6 mb-2">
+          <div class="card kpi-card h-100 border-left-primary">
+            <div class="card-body py-2">
+              <div class="small text-muted kpi-label">...</div>
+              <div class="h3 mb-0 kpi-value font-weight-bold">—</div>
+              <div class="small text-muted kpi-sub"></div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Nivel de servicio -->
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header py-2 small font-weight-bold">
+              <i class="fas fa-chart-pie mr-1"></i>{% trans 'Distribución de llamadas' %}
+            </div>
+            <div class="card-body p-2">
+              <div id="chart-distribucion" style="min-height:260px;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header py-2 small font-weight-bold">
+              <i class="fas fa-shield-alt mr-1"></i>{% trans 'Nivel de servicio' %}
+            </div>
+            <div class="card-body p-2">
+              <div id="chart-nivel-servicio" style="min-height:260px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Evolución horaria + causas -->
+      <div class="row mb-3">
+        <div class="col-md-8">
+          <div class="card">
+            <div class="card-header py-2 small font-weight-bold">
+              <i class="fas fa-chart-line mr-1"></i>{% trans 'Evolución horaria' %}
+            </div>
+            <div class="card-body p-2">
+              <div id="chart-evolucion-hora" style="min-height:260px;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card">
+            <div class="card-header py-2 small font-weight-bold">
+              <i class="fas fa-exclamation-circle mr-1"></i>{% trans 'Causas no atención' %}
+            </div>
+            <div class="card-body p-2">
+              <div id="chart-causas" style="min-height:260px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Evolución diaria -->
+      <div class="card mb-3">
+        <div class="card-header py-2 small font-weight-bold">
+          <i class="fas fa-calendar-alt mr-1"></i>{% trans 'Evolución diaria' %}
+        </div>
+        <div class="card-body p-2">
+          <div id="chart-evolucion-diaria" style="min-height:200px;"></div>
+        </div>
+      </div>
+
+    </div><!-- /tab-resumen -->
+
+    <!-- ── TAB: LLAMADAS ATENDIDAS ── -->
+    <div class="tab-pane fade" id="tab-atendidas" role="tabpanel">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">{% trans 'Llamadas Atendidas' %}</h6>
+        <button class="btn btn-sm btn-outline-success" id="btn-export-atendidas">
+          <i class="fas fa-file-excel mr-1"></i>{% trans 'Exportar' %}
+        </button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover table-bordered" id="tbl-atendidas">
+          <thead class="thead-light">
+            <tr>
+              <th>{% trans 'Fecha/Hora' %}</th>
+              <th>{% trans 'Campaña' %}</th>
+              <th>{% trans 'Agente' %}</th>
+              <th>{% trans 'Call ID' %}</th>
+              <th>{% trans 'Espera (s)' %}</th>
+              <th>{% trans 'Duración (s)' %}</th>
+              <th>{% trans 'Número' %}</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-atendidas"><tr><td colspan="7" class="text-center text-muted">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+      <div id="pag-atendidas" class="d-flex justify-content-between align-items-center mt-2 small"></div>
+    </div>
+
+    <!-- ── TAB: LLAMADAS ABANDONADAS ── -->
+    <div class="tab-pane fade" id="tab-abandonadas" role="tabpanel">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">{% trans 'Llamadas Abandonadas' %}</h6>
+        <button class="btn btn-sm btn-outline-success" id="btn-export-abandonadas">
+          <i class="fas fa-file-excel mr-1"></i>{% trans 'Exportar' %}
+        </button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover table-bordered" id="tbl-abandonadas">
+          <thead class="thead-light">
+            <tr>
+              <th>{% trans 'Fecha/Hora' %}</th>
+              <th>{% trans 'Campaña' %}</th>
+              <th>{% trans 'Call ID' %}</th>
+              <th>{% trans 'Tiempo espera (s)' %}</th>
+              <th>{% trans 'Número' %}</th>
+              <th>{% trans 'Evento' %}</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-abandonadas"><tr><td colspan="6" class="text-center text-muted">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+      <div id="pag-abandonadas" class="d-flex justify-content-between align-items-center mt-2 small"></div>
+    </div>
+
+    <!-- ── TAB: DISTRIBUCIÓN ── -->
+    <div class="tab-pane fade" id="tab-distribucion" role="tabpanel">
+      <div class="row">
+        <div class="col-12 mb-3">
+          <div class="card">
+            <div class="card-header py-2 small font-weight-bold">
+              {% trans 'Distribución por campaña' %}
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0" id="tbl-dist-campana">
+                  <thead class="thead-light">
+                    <tr>
+                      <th>{% trans 'Campaña' %}</th>
+                      <th>{% trans 'Total' %}</th>
+                      <th>{% trans 'Atendidas' %}</th>
+                      <th>{% trans 'Abandonadas' %}</th>
+                      <th>{% trans 'No atendidas' %}</th>
+                      <th>{% trans 'Nivel atención' %}</th>
+                      <th>{% trans 'TMO (s)' %}</th>
+                      <th>{% trans 'Espera prom (s)' %}</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbody-dist-campana"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB: AGENTES ── -->
+    <div class="tab-pane fade" id="tab-agentes" role="tabpanel">
+      <div class="card mb-3">
+        <div class="card-header py-2 small font-weight-bold d-flex justify-content-between">
+          <span>{% trans 'Rendimiento de agentes' %}</span>
+          <button class="btn btn-sm btn-outline-success py-0" id="btn-export-agentes">
+            <i class="fas fa-file-excel mr-1"></i>{% trans 'Exportar' %}
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0" id="tbl-agentes">
+              <thead class="thead-light">
+                <tr>
+                  <th>{% trans 'Agente' %}</th>
+                  <th>{% trans 'Extensión' %}</th>
+                  <th>{% trans 'Total' %}</th>
+                  <th>{% trans 'Atendidas' %}</th>
+                  <th>{% trans 'Abandonadas' %}</th>
+                  <th>{% trans 'TMO (s)' %}</th>
+                  <th>{% trans 'Espera prom (s)' %}</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-agentes"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Disponibilidad heatmap -->
+      <div class="card">
+        <div class="card-header py-2 small font-weight-bold">
+          {% trans 'Disponibilidad por hora (agentes conectados)' %}
+        </div>
+        <div class="card-body p-2">
+          <div id="chart-heatmap" style="min-height:200px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB: DISTRIBUCIÓN HORARIA ── -->
+    <div class="tab-pane fade" id="tab-horaria" role="tabpanel">
+      <div class="card">
+        <div class="card-header py-2 small font-weight-bold">
+          {% trans 'Distribución horaria de llamadas (por día)' %}
+        </div>
+        <div class="card-body p-2">
+          <div id="chart-horaria-detalle" style="min-height:300px;"></div>
+        </div>
+      </div>
+      <div class="card mt-3">
+        <div class="card-header py-2 small font-weight-bold">
+          {% trans 'Tabla hora × día' %}
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive" id="horaria-tabla-container">
+            <p class="text-center text-muted p-3">Cargando...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB: SALIENTES ── -->
+    <div class="tab-pane fade" id="tab-salientes" role="tabpanel">
+      <div class="row mb-3" id="salientes-kpis"></div>
+      <div class="card">
+        <div class="card-header py-2 small font-weight-bold">
+          {% trans 'Salientes por agente' %}
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0" id="tbl-salientes-agente">
+              <thead class="thead-light">
+                <tr>
+                  <th>{% trans 'Agente' %}</th>
+                  <th>{% trans 'Total' %}</th>
+                  <th>{% trans 'Atendidas' %}</th>
+                  <th>{% trans 'No atendidas' %}</th>
+                  <th>{% trans 'Tasa contacto %' %}</th>
+                  <th>{% trans 'TMO (s)' %}</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-salientes-agente"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB: TRANSFERENCIAS ── -->
+    <div class="tab-pane fade" id="tab-transferencias" role="tabpanel">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header py-2 small font-weight-bold">
+              {% trans 'Transferencias por tipo' %}
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0" id="tbl-transferencias">
+                  <thead class="thead-light">
+                    <tr>
+                      <th>{% trans 'Tipo' %}</th>
+                      <th>{% trans 'Cantidad' %}</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbody-transferencias"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header py-2 small font-weight-bold">
+              {% trans 'Gráfico transferencias' %}
+            </div>
+            <div class="card-body p-2">
+              <div id="chart-transferencias" style="min-height:260px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /tab-content -->
+
+  <!-- Loading overlay -->
+  <div id="loading-overlay" class="d-none">
+    <div class="loading-spinner">
+      <div class="spinner-border text-primary" role="status">
+        <span class="sr-only">Cargando...</span>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /analytics-wrapper -->
+
+<!-- Pass Django data to JS -->
+<script>
+var ANALYTICS_CONFIG = {
+  csrfToken: '{{ csrf_token }}',
+  urls: {
+    kpis: '{% url "analyticspro:api_kpis" %}',
+    distribucion: '{% url "analyticspro:api_distribucion_llamadas" %}',
+    evolucionHora: '{% url "analyticspro:api_evolucion_hora" %}',
+    evolucionDiaria: '{% url "analyticspro:api_evolucion_diaria" %}',
+    nivelServicio: '{% url "analyticspro:api_nivel_servicio" %}',
+    nivelServicioDetallado: '{% url "analyticspro:api_nivel_servicio_detallado" %}',
+    causas: '{% url "analyticspro:api_causas_no_atencion" %}',
+    atendidas: '{% url "analyticspro:api_llamadas_atendidas" %}',
+    abandonadas: '{% url "analyticspro:api_llamadas_abandonadas" %}',
+    distCampana: '{% url "analyticspro:api_distribucion_campana_detalle" %}',
+    agentesRendimiento: '{% url "analyticspro:api_agentes_rendimiento" %}',
+    heatmap: '{% url "analyticspro:api_agentes_heatmap" %}',
+    horariaDet: '{% url "analyticspro:api_distribucion_horaria_detallada" %}',
+    horariaTabla: '{% url "analyticspro:api_tabla_distribucion_horaria" %}',
+    salientes: '{% url "analyticspro:api_salientes_dashboard" %}',
+    salientesAgente: '{% url "analyticspro:api_salientes_por_agente" %}',
+    transferencias: '{% url "analyticspro:api_transferencias" %}',
+    syncStatus: '{% url "analyticspro:api_sync_status" %}',
+    campanas: '{% url "analyticspro:api_campanas" %}',
+    agentes: '{% url "analyticspro:api_agentes" %}',
+    exportAtendidas: '{% url "analyticspro:api_export_llamadas_atendidas" %}',
+    exportAbandonadas: '{% url "analyticspro:api_export_llamadas_abandonadas" %}',
+    exportAgentes: '{% url "analyticspro:api_export_agentes_rendimiento" %}',
+  }
+};
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'analyticspro/js/dashboard.js' %}"></script>
+{% endblock %}

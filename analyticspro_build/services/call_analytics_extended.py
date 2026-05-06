@@ -100,22 +100,44 @@ class CallAnalyticsExtendedService(AnalyticsBaseService):
     # ─────────────────────────────────────────────────────────────
 
     def get_distribucion_horaria_detallada(self, filters=None, agrupar_por='hora'):
+        """
+        Distribución detallada con sub-agrupaciones: hora, dia, semana, mes, campana.
+        Retorna: grupo, total_llamadas, atendidas, abandonadas, transferidas,
+                 porcentaje_atendidas, porcentaje_abandonadas,
+                 tiempo_espera_promedio, tiempo_abandono_promedio, duracion_promedio
+        """
         filters = filters or {}
         tz = self.TZ_DB
         fin_ph, fin_params = self._events_placeholder(self.EVENTOS_FINALES)
-        at_ph, at_params = self._events_placeholder(self.EVENTOS_ATENDIDAS)
-        ab_ph, ab_params = self._events_placeholder(self.EVENTOS_ABANDONADAS)
+        at_ph, at_params   = self._events_placeholder(self.EVENTOS_ATENDIDAS)
+        ab_ph, ab_params   = self._events_placeholder(self.EVENTOS_ABANDONADAS)
+        tr_ph, tr_params   = self._events_placeholder(self.EVENTOS_TRANSFER)
 
         f_clauses, f_params = self._filters_sql(filters)
         fin_clauses = [f'l.event IN ({fin_ph})'] + f_clauses
         where_fin = self._where(fin_clauses)
 
-        group_expr = {
-            'hora': f"EXTRACT(HOUR FROM (l.time AT TIME ZONE '{tz}'))::int",
-            'mes': f"TO_CHAR(l.time AT TIME ZONE '{tz}', 'YYYY-MM')",
-            'dia_semana': f"EXTRACT(DOW FROM (l.time AT TIME ZONE '{tz}'))::int",
-            'campana': 'l.campana_id',
-        }.get(agrupar_por, f"EXTRACT(HOUR FROM (l.time AT TIME ZONE '{tz}'))::int")
+        # ── Expresión GROUP BY según agrupador ─────────────────────
+        if agrupar_por == 'hora':
+            group_expr = f"EXTRACT(HOUR FROM (l.time AT TIME ZONE '{tz}'))::int"
+            extra_join = ''
+        elif agrupar_por == 'dia':
+            group_expr = f"DATE(l.time AT TIME ZONE '{tz}')"
+            extra_join = ''
+        elif agrupar_por == 'semana':
+            group_expr = (
+                f"TO_CHAR(DATE_TRUNC('week', (l.time AT TIME ZONE '{tz}')), 'IYYY-IW')"
+            )
+            extra_join = ''
+        elif agrupar_por == 'mes':
+            group_expr = f"TO_CHAR(l.time AT TIME ZONE '{tz}', 'YYYY-MM')"
+            extra_join = ''
+        elif agrupar_por == 'campana':
+            group_expr = 'COALESCE(c.nombre, l.campana_id::text)'
+            extra_join = 'LEFT JOIN ominicontacto_app_campana c ON c.id = l.campana_id'
+        else:
+            group_expr = f"EXTRACT(HOUR FROM (l.time AT TIME ZONE '{tz}'))::int"
+            extra_join = ''
 
         with self.cursor() as cur:
             sql = f"""
@@ -126,25 +148,97 @@ class CallAnalyticsExtendedService(AnalyticsBaseService):
                 GROUP BY callid
             )
             SELECT
-                {group_expr} AS agrupacion,
-                COUNT(*) AS total,
+                {group_expr} AS grupo_raw,
+                COUNT(*) AS total_llamadas,
                 COUNT(CASE WHEN l.event IN ({at_ph}) THEN 1 END) AS atendidas,
                 COUNT(CASE WHEN l.event IN ({ab_ph}) THEN 1 END) AS abandonadas,
-                COALESCE(AVG(CASE WHEN l.event IN ({at_ph}) THEN l.bridge_wait_time END), 0)::int AS espera_prom,
-                COALESCE(AVG(CASE WHEN l.event IN ({at_ph}) THEN l.duracion_llamada END), 0)::int AS tmo_prom
+                COUNT(CASE WHEN l.event IN ({tr_ph}) THEN 1 END) AS transferidas,
+                COALESCE(AVG(CASE WHEN l.event IN ({at_ph})
+                    THEN l.bridge_wait_time END), 0) AS espera_prom,
+                COALESCE(AVG(CASE WHEN l.event IN ({ab_ph})
+                    THEN l.bridge_wait_time END), 0) AS abandono_prom,
+                COALESCE(AVG(CASE WHEN l.event IN ({at_ph})
+                    THEN l.duracion_llamada END), 0) AS duracion_prom
             FROM reportes_app_llamadalog l
             JOIN last_ev ev ON ev.callid = l.callid AND ev.ultimo_id = l.id
-            GROUP BY agrupacion
-            ORDER BY agrupacion
+            {extra_join}
+            GROUP BY grupo_raw
+            ORDER BY grupo_raw
             """
-            params = fin_params + f_params + at_params + ab_params + at_params * 2
+            params = (fin_params + f_params
+                      + at_params + ab_params + tr_params
+                      + at_params + ab_params + at_params)
             cur.execute(sql, params)
             rows = self.fetchall_dict(cur)
 
+        # ── Post-proceso: formatear etiqueta y calcular porcentajes ─
+        MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
+        datos = []
         for r in rows:
-            if r.get('agrupacion') is not None:
-                r['agrupacion'] = str(r['agrupacion'])
-        return rows
+            raw = r['grupo_raw']
+            total = int(r['total_llamadas'] or 0)
+            atend = int(r['atendidas'] or 0)
+            aband = int(r['abandonadas'] or 0)
+            trans = int(r['transferidas'] or 0)
+
+            if agrupar_por == 'hora':
+                h = int(float(raw))
+                label = f"{h:02d}:00 - {(h+1)%24:02d}:00"
+            elif agrupar_por == 'dia':
+                label = str(raw)  # DATE → 'YYYY-MM-DD'
+                # reformat to DD/MM/YYYY
+                try:
+                    parts = str(raw).split('-')
+                    if len(parts) == 3:
+                        label = f"{parts[2]}/{parts[1]}/{parts[0]}"
+                except Exception:
+                    label = str(raw)
+            elif agrupar_por == 'semana':
+                label = f"Semana {raw}"  # e.g. "2025-27"
+            elif agrupar_por == 'mes':
+                try:
+                    # raw = 'YYYY-MM'
+                    m = int(str(raw).split('-')[1])
+                    y = str(raw).split('-')[0]
+                    label = f"{MESES[m-1]} {y}"
+                except Exception:
+                    label = str(raw)
+            else:
+                label = str(raw)
+
+            datos.append({
+                'grupo': label,
+                'grupo_sort': str(raw),
+                'total_llamadas': total,
+                'atendidas': atend,
+                'abandonadas': aband,
+                'transferidas': trans,
+                'porcentaje_atendidas': round(atend / total * 100, 2) if total else 0,
+                'porcentaje_abandonadas': round(aband / total * 100, 2) if total else 0,
+                'tiempo_espera_promedio': round(float(r['espera_prom'] or 0), 0),
+                'tiempo_abandono_promedio': round(float(r['abandono_prom'] or 0), 0),
+                'duracion_promedio': round(float(r['duracion_prom'] or 0), 0),
+            })
+
+        # ── Para hora: rellenar las 24 horas aunque tengan 0 datos ─
+        if agrupar_por == 'hora':
+            existing = {d['grupo']: d for d in datos}
+            datos = []
+            for h in range(24):
+                lbl = f"{h:02d}:00 - {(h+1)%24:02d}:00"
+                datos.append(existing.get(lbl, {
+                    'grupo': lbl, 'grupo_sort': str(h),
+                    'total_llamadas': 0, 'atendidas': 0, 'abandonadas': 0,
+                    'transferidas': 0, 'porcentaje_atendidas': 0,
+                    'porcentaje_abandonadas': 0, 'tiempo_espera_promedio': 0,
+                    'tiempo_abandono_promedio': 0, 'duracion_promedio': 0,
+                }))
+        elif agrupar_por == 'campana':
+            datos.sort(key=lambda x: x['total_llamadas'], reverse=True)
+
+        return datos
 
     # ─────────────────────────────────────────────────────────────
     # Tabla distribución horaria (hora × día)

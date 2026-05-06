@@ -343,21 +343,42 @@
     <!-- ── TAB: DISTRIBUCIÓN HORARIA ── -->
     <div class="tab-pane fade" id="tab-horaria" role="tabpanel">
       <div class="card">
-        <div class="card-header py-2 small font-weight-bold">
-          {% trans 'Distribución horaria de llamadas (por día)' %}
-        </div>
-        <div class="card-body p-2">
-          <div id="chart-horaria-detalle" style="min-height:300px;"></div>
-        </div>
-      </div>
-      <div class="card mt-3">
-        <div class="card-header py-2 small font-weight-bold">
-          {% trans 'Tabla hora × día' %}
-        </div>
-        <div class="card-body p-0">
+        <div class="card-body py-2">
+
+          <!-- Header -->
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0 font-weight-bold">
+              <i class="fas fa-table mr-2 text-primary"></i>{% trans 'Distribución Horaria Detallada' %}
+            </h5>
+            <button id="btn-horaria-excel" class="btn btn-success btn-sm">
+              <i class="fas fa-file-excel mr-1"></i>{% trans 'Descargar Excel' %}
+            </button>
+          </div>
+
+          <!-- Sub-tab buttons -->
+          <div class="mb-3" id="horaria-agrup-btns">
+            <button class="btn btn-primary btn-sm horaria-agrup active" data-agrup="hora">
+              <i class="far fa-clock mr-1"></i>{% trans 'Por Hora' %}
+            </button>
+            <button class="btn btn-light btn-sm horaria-agrup" data-agrup="dia">
+              <i class="far fa-calendar-alt mr-1"></i>{% trans 'Por Día' %}
+            </button>
+            <button class="btn btn-light btn-sm horaria-agrup" data-agrup="semana">
+              <i class="far fa-calendar mr-1"></i>{% trans 'Por Semana' %}
+            </button>
+            <button class="btn btn-light btn-sm horaria-agrup" data-agrup="mes">
+              <i class="fas fa-chart-bar mr-1"></i>{% trans 'Por Mes' %}
+            </button>
+            <button class="btn btn-light btn-sm horaria-agrup" data-agrup="campana">
+              <i class="fas fa-phone mr-1"></i>{% trans 'Por Campaña' %}
+            </button>
+          </div>
+
+          <!-- Table -->
           <div class="table-responsive" id="horaria-tabla-container">
             <p class="text-center text-muted p-3">Cargando...</p>
           </div>
+
         </div>
       </div>
     </div>

@@ -470,90 +470,116 @@
       });
   }
 
-  // ── Chart: Distribución horaria detallada ─────────────────────────
+  // ── Distribución Horaria Detallada (tabla con sub-pestañas) ──────
 
-  function loadHorariaDet(filters) {
-    var params = $.extend({}, filters, { agrupar_por: 'hora' });
-    return apiFetch(ANALYTICS_CONFIG.urls.horariaDet, params)
+  var _horariaData = [];       // cache last fetch
+  var _horariaAgrup = 'hora';  // active grouping
+
+  function fmtTiempo(s) {
+    s = Math.round(s || 0);
+    if (s <= 0) return '0s';
+    var m = Math.floor(s / 60);
+    var sec = s % 60;
+    return m > 0 ? m + 'm ' + sec + 's' : sec + 's';
+  }
+
+  function renderHorariaTable(rows, agrup) {
+    var $c = $('#horaria-tabla-container');
+    if (!rows || !rows.length) {
+      $c.html('<p class="text-muted p-3 text-center">Sin datos</p>');
+      return;
+    }
+    var colLabel = {
+      hora: 'RANGO HORARIO', dia: 'DÍA', semana: 'SEMANA',
+      mes: 'MES', campana: 'CAMPAÑA',
+    }[agrup] || 'GRUPO';
+
+    var html = '<table class="table table-sm table-hover table-bordered mb-0" id="tbl-horaria-det">';
+    html += '<thead class="thead-light"><tr>';
+    html += '<th>' + colLabel + '</th>';
+    html += '<th class="text-right">RECIBIDAS</th>';
+    html += '<th class="text-right">ATENDIDAS</th>';
+    html += '<th class="text-right">ABANDONADAS</th>';
+    html += '<th class="text-right">TRANSFER.</th>';
+    html += '<th class="text-right">% ATEND.</th>';
+    html += '<th class="text-right">% ABAND.</th>';
+    html += '<th class="text-right">T. ESPERA</th>';
+    html += '<th class="text-right">T. ABAND.</th>';
+    html += '<th class="text-right">DURACIÓN</th>';
+    html += '</tr></thead><tbody>';
+
+    rows.forEach(function (r) {
+      var pctA = parseFloat(r.porcentaje_atendidas || 0);
+      var pctB = parseFloat(r.porcentaje_abandonadas || 0);
+      var colorA = pctA >= 80 ? '#28a745' : pctA >= 60 ? '#fd7e14' : '#dc3545';
+      var colorB = pctB >= 30 ? '#dc3545' : pctB >= 15 ? '#fd7e14' : '#28a745';
+      html += '<tr>';
+      html += '<td class="font-weight-bold">' + (r.grupo || '') + '</td>';
+      html += '<td class="text-right">' + fmtNum(r.total_llamadas) + '</td>';
+      html += '<td class="text-right" style="color:' + colorA + '">' + fmtNum(r.atendidas) + '</td>';
+      html += '<td class="text-right" style="color:' + colorB + '">' + fmtNum(r.abandonadas) + '</td>';
+      html += '<td class="text-right text-primary">' + fmtNum(r.transferidas) + '</td>';
+      html += '<td class="text-right font-weight-bold" style="color:' + colorA + '">' + (pctA).toFixed(2) + '%</td>';
+      html += '<td class="text-right font-weight-bold" style="color:' + colorB + '">' + (pctB).toFixed(2) + '%</td>';
+      html += '<td class="text-right text-secondary">' + fmtTiempo(r.tiempo_espera_promedio) + '</td>';
+      html += '<td class="text-right text-secondary">' + fmtTiempo(r.tiempo_abandono_promedio) + '</td>';
+      html += '<td class="text-right text-secondary">' + fmtTiempo(r.duracion_promedio) + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    $c.html(html);
+  }
+
+  function loadDistribucionHoraria(filters, agrup) {
+    agrup = agrup || _horariaAgrup;
+    _horariaAgrup = agrup;
+    var params = $.extend({}, filters, { agrupar_por: agrup });
+    $('#horaria-tabla-container').html('<p class="text-muted p-3 text-center">Cargando...</p>');
+    return apiFetch(ANALYTICS_CONFIG.urls.horariaTabla, params)
       .done(function (rows) {
-        if (!rows || !rows.length) return;
-        var cats  = rows.map(function (r) { return r.hora !== undefined ? r.hora + ':00' : r.label; });
-        var vals  = rows.map(function (r) { return r.total || r.atendidas || 0; });
-        safeRender('chart-horaria-detalle', function (el) {
-          return new ApexCharts(el, {
-            chart: { type: 'bar', height: 300, toolbar: { show: false } },
-            series: [{ name: 'Llamadas', data: vals }],
-            xaxis: { categories: cats },
-            colors: ['#17a2b8'],
-            dataLabels: { enabled: false },
-          });
-        });
+        _horariaData = rows || [];
+        renderHorariaTable(_horariaData, agrup);
       });
   }
 
-  // ── Table: Tabla distribución horaria (hora×día) ──────────────────
+  function initHorariaSubtabs() {
+    $(document).on('click', '.horaria-agrup', function () {
+      var agrup = $(this).data('agrup');
+      $('.horaria-agrup').removeClass('active btn-primary').addClass('btn-light');
+      $(this).removeClass('btn-light').addClass('active btn-primary');
+      loadDistribucionHoraria(state.filters, agrup);
+    });
 
-  function loadHorariaTabla(filters) {
-    return apiFetch(ANALYTICS_CONFIG.urls.horariaTabla, filters)
-      .done(function (d) {
-        var $c = $('#horaria-tabla-container');
-        if (!d || (!d.rows && !d.length)) {
-          $c.html('<p class="text-muted p-3 text-center">Sin datos</p>');
-          return;
-        }
-        // Expected format: {headers: ['Hora', 'Lun', ...], rows: [[8, 5, 3, ...]]}
-        // OR flat array [{fecha, hora, total}] — pivot by day-of-week × hour
-        var headers, rows, maxVal = 0;
-        if (d.headers && d.rows) {
-          headers = d.headers;
-          rows    = d.rows;
-          rows.forEach(function (r) {
-            r.slice(1).forEach(function (v) { if (v > maxVal) maxVal = v; });
-          });
-        } else if (Array.isArray(d) && d.length) {
-          // Pivot flat [{fecha:'2025-07-16', hora:8, total:5}] → hora x dow
-          var DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-          headers = ['Hora'].concat(DAYS);
-          // Build hora × dow accumulator
-          var acc = {};
-          d.forEach(function (r) {
-            var hora = parseInt(r.hora, 10);
-            var dow = r.fecha ? new Date(r.fecha + 'T12:00:00').getDay() : 0;
-            if (!acc[hora]) acc[hora] = [0,0,0,0,0,0,0];
-            acc[hora][dow] += (r.total || 0);
-          });
-          rows = [];
-          Object.keys(acc).sort(function (a,b) { return +a - +b; }).forEach(function (h) {
-            var row = [h + ':00'].concat(acc[h]);
-            rows.push(row);
-            acc[h].forEach(function (v) { if (v > maxVal) maxVal = v; });
-          });
-        } else {
-          $c.html('<p class="text-muted p-3 text-center">Sin datos</p>');
-          return;
-        }
-        var html = '<table class="table table-sm table-bordered horaria-tbl"><thead class="thead-light"><tr>';
-        headers.forEach(function (h) { html += '<th>' + h + '</th>'; });
-        html += '</tr></thead><tbody>';
-        rows.forEach(function (row) {
-          html += '<tr><td class="font-weight-bold">' + row[0] + '</td>';
-          row.slice(1).forEach(function (v) {
-            var cls = 'heat-0';
-            if (maxVal > 0) {
-              var ratio = v / maxVal;
-              if (ratio > 0.8) cls = 'heat-5';
-              else if (ratio > 0.6) cls = 'heat-4';
-              else if (ratio > 0.4) cls = 'heat-3';
-              else if (ratio > 0.2) cls = 'heat-2';
-              else if (ratio > 0)   cls = 'heat-1';
-            }
-            html += '<td class="' + cls + '">' + (v || '') + '</td>';
-          });
-          html += '</tr>';
-        });
-        html += '</tbody></table>';
-        $c.html(html);
+    $('#btn-horaria-excel').on('click', function () {
+      if (!_horariaData || !_horariaData.length) return;
+      // Build CSV and trigger download (no external lib needed)
+      var cols = [
+        'Grupo','Recibidas','Atendidas','Abandonadas','Transferidas',
+        '% Atendidas','% Abandonadas','T.Espera(s)','T.Abandono(s)','Duracion(s)'
+      ];
+      var lines = [cols.join(',')];
+      _horariaData.forEach(function (r) {
+        lines.push([
+          '"' + (r.grupo || '') + '"',
+          r.total_llamadas || 0,
+          r.atendidas || 0,
+          r.abandonadas || 0,
+          r.transferidas || 0,
+          r.porcentaje_atendidas || 0,
+          r.porcentaje_abandonadas || 0,
+          Math.round(r.tiempo_espera_promedio || 0),
+          Math.round(r.tiempo_abandono_promedio || 0),
+          Math.round(r.duracion_promedio || 0),
+        ].join(','));
       });
+      var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'distribucion_horaria_' + _horariaAgrup + '_' + fmtDate(new Date()) + '.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
   }
 
   // ── Salientes ────────────────────────────────────────────────────
@@ -675,7 +701,7 @@
       case '#tab-agentes':
         req = $.when(loadAgentesRendimiento(f), loadHeatmap(f)); break;
       case '#tab-horaria':
-        req = $.when(loadHorariaDet(f), loadHorariaTabla(f)); break;
+        req = loadDistribucionHoraria(f, _horariaAgrup); break;
       case '#tab-salientes':    req = loadSalientes(f); break;
       case '#tab-transferencias': req = loadTransferencias(f); break;
       default: req = loadResumen(f);
@@ -708,7 +734,7 @@
       case '#tab-agentes':
         req = $.when(loadAgentesRendimiento(f), loadHeatmap(f)); break;
       case '#tab-horaria':
-        req = $.when(loadHorariaDet(f), loadHorariaTabla(f)); break;
+        req = loadDistribucionHoraria(f, _horariaAgrup); break;
       case '#tab-salientes':    req = loadSalientes(f); break;
       case '#tab-transferencias': req = loadTransferencias(f); break;
     }
@@ -822,6 +848,9 @@
 
     // Date range quick-select buttons
     initDateRangeButtons();
+
+    // Horaria sub-tabs (Por Hora, Por Día, etc.)
+    initHorariaSubtabs();
 
     // Load meta (campaigns + agents for selects)
     loadMeta();

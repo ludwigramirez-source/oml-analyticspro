@@ -40,7 +40,10 @@ def distribucion_horaria_detallada(request):
 @require_analytics_access
 def tabla_distribucion_horaria(request):
     filters = parse_filters(request)
-    return _json(_svc().get_tabla_distribucion_horaria(filters))
+    agrupar_por = request.GET.get('agrupar_por', 'hora')
+    if agrupar_por not in ('hora', 'dia', 'semana', 'mes', 'campana'):
+        agrupar_por = 'hora'
+    return _json(_svc().get_distribucion_horaria_detallada(filters, agrupar_por))
 
 
 @login_required

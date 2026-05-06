@@ -126,32 +126,3 @@ class User(Base):
     is_active = Column(Boolean, nullable=False)
     date_joined = Column(DateTime(timezone=True), nullable=False)
 
-
-class CustomFormGestion(Base):
-    """Modelo para ominicontacto_app_customformgestion (gestiones por llamada)"""
-    __tablename__ = 'ominicontacto_app_customformgestion'
-    __table_args__ = {'schema': 'public'}
-
-    id = Column(Integer, primary_key=True)
-    telefono = Column(String(128), nullable=False)
-    nombre = Column(String(255), nullable=False)
-    nis = Column(String(128), nullable=False)
-    incidencia_id = Column(Integer, nullable=False)
-    fecha = Column(DateTime(timezone=True), nullable=False)
-    agent_id = Column(Integer, nullable=False)
-    call_id = Column(String(200), nullable=False)
-    campana_id = Column(Integer, nullable=False)
-    rec_file = Column(String(255))
-
-
-class CustomFormIncidencias(Base):
-    """Modelo para ominicontacto_app_customformincidencias (catalogo de incidencias)"""
-    __tablename__ = 'ominicontacto_app_customformincidencias'
-    __table_args__ = {'schema': 'public'}
-
-    id = Column(Integer, primary_key=True)
-    codigo = Column(Integer, nullable=False)
-    descripcion = Column(String(255), nullable=False)
-    created_at = Column(Date, nullable=False)
-    updated_at = Column(Date, nullable=False)
-    is_active = Column(Boolean, nullable=False)

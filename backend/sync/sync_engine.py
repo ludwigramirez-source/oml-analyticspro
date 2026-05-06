@@ -28,11 +28,6 @@ INCREMENTAL_TABLES = {
     'reportes_app_actividadagentelog': [
         'id', 'time', 'agente_id', 'event', 'pausa_id',
     ],
-    # Gestiones: alto volumen (234K+ y creciendo), sync incremental
-    'ominicontacto_app_customformgestion': [
-        'id', 'telefono', 'nombre', 'nis', 'incidencia_id',
-        'fecha', 'agent_id', 'call_id', 'campana_id', 'rec_file',
-    ],
 }
 
 # Tablas de referencia (full refresh — solo tablas pequenas/estaticas)
@@ -62,10 +57,6 @@ REFERENCE_TABLES = {
     ],
     'ominicontacto_app_pausa': [
         'id', 'nombre', 'tipo', 'eliminada',
-    ],
-    'ominicontacto_app_customformincidencias': [
-        'id', 'codigo', 'descripcion', 'created_at', 'updated_at',
-        'is_active',
     ],
 }
 

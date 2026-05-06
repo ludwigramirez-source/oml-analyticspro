@@ -386,46 +386,6 @@ class AnalyticsAPI {
       throw error;
     }
   }
-  // ==================== GESTIONES ====================
-
-  async getGestionesKpis(filters = {}) {
-    return this.fetchData('gestiones/kpis', filters);
-  }
-
-  async getGestionesPorAgente(filters = {}) {
-    return this.fetchData('gestiones/por-agente', filters);
-  }
-
-  async getGestionesPorCampana(filters = {}) {
-    return this.fetchData('gestiones/por-campana', filters);
-  }
-
-  async getGestionesDetalle(filters = {}, page = 1, perPage = 50) {
-    return this.fetchData(
-      `gestiones/detalle?page=${page}&per_page=${perPage}`,
-      filters
-    );
-  }
-
-  async getGestionesPorDia(filters = {}) {
-    return this.fetchData('gestiones/por-dia', filters);
-  }
-
-  async getGestionesPorIncidencia(filters = {}) {
-    return this.fetchData('gestiones/por-incidencia', filters);
-  }
-
-  async getAuditoriaGestiones(filters = {}) {
-    return this.fetchData('gestiones/auditoria', filters);
-  }
-
-  async getLlamadasSinGestion(filters = {}, page = 1, perPage = 50) {
-    return this.fetchData(
-      `gestiones/sin-gestion?page=${page}&per_page=${perPage}`,
-      filters
-    );
-  }
-
   // ── Sync Status ──────────────────────────────────────────────
 
   async getSyncStatus() {

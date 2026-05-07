@@ -112,11 +112,48 @@ class SyncEngine:
                 **sync_config.get_source_dsn()
             )
             self._source_conn.set_session(autocommit=False)
+            return self._source_conn
+
+        # Rollback defensivo: cancela cualquier transaccion pendiente
+        # o abortada dejada por una operacion anterior en esta misma
+        # conexion (psycopg2: rollback() es no-op en conexion limpia).
+        try:
+            self._source_conn.rollback()
+        except (psycopg2.OperationalError, psycopg2.InterfaceError):
+            logger.warning(
+                "Reconectando a BD source (conexion en estado invalido)"
+            )
+            try:
+                self._source_conn.close()
+            except Exception:
+                pass
+            self._source_conn = psycopg2.connect(
+                **sync_config.get_source_dsn()
+            )
+            self._source_conn.set_session(autocommit=False)
         return self._source_conn
 
     def _get_local_conn(self):
         """Obtiene conexion a BD local (recreando si es necesario)."""
         if self._local_conn is None or self._local_conn.closed:
+            self._local_conn = psycopg2.connect(
+                **sync_config.get_local_dsn()
+            )
+            self._local_conn.set_session(autocommit=False)
+            return self._local_conn
+
+        # Rollback defensivo: cancela cualquier transaccion pendiente
+        # o abortada dejada por la tabla anterior en el mismo ciclo.
+        try:
+            self._local_conn.rollback()
+        except (psycopg2.OperationalError, psycopg2.InterfaceError):
+            logger.warning(
+                "Reconectando a BD local (conexion en estado invalido)"
+            )
+            try:
+                self._local_conn.close()
+            except Exception:
+                pass
             self._local_conn = psycopg2.connect(
                 **sync_config.get_local_dsn()
             )
@@ -220,7 +257,8 @@ class SyncEngine:
         except Exception as e:
             duration = time.time() - start_time
             logger.error(
-                f"[{table_name}] Error en sync: {e}"
+                f"[{table_name}] Error en sync: {e}",
+                exc_info=True,
             )
             set_status(
                 local_conn, table_name, 'error',
@@ -432,22 +470,36 @@ class SyncEngine:
 
     def sync_event_logs(self):
         """Sincroniza las tablas de alto volumen."""
-        for table, columns in INCREMENTAL_TABLES.items():
+        tables = list(INCREMENTAL_TABLES.items())
+        logger.info(
+            f"sync_event_logs: procesando {len(tables)} tabla(s): "
+            + ", ".join(t for t, _ in tables)
+        )
+        for table, columns in tables:
+            logger.info(f"[{table}] >> iniciando sync incremental...")
             try:
                 self.sync_incremental(table, columns)
             except Exception as e:
                 logger.error(
-                    f"Error sincronizando {table}: {e}"
+                    f"[{table}] >> ERROR en sync incremental: {e}",
+                    exc_info=True,
                 )
 
     def sync_reference_data(self):
         """Sincroniza las tablas de referencia."""
-        for table, columns in REFERENCE_TABLES.items():
+        tables = list(REFERENCE_TABLES.items())
+        logger.info(
+            f"sync_reference_data: procesando {len(tables)} tabla(s): "
+            + ", ".join(t for t, _ in tables)
+        )
+        for table, columns in tables:
+            logger.info(f"[{table}] >> iniciando sync referencia...")
             try:
                 self.sync_reference_table(table, columns)
             except Exception as e:
                 logger.error(
-                    f"Error sincronizando {table}: {e}"
+                    f"[{table}] >> ERROR en sync referencia: {e}",
+                    exc_info=True,
                 )
 
     def sync_all(self):

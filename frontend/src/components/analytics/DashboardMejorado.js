@@ -445,23 +445,23 @@ const DashboardMejorado = () => {
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
           <div className="border-b border-gray-200">
-            <nav className="flex -mb-px overflow-x-auto">
+            <nav className="flex -mb-px overflow-x-auto scrollbar-hide">
               {[
-                { id: 'resumen', label: '📈 Resumen', icon: '📈' },
-                { id: 'distribucion', label: '📊 Distribución', icon: '📊' },
-                { id: 'causas', label: '🔍 Causas', icon: '🔍' },
-                { id: 'horaria', label: '🕐 Distribución Horaria', icon: '🕐' },
-                { id: 'campanas', label: '🎯 Campañas (Alertas)', icon: '🎯' },
-                { id: 'atendidas', label: '✅ Llamadas Atendidas', icon: '✅' },
-                { id: 'abandonadas', label: '❌ Llamadas No Atendidas', icon: '❌' },
-                { id: 'agentes', label: '👥 Agentes', icon: '👥' },
-                { id: 'agentes-avanzado', label: '👥📊 Agentes Avanzado', icon: '👥' },
-                { id: 'gestiones', label: '📋 Gestiones', icon: '📋' }
+                { id: 'resumen',         label: '📈 Resumen' },
+                { id: 'distribucion',    label: '📊 Distribución' },
+                { id: 'causas',          label: '🔍 Causas' },
+                { id: 'horaria',         label: '🕐 Dist. Horaria' },
+                { id: 'campanas',        label: '🎯 Campañas' },
+                { id: 'atendidas',       label: '✅ Atendidas' },
+                { id: 'abandonadas',     label: '❌ No Atendidas' },
+                { id: 'agentes',         label: '👥 Agentes' },
+                { id: 'agentes-avanzado',label: '📊 Ag. Avanzado' },
+                { id: 'gestiones',       label: '📋 Gestiones' }
               ].map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'border-blue-600 text-blue-600'
                       : 'border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300'

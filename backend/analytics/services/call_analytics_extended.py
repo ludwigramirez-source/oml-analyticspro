@@ -18,6 +18,7 @@ from ..constants import (
     EVENTOS_TRANSFERENCIAS,
     TIPO_ENTRANTE,
     TIPO_SALIENTE,
+    TIPOS_LLAMADA_ACTIVOS,
 )
 from ..models.omnileads_models import (
     ActividadAgenteLog,
@@ -61,7 +62,8 @@ class CallAnalyticsExtended:
             LlamadaLog.callid,
             func.max(LlamadaLog.id).label('max_id')
         ).filter(
-            LlamadaLog.event.in_(self.EVENTOS_FINALES)
+            LlamadaLog.event.in_(self.EVENTOS_FINALES),
+            LlamadaLog.tipo_llamada.in_(TIPOS_LLAMADA_ACTIVOS),
         )
 
         if filters:
@@ -1090,6 +1092,7 @@ class CallAnalyticsExtended:
         # Usar listas unificadas de la clase
         eventos_atendidas = self.EVENTOS_ATENDIDAS
         eventos_abandonadas = self.EVENTOS_ABANDONADAS
+        eventos_no_atendidas = self.EVENTOS_NO_ATENDIDAS
 
         # Usar el método centralizado que ya aplica TODOS los filtros correctamente
         last_events_subq = self._build_last_event_subquery(filters)
@@ -1134,6 +1137,7 @@ class CallAnalyticsExtended:
             func.count(distinct(LlamadaLog.callid)).label('total_llamadas'),
             func.sum(case((LlamadaLog.event.in_(eventos_atendidas), 1), else_=0)).label('atendidas'),
             func.sum(case((LlamadaLog.event.in_(eventos_abandonadas), 1), else_=0)).label('abandonadas'),
+            func.sum(case((LlamadaLog.event.in_(eventos_no_atendidas), 1), else_=0)).label('no_atendidas'),
             func.avg(case((LlamadaLog.event.in_(eventos_atendidas), LlamadaLog.bridge_wait_time), else_=None)).label('tiempo_espera_promedio'),
             func.avg(case((LlamadaLog.event.in_(eventos_abandonadas), LlamadaLog.bridge_wait_time), else_=None)).label('tiempo_abandono_promedio'),
             func.avg(case((LlamadaLog.event.in_(eventos_atendidas), LlamadaLog.duracion_llamada), else_=None)).label('duracion_promedio')
@@ -1181,14 +1185,17 @@ class CallAnalyticsExtended:
             total = r.total_llamadas or 0
             atendidas = r.atendidas or 0
             abandonadas = r.abandonadas or 0
+            no_atendidas = r.no_atendidas or 0
 
             datos.append({
                 'grupo': label,
                 'total_llamadas': total,
                 'atendidas': atendidas,
                 'abandonadas': abandonadas,
+                'no_atendidas': no_atendidas,
                 'porcentaje_atendidas': round((atendidas / total * 100), 2) if total > 0 else 0,
                 'porcentaje_abandonadas': round((abandonadas / total * 100), 2) if total > 0 else 0,
+                'porcentaje_no_atendidas': round((no_atendidas / total * 100), 2) if total > 0 else 0,
                 'tiempo_espera_promedio': round(r.tiempo_espera_promedio or 0, 2),
                 'tiempo_abandono_promedio': round(r.tiempo_abandono_promedio or 0, 2),
                 'duracion_promedio': round(r.duracion_promedio or 0, 2)
@@ -1213,8 +1220,10 @@ class CallAnalyticsExtended:
                         'total_llamadas': 0,
                         'atendidas': 0,
                         'abandonadas': 0,
+                        'no_atendidas': 0,
                         'porcentaje_atendidas': 0,
                         'porcentaje_abandonadas': 0,
+                        'porcentaje_no_atendidas': 0,
                         'tiempo_espera_promedio': 0,
                         'tiempo_abandono_promedio': 0,
                         'duracion_promedio': 0

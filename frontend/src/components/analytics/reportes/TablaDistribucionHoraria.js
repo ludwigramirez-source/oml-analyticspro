@@ -37,9 +37,10 @@ const TablaDistribucionHoraria = ({ filters }) => {
       'Recibidas': row.total_llamadas,
       'Atendidas': row.atendidas,
       'Abandonadas': row.abandonadas,
-      'Transferidas': row.transferidas,
+      'No Atendidas': row.no_atendidas || 0,
       '% Atendidas': `${row.porcentaje_atendidas}%`,
       '% Abandonadas': `${row.porcentaje_abandonadas}%`,
+      '% No Atendidas': `${row.porcentaje_no_atendidas || 0}%`,
       'T. Espera Prom.': formatTiempo(row.tiempo_espera_promedio),
       'T. Abandono Prom.': formatTiempo(row.tiempo_abandono_promedio),
       'Duración Prom.': formatTiempo(row.duracion_promedio)
@@ -147,13 +148,16 @@ const TablaDistribucionHoraria = ({ filters }) => {
                 Abandonadas
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Transfer.
+                No Atend.
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 % Atend.
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 % Aband.
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                % No Atend.
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 T. Espera
@@ -181,14 +185,17 @@ const TablaDistribucionHoraria = ({ filters }) => {
                 <td className="px-4 py-4 whitespace-nowrap text-sm text-right text-red-600">
                   {row.abandonadas}
                 </td>
-                <td className="px-4 py-4 whitespace-nowrap text-sm text-right text-blue-600">
-                  {row.transferidas}
+                <td className="px-4 py-4 whitespace-nowrap text-sm text-right text-orange-600">
+                  {row.no_atendidas || 0}
                 </td>
                 <td className="px-4 py-4 whitespace-nowrap text-sm text-right font-medium text-green-700">
                   {row.porcentaje_atendidas}%
                 </td>
                 <td className="px-4 py-4 whitespace-nowrap text-sm text-right font-medium text-red-700">
                   {row.porcentaje_abandonadas}%
+                </td>
+                <td className="px-4 py-4 whitespace-nowrap text-sm text-right font-medium text-orange-700">
+                  {row.porcentaje_no_atendidas || 0}%
                 </td>
                 <td className="px-4 py-4 whitespace-nowrap text-sm text-right text-gray-600">
                   {formatTiempo(row.tiempo_espera_promedio)}

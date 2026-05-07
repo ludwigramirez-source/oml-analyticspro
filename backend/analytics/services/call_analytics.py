@@ -113,9 +113,13 @@ class CallAnalyticsService:
             LlamadaLog.tipo_llamada.in_(TIPOS_LLAMADA_ACTIVOS)
         )
 
-        # Filtrar por eventos específicos si se proporciona lista
+        # Filtrar por eventos específicos si se proporciona lista;
+        # si no, usar EVENTOS_FINALES para coincidir con la lógica de CallAnalyticsExtended
+        # y evitar que MAX(id) apunte a un evento intermedio (DIAL, ENTERQUEUE, etc.)
         if event_list:
             subquery = subquery.filter(LlamadaLog.event.in_(event_list))
+        else:
+            subquery = subquery.filter(LlamadaLog.event.in_(self.EVENTOS_FINALES))
 
         # Aplicar filtros comunes usando _apply_filters
         subquery = self._apply_filters(subquery, filters)
@@ -603,7 +607,7 @@ class CallAnalyticsService:
             hora_idx = int(r.hora)
             if r.tipo_llamada == self.TIPO_ENTRANTE:
                 entrantes[hora_idx] += r.total
-                if r.event in self.EVENTOS_NO_ATENDIDAS:
+                if r.event in self.EVENTOS_ABANDONADAS:
                     abandonadas[hora_idx] += r.total
             elif r.tipo_llamada == self.TIPO_SALIENTE:
                 salientes[hora_idx] += r.total

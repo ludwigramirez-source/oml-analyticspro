@@ -3,7 +3,7 @@ Servicio principal de analytics de llamadas.
 Port de call_analytics.py (FastAPI/SQLAlchemy) a SQL crudo (Django/psycopg2).
 """
 from analyticspro.services.base import AnalyticsBaseService
-from analyticspro.constants import EVENTOS_FINALES, TIPOS_LLAMADA_ACTIVOS
+from analyticspro.constants import EVENTOS_FINALES
 
 
 class CallAnalyticsService(AnalyticsBaseService):

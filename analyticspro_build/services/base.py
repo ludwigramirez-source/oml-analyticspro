@@ -8,8 +8,8 @@ from django.conf import settings
 from analyticspro.constants import (
     EVENTOS_ATENDIDAS, EVENTOS_ABANDONADAS, EVENTOS_NO_ATENDIDAS,
     EVENTOS_FINALES, EVENTOS_EXCLUIDOS, EVENTOS_INTERMEDIOS,
-    TIPO_ENTRANTE, TIPO_SALIENTE, TIPO_DIALER, TIPOS_LLAMADA_ACTIVOS,
-    INBOUND_ONLY_MODE, SLA_THRESHOLD_60, SLA_THRESHOLD_20,
+    TIPO_ENTRANTE, TIPO_SALIENTE, TIPO_DIALER,
+    SLA_THRESHOLD_60, SLA_THRESHOLD_20,
 )
 
 
@@ -20,7 +20,10 @@ class AnalyticsBaseService:
     """
 
     TZ_DB = getattr(settings, 'ANALYTICSPRO_TIMEZONE_DB', 'America/Bogota')
-    INBOUND_ONLY = INBOUND_ONLY_MODE
+    # Configurable por instalacion via install.sh -> ANALYTICSPRO_INBOUND_ONLY
+    # en oml_settings_local.py. Cuando True, todas las queries genericas
+    # excluyen salientes (tipo_llamada=1) y dialer (tipo_llamada=2).
+    INBOUND_ONLY = getattr(settings, 'ANALYTICSPRO_INBOUND_ONLY', False)
 
     # Constantes de eventos
     EVENTOS_ATENDIDAS = EVENTOS_ATENDIDAS
@@ -101,7 +104,10 @@ class AnalyticsBaseService:
                 clauses.append(f'{table}.tipo_llamada = %s')
                 params.append(self.TIPO_SALIENTE)
         else:
-            tipos = TIPOS_LLAMADA_ACTIVOS
+            tipos = (
+                [self.TIPO_ENTRANTE] if self.INBOUND_ONLY
+                else [self.TIPO_ENTRANTE, self.TIPO_SALIENTE, self.TIPO_DIALER]
+            )
             placeholders = ','.join(['%s'] * len(tipos))
             clauses.append(f'{table}.tipo_llamada IN ({placeholders})')
             params.extend(tipos)

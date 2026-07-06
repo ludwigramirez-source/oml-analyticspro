@@ -314,22 +314,29 @@ step 7 "Recargando servidor de aplicaciones"
 
 RELOADED=false
 
-# Opción A: uWSGI FIFO
-if [ -p "$FIFO" ]; then
+# Opción A: systemd omnileads (nombre estándar en instalaciones recientes)
+if systemctl is-active --quiet omnileads 2>/dev/null; then
+    systemctl restart omnileads
+    ok "Servicio omnileads reiniciado"
+    RELOADED=true
+fi
+
+# Opción B: uWSGI FIFO
+if [ "$RELOADED" = false ] && [ -p "$FIFO" ]; then
     echo r > "$FIFO"
     sleep 2
     ok "uWSGI recargado vía FIFO ($FIFO)"
     RELOADED=true
 fi
 
-# Opción B: systemd omnileads-uwsgi
+# Opción C: systemd omnileads-uwsgi
 if [ "$RELOADED" = false ] && systemctl is-active --quiet omnileads-uwsgi 2>/dev/null; then
     systemctl restart omnileads-uwsgi
     ok "Servicio omnileads-uwsgi reiniciado"
     RELOADED=true
 fi
 
-# Opción C: systemd omnileads-gunicorn
+# Opción D: systemd omnileads-gunicorn
 if [ "$RELOADED" = false ] && systemctl is-active --quiet omnileads-gunicorn 2>/dev/null; then
     systemctl restart omnileads-gunicorn
     ok "Servicio omnileads-gunicorn reiniciado"
@@ -337,7 +344,7 @@ if [ "$RELOADED" = false ] && systemctl is-active --quiet omnileads-gunicorn 2>/
 fi
 
 if [ "$RELOADED" = false ]; then
-    warn "No se detectó uWSGI/Gunicorn automáticamente."
+    warn "No se detectó el servicio automáticamente."
     warn "Recarga manualmente:  echo r > $FIFO"
     warn "O bien:               systemctl restart <nombre-del-servicio>"
 fi

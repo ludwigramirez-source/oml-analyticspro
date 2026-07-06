@@ -568,6 +568,7 @@ class CallAnalyticsService(AnalyticsBaseService):
 
         ent_row = _run_tipo(self.TIPO_ENTRANTE)
         sal_row = _run_tipo(self.TIPO_SALIENTE)
+        dial_row = _run_tipo(self.TIPO_DIALER)
 
         ent_at    = int(ent_row.get('atendidas',  0) or 0)
         ent_ab    = int(ent_row.get('abandonadas', 0) or 0)
@@ -580,6 +581,19 @@ class CallAnalyticsService(AnalyticsBaseService):
         sal_total = sal_at + sal_na
         nivel_atencion_sal = round(sal_at / sal_total * 100, 2) if sal_total > 0 else 0
         tasa_no_atencion   = round(sal_na / sal_total * 100, 2) if sal_total > 0 else 0
+
+        # Dialer: conectadas (atendidas) + abandonadas en cola + no contactadas
+        dial_at = int(dial_row.get('atendidas',   0) or 0)
+        dial_ab = int(dial_row.get('abandonadas', 0) or 0)
+        dial_na = int(dial_row.get('no_atendidas', 0) or 0)
+        dial_total = dial_at + dial_ab + dial_na
+        dial_contactadas = dial_at + dial_ab
+        tasa_contactabilidad_dial = (
+            round(dial_contactadas / dial_total * 100, 2) if dial_total > 0 else 0
+        )
+        tasa_conexion_agente_dial = (
+            round(dial_at / dial_contactadas * 100, 2) if dial_contactadas > 0 else 0
+        )
 
         return {
             'entrantes': {
@@ -595,6 +609,15 @@ class CallAnalyticsService(AnalyticsBaseService):
                 'no_atendidas':    sal_na,
                 'nivel_atencion':  nivel_atencion_sal,
                 'tasa_no_atencion': tasa_no_atencion,
+            },
+            'dialer': {
+                'total':                  dial_total,
+                'conectadas_agente':      dial_at,
+                'abandonadas_cola':       dial_ab,
+                'no_contactadas':         dial_na,
+                'contactadas':            dial_contactadas,
+                'tasa_contactabilidad':   tasa_contactabilidad_dial,
+                'tasa_conexion_agente':   tasa_conexion_agente_dial,
             },
         }
 

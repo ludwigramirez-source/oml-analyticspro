@@ -400,3 +400,227 @@ class CallAnalyticsExtendedService(AnalyticsBaseService):
             params = fin_params + f_params + at_params + at_params
             cur.execute(sql, params)
             return self.fetchall_dict(cur)
+
+    # ─────────────────────────────────────────────────────────────
+    # Dialer (tipo_llamada=2): KPIs agregados
+    # ─────────────────────────────────────────────────────────────
+
+    def get_dialer_dashboard(self, filters=None):
+        """
+        KPIs del marcador predictivo (dialer). Reutiliza la misma
+        clasificación de eventos que entrantes/salientes:
+        - conectadas_agente (EVENTOS_ATENDIDAS): la llamada llegó a un agente
+        - abandonadas_cola (EVENTOS_ABANDONADAS): el cliente contestó pero
+          colgó (o el sistema lo expulsó) antes de conectar con un agente
+        - no_contactadas (EVENTOS_NO_ATENDIDAS): el cliente nunca contestó
+        """
+        filters = filters or {}
+
+        f_clauses = ['l.tipo_llamada = %s']
+        f_params = [self.TIPO_DIALER]
+        if filters.get('fecha_inicio'):
+            f_clauses.append('l.time >= %s')
+            f_params.append(filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            f_clauses.append('l.time <= %s')
+            f_params.append(filters['fecha_fin'])
+        if filters.get('campana_id'):
+            f_clauses.append('l.campana_id = %s')
+            f_params.append(filters['campana_id'])
+
+        fin_ph, fin_params = self._events_placeholder(self.EVENTOS_FINALES)
+        at_ph, at_params = self._events_placeholder(self.EVENTOS_ATENDIDAS)
+        ab_ph, ab_params = self._events_placeholder(self.EVENTOS_ABANDONADAS)
+        na_ph, na_params = self._events_placeholder(self.EVENTOS_NO_ATENDIDAS)
+
+        fin_clauses = [f'l.event IN ({fin_ph})'] + f_clauses
+        where_fin = self._where(fin_clauses)
+
+        with self.cursor() as cur:
+            sql = f"""
+            WITH last_ev AS (
+                SELECT l.callid, MAX(l.id) AS ultimo_id
+                FROM reportes_app_llamadalog l
+                {where_fin}
+                GROUP BY l.callid
+            )
+            SELECT
+                COUNT(DISTINCT CASE WHEN l.event IN ({at_ph}) THEN l.callid END) AS conectadas,
+                COUNT(DISTINCT CASE WHEN l.event IN ({ab_ph}) THEN l.callid END) AS abandonadas,
+                COUNT(DISTINCT CASE WHEN l.event IN ({na_ph}) THEN l.callid END) AS no_contactadas,
+                COALESCE(AVG(CASE WHEN l.event IN ({at_ph}) THEN l.duracion_llamada END), 0)::int AS tmo_prom,
+                COUNT(DISTINCT CASE WHEN l.event IN ({at_ph}) THEN l.agente_id END) AS agentes_activos,
+                COUNT(DISTINCT l.campana_id) AS campanas
+            FROM reportes_app_llamadalog l
+            JOIN last_ev ev ON ev.callid = l.callid AND ev.ultimo_id = l.id
+            """
+            params = (
+                fin_params + f_params
+                + at_params + ab_params + na_params
+                + at_params + at_params
+            )
+            cur.execute(sql, params)
+            row = self.fetchone_dict(cur)
+
+        conectadas = int(row.get('conectadas', 0) or 0)
+        abandonadas = int(row.get('abandonadas', 0) or 0)
+        no_contactadas = int(row.get('no_contactadas', 0) or 0)
+        contactadas = conectadas + abandonadas
+        intentos = contactadas + no_contactadas
+
+        return {
+            'intentos': intentos,
+            'contactadas': contactadas,
+            'conectadas_agente': conectadas,
+            'abandonadas_cola': abandonadas,
+            'no_contactadas': no_contactadas,
+            'tmo_promedio': int(row.get('tmo_prom', 0) or 0),
+            'agentes_activos': int(row.get('agentes_activos', 0) or 0),
+            'campanas': int(row.get('campanas', 0) or 0),
+            'tasa_contactabilidad': (
+                round(contactadas / intentos * 100, 2) if intentos > 0 else 0
+            ),
+            'tasa_conexion_agente': (
+                round(conectadas / contactadas * 100, 2) if contactadas > 0 else 0
+            ),
+            'tiempo_cola_promedio_s': self._tiempo_cola_promedio(f_clauses, f_params),
+        }
+
+    def _tiempo_cola_promedio(self, f_clauses, f_params):
+        """
+        Tiempo promedio (segundos) entre ENTERQUEUE (cliente en cola)
+        y CONNECT (conectado a un agente), para llamadas que sí
+        llegaron a conectar con un agente.
+        """
+        where = self._where(f_clauses)
+        with self.cursor() as cur:
+            cur.execute(f"""
+                SELECT AVG(EXTRACT(EPOCH FROM (conn.time - eq.time)))::int
+                FROM (
+                    SELECT callid, MIN(time) AS time
+                    FROM reportes_app_llamadalog l
+                    {where}
+                    AND event = 'ENTERQUEUE'
+                    GROUP BY callid
+                ) eq
+                JOIN (
+                    SELECT callid, MIN(time) AS time
+                    FROM reportes_app_llamadalog l
+                    {where}
+                    AND event = 'CONNECT'
+                    GROUP BY callid
+                ) conn ON conn.callid = eq.callid
+                WHERE conn.time > eq.time
+            """, f_params + f_params)
+            row = cur.fetchone()
+            return int(row[0]) if row and row[0] else 0
+
+    # ─────────────────────────────────────────────────────────────
+    # Detalle paginado por tipo_llamada (salientes=1, dialer=2)
+    # ─────────────────────────────────────────────────────────────
+
+    def _resultado_evento(self, event):
+        if event in self.EVENTOS_ATENDIDAS:
+            return 'Atendida'
+        if event in self.EVENTOS_ABANDONADAS:
+            return 'Abandonada'
+        return 'No contestada'
+
+    def _detalle_por_tipo(self, tipo_llamada, filters=None, page=1,
+                           per_page=50, sort_by='time', sort_dir='desc'):
+        filters = filters or {}
+        tz = self.TZ_DB
+
+        f_clauses = ['l.tipo_llamada = %s']
+        f_params = [tipo_llamada]
+        if filters.get('fecha_inicio'):
+            f_clauses.append('l.time >= %s')
+            f_params.append(filters['fecha_inicio'])
+        if filters.get('fecha_fin'):
+            f_clauses.append('l.time <= %s')
+            f_params.append(filters['fecha_fin'])
+        if filters.get('campana_id'):
+            f_clauses.append('l.campana_id = %s')
+            f_params.append(filters['campana_id'])
+        if filters.get('agente_id'):
+            f_clauses.append('l.agente_id = %s')
+            f_params.append(filters['agente_id'])
+
+        fin_ph, fin_params = self._events_placeholder(self.EVENTOS_FINALES)
+        fin_clauses = [f'l.event IN ({fin_ph})'] + f_clauses
+        where_fin = self._where(fin_clauses)
+
+        offset = (page - 1) * per_page
+        sort_col = {
+            'fecha': 'l.time', 'hora': 'l.time',
+            'duracion': 'l.duracion_llamada', 'callid': 'l.callid',
+            'agente': 'u.first_name', 'campana': 'c.nombre',
+        }.get(sort_by, 'l.time')
+        direction = 'DESC' if sort_dir.lower() == 'desc' else 'ASC'
+
+        with self.cursor() as cur:
+            count_sql = f"""
+            WITH last_ev AS (
+                SELECT callid, MAX(id) AS ultimo_id
+                FROM reportes_app_llamadalog l
+                {where_fin}
+                GROUP BY callid
+            )
+            SELECT COUNT(*) FROM reportes_app_llamadalog l
+            JOIN last_ev ev ON ev.callid = l.callid AND ev.ultimo_id = l.id
+            """
+            cur.execute(count_sql, fin_params + f_params)
+            total = cur.fetchone()[0]
+
+            data_sql = f"""
+            WITH last_ev AS (
+                SELECT callid, MAX(id) AS ultimo_id
+                FROM reportes_app_llamadalog l
+                {where_fin}
+                GROUP BY callid
+            )
+            SELECT
+                l.callid,
+                (l.time AT TIME ZONE '{tz}') AS fecha,
+                EXTRACT(HOUR FROM (l.time AT TIME ZONE '{tz}'))::int AS hora,
+                l.duracion_llamada,
+                l.bridge_wait_time,
+                l.event,
+                l.agente_id,
+                u.first_name || ' ' || u.last_name AS agente_nombre,
+                l.campana_id,
+                c.nombre AS campana_nombre,
+                l.numero_marcado,
+                l.archivo_grabacion
+            FROM reportes_app_llamadalog l
+            JOIN last_ev ev ON ev.callid = l.callid AND ev.ultimo_id = l.id
+            LEFT JOIN ominicontacto_app_agenteprofile ap ON ap.id = l.agente_id
+            LEFT JOIN ominicontacto_app_user u ON u.id = ap.user_id
+            LEFT JOIN ominicontacto_app_campana c ON c.id = l.campana_id
+            ORDER BY {sort_col} {direction}
+            LIMIT %s OFFSET %s
+            """
+            cur.execute(data_sql, fin_params + f_params + [per_page, offset])
+            rows = self.fetchall_dict(cur)
+
+        for r in rows:
+            if r.get('fecha'):
+                r['fecha'] = str(r['fecha'])
+            r['resultado'] = self._resultado_evento(r['event'])
+
+        return self._paginate(rows, page, per_page, total)
+
+    def get_llamadas_salientes_detalle(self, filters=None, page=1,
+                                        per_page=50, sort_by='time',
+                                        sort_dir='desc'):
+        """Detalle paginado de llamadas salientes manuales (tipo_llamada=1)."""
+        return self._detalle_por_tipo(
+            self.TIPO_SALIENTE, filters, page, per_page, sort_by, sort_dir
+        )
+
+    def get_dialer_detalle(self, filters=None, page=1, per_page=50,
+                            sort_by='time', sort_dir='desc'):
+        """Detalle paginado de llamadas del dialer (tipo_llamada=2)."""
+        return self._detalle_por_tipo(
+            self.TIPO_DIALER, filters, page, per_page, sort_by, sort_dir
+        )

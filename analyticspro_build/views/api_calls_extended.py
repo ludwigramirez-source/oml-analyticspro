@@ -66,3 +66,36 @@ def salientes_dashboard(request):
 def salientes_por_agente(request):
     filters = parse_filters(request)
     return _json(_svc().get_salientes_por_agente(filters))
+
+
+@login_required
+@require_analytics_access
+def llamadas_salientes_detalle(request):
+    filters = parse_filters(request)
+    page = int(request.GET.get('page', 1))
+    per_page = min(int(request.GET.get('per_page', 50)), 200)
+    sort_by = request.GET.get('sort_by', 'time')
+    sort_dir = request.GET.get('sort_dir', 'desc')
+    return _json(_svc().get_llamadas_salientes_detalle(
+        filters, page, per_page, sort_by, sort_dir
+    ))
+
+
+@login_required
+@require_analytics_access
+def dialer_dashboard(request):
+    filters = parse_filters(request)
+    return _json(_svc().get_dialer_dashboard(filters))
+
+
+@login_required
+@require_analytics_access
+def dialer_detalle(request):
+    filters = parse_filters(request)
+    page = int(request.GET.get('page', 1))
+    per_page = min(int(request.GET.get('per_page', 50)), 200)
+    sort_by = request.GET.get('sort_by', 'time')
+    sort_dir = request.GET.get('sort_dir', 'desc')
+    return _json(_svc().get_dialer_detalle(
+        filters, page, per_page, sort_by, sort_dir
+    ))

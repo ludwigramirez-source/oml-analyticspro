@@ -11,6 +11,8 @@
     filters: {},
     atendidasPage: 1,
     abandonadasPage: 1,
+    salientesDetallePage: 1,
+    dialerPage: 1,
     perPage: 50,
     charts: {},
     initialized: false,
@@ -504,6 +506,8 @@
 
   var _distData     = [];  // cache Distribución export
   var _salData      = [];  // cache Salientes export
+  var _salDetalleData = []; // cache Salientes detalle export
+  var _dialerData   = [];  // cache Dialer detalle export
   var _modalSesData = [];  // cache modal sesiones export
   var _modalPauData = [];  // cache modal pausas export
 
@@ -844,12 +848,19 @@
 
   // ── Salientes ────────────────────────────────────────────────────
 
+  function resultadoBadge(resultado) {
+    if (resultado === 'Atendida' || resultado === 'Conectada a agente') return 'success';
+    if (resultado === 'Abandonada') return 'danger';
+    return 'secondary';
+  }
+
   function loadSalientes(filters) {
     // Override tipo to salientes
     var p = $.extend({}, filters, { tipo_llamada: 'salientes' });
-    $.when(
+    return $.when(
       apiFetch(ANALYTICS_CONFIG.urls.salientes, p),
-      apiFetch(ANALYTICS_CONFIG.urls.salientesAgente, p)
+      apiFetch(ANALYTICS_CONFIG.urls.salientesAgente, p),
+      loadSalientesDetalle(filters, 1)
     ).done(function (dashRes, agRes) {
       var d = dashRes[0];
       var totalSal = d.total_llamadas != null ? d.total_llamadas : (d.total != null ? d.total : null);
@@ -901,6 +912,101 @@
         });
       }
     });
+  }
+
+  function loadSalientesDetalle(filters, page) {
+    page = page || 1;
+    var params = $.extend({}, filters, { page: page, per_page: state.perPage });
+    return apiFetch(ANALYTICS_CONFIG.urls.salientesDetalle, params)
+      .done(function (d) {
+        var rows = d.data || [];
+        var total = d.total || rows.length;
+        _salDetalleData = rows;
+        var $tbody = $('#tbody-salientes-detalle').empty();
+        if (!rows.length) {
+          $tbody.append('<tr><td colspan="7" class="text-center text-muted">Sin datos</td></tr>');
+        } else {
+          $.each(rows, function (_, r) {
+            $tbody.append('<tr>' +
+              '<td>' + fmtDt(r.fecha || r.time) + '</td>' +
+              '<td>' + (r.campana_nombre || '—') + '</td>' +
+              '<td>' + (r.agente_nombre || '—') + '</td>' +
+              '<td class="text-monospace small">' + (r.callid || '—') + '</td>' +
+              '<td><span class="badge badge-' + resultadoBadge(r.resultado) + '">' + (r.resultado || '—') + '</span></td>' +
+              '<td>' + fmtNum(r.duracion_llamada) + '</td>' +
+              '<td>' + (r.numero_marcado || '—') + '</td>' +
+            '</tr>');
+          });
+        }
+        renderPagination('#pag-salientes-detalle', page, total, state.perPage, function (p) {
+          state.salientesDetallePage = p;
+          loadSalientesDetalle(state.filters, p);
+        });
+      });
+  }
+
+  // ── Dialer ───────────────────────────────────────────────────────
+
+  function loadDialer(filters, page) {
+    page = page || 1;
+    return $.when(
+      apiFetch(ANALYTICS_CONFIG.urls.dialerDashboard, filters),
+      loadDialerDetalle(filters, page)
+    ).done(function (dashRes) {
+      var d = dashRes[0] || {};
+      var kpiDefs = [
+        { label: 'Intentos',               value: fmtNum(d.intentos) },
+        { label: 'Conectadas a Agente',    value: fmtNum(d.conectadas_agente) },
+        { label: 'Abandonadas en Cola',    value: fmtNum(d.abandonadas_cola) },
+        { label: 'No Contactadas',         value: fmtNum(d.no_contactadas) },
+        { label: 'Contactabilidad',        value: fmtPct(d.tasa_contactabilidad) },
+        { label: 'Tasa Conexión a Agente', value: fmtPct(d.tasa_conexion_agente) },
+        { label: 'Tiempo en Cola Prom.',   value: fmtNum(d.tiempo_cola_promedio_s) + ' s' },
+        { label: 'TMO Promedio',           value: fmtNum(d.tmo_promedio) + ' s' },
+      ];
+      var $kpis = $('#dialer-kpis').empty();
+      $.each(kpiDefs, function (_, k) {
+        $kpis.append(
+          '<div class="col-md-3 col-sm-6 mb-2">' +
+          '<div class="card kpi-card border-left-secondary">' +
+          '<div class="card-body py-2">' +
+          '<div class="small text-muted kpi-label">' + k.label + '</div>' +
+          '<div class="h3 mb-0 kpi-value font-weight-bold">' + k.value + '</div>' +
+          '</div></div></div>'
+        );
+      });
+    });
+  }
+
+  function loadDialerDetalle(filters, page) {
+    page = page || 1;
+    var params = $.extend({}, filters, { page: page, per_page: state.perPage });
+    return apiFetch(ANALYTICS_CONFIG.urls.dialerDetalle, params)
+      .done(function (d) {
+        var rows = d.data || [];
+        var total = d.total || rows.length;
+        _dialerData = rows;
+        var $tbody = $('#tbody-dialer').empty();
+        if (!rows.length) {
+          $tbody.append('<tr><td colspan="7" class="text-center text-muted">Sin datos</td></tr>');
+        } else {
+          $.each(rows, function (_, r) {
+            $tbody.append('<tr>' +
+              '<td>' + fmtDt(r.fecha || r.time) + '</td>' +
+              '<td>' + (r.campana_nombre || '—') + '</td>' +
+              '<td>' + (r.agente_nombre || '—') + '</td>' +
+              '<td class="text-monospace small">' + (r.callid || '—') + '</td>' +
+              '<td><span class="badge badge-' + resultadoBadge(r.resultado) + '">' + (r.resultado || '—') + '</span></td>' +
+              '<td>' + fmtNum(r.duracion_llamada) + '</td>' +
+              '<td>' + (r.numero_marcado || '—') + '</td>' +
+            '</tr>');
+          });
+        }
+        renderPagination('#pag-dialer', page, total, state.perPage, function (p) {
+          state.dialerPage = p;
+          loadDialerDetalle(state.filters, p);
+        });
+      });
   }
 
   // ── Transferencias ───────────────────────────────────────────────
@@ -969,11 +1075,12 @@
         ? Math.min(totalHabla / totalSesion * 100, 100)
         : 0;
 
-      // ── Top cards: Entrantes / Salientes ─────────────────────────
-      // API now returns a dict {entrantes:{...}, salientes:{...}}
+      // ── Top cards: Entrantes / Salientes / Dialer ────────────────
+      // API now returns a dict {entrantes:{...}, salientes:{...}, dialer:{...}}
       var tipoDict = (tipoRes && tipoRes[0]) || {};
       var ent = tipoDict.entrantes || {};
       var sal = tipoDict.salientes || {};
+      var dial = tipoDict.dialer || {};
 
       function fillEntrantesCard(data) {
         var total   = data.total          || 0;
@@ -1003,8 +1110,23 @@
         $('#kpi-sal-tasa').text(fmtNum(tasa, 1) + '%');
       }
 
+      function fillDialerCard(data) {
+        var total      = data.total              || 0;
+        var conectadas = data.conectadas_agente   || 0;
+        var noContact  = data.no_contactadas      || 0;
+        var contacto   = data.tasa_contactabilidad || 0;   // contactadas / total × 100
+        var conexion   = data.tasa_conexion_agente || 0;   // conectadas / contactadas × 100
+        $('#kpi-dial-total').text(fmtNum(total));
+        $('#kpi-dial-conectadas').text(fmtNum(conectadas));
+        $('#kpi-dial-no-contactadas').text(fmtNum(noContact));
+        $('#kpi-dial-nivel').text(fmtNum(contacto, 1) + '%');
+        $('#kpi-dial-bar').css('width', Math.min(contacto, 100).toFixed(1) + '%');
+        $('#kpi-dial-tasa').text(fmtNum(conexion, 1) + '%');
+      }
+
       fillEntrantesCard(ent);
       fillSalientesCard(sal);
+      fillDialerCard(dial);
 
       // ── Metric cards ─────────────────────────────────────────────
       $('#km-total').text(fmtNum(kpi.total_llamadas));
@@ -1042,6 +1164,7 @@
       case '#tab-horaria':
         req = loadDistribucionHoraria(f, _horariaAgrup); break;
       case '#tab-salientes':    req = loadSalientes(f); break;
+      case '#tab-dialer':       req = loadDialer(f, 1); break;
       case '#tab-transferencias': req = loadTransferencias(f); break;
       default: req = loadKpisTab(f);
     }
@@ -1078,6 +1201,7 @@
       case '#tab-horaria':
         req = loadDistribucionHoraria(f, _horariaAgrup); break;
       case '#tab-salientes':    req = loadSalientes(f); break;
+      case '#tab-dialer':       req = loadDialer(f, 1); break;
       case '#tab-transferencias': req = loadTransferencias(f); break;
     }
     if (req && req.always) {
@@ -1318,6 +1442,37 @@
       a.href = URL.createObjectURL(blob); a.download = 'salientes_agente.csv';
       document.body.appendChild(a); a.click();
       document.body.removeChild(a); URL.revokeObjectURL(a.href);
+    });
+
+    // Export: Detalle de llamadas (CSV client-side, reutilizado por
+    // Salientes-detalle y Dialer — misma forma de fila).
+    function exportDetalleCsv(rows, filename) {
+      if (!rows.length) return;
+      var lines = ['﻿Fecha/Hora,Campaña,Agente,Call ID,Resultado,Duración (s),Número'];
+      rows.forEach(function (r) {
+        lines.push([
+          '"' + fmtDt(r.fecha || r.time) + '"',
+          '"' + (r.campana_nombre || '') + '"',
+          '"' + (r.agente_nombre || '') + '"',
+          '"' + (r.callid || '') + '"',
+          '"' + (r.resultado || '') + '"',
+          r.duracion_llamada || 0,
+          '"' + (r.numero_marcado || '') + '"'
+        ].join(','));
+      });
+      var blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = filename;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(a.href);
+    }
+
+    $('#btn-export-salientes-detalle').on('click', function () {
+      exportDetalleCsv(_salDetalleData, 'salientes_detalle.csv');
+    });
+
+    $('#btn-export-dialer').on('click', function () {
+      exportDetalleCsv(_dialerData, 'dialer_detalle.csv');
     });
 
     // Export: Modal Sesiones (CSV client-side)

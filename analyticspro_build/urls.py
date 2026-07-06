@@ -32,9 +32,14 @@ urlpatterns = [
     path('analyticspro/api/tabla-distribucion-horaria/', api_calls_extended.tabla_distribucion_horaria, name='api_tabla_distribucion_horaria'),
     path('analyticspro/api/salientes/dashboard/', api_calls_extended.salientes_dashboard, name='api_salientes_dashboard'),
     path('analyticspro/api/salientes/por-agente/', api_calls_extended.salientes_por_agente, name='api_salientes_por_agente'),
+    path('analyticspro/api/salientes/detalle/', api_calls_extended.llamadas_salientes_detalle, name='api_salientes_detalle'),
 
     # ── Call analytics extended — nuevas ────────────────────────────────
     path('analyticspro/api/nivel-atencion-campanas/', api_calls_extended.nivel_atencion_campanas, name='api_nivel_atencion_campanas'),
+
+    # ── Dialer (tipo_llamada=2, marcador predictivo) ─────────────────────
+    path('analyticspro/api/dialer/dashboard/', api_calls_extended.dialer_dashboard, name='api_dialer_dashboard'),
+    path('analyticspro/api/dialer/detalle/', api_calls_extended.dialer_detalle, name='api_dialer_detalle'),
 
     # ── Agent analytics ──────────────────────────────────────────
     path('analyticspro/api/agentes/rendimiento/', api_agents.rendimiento, name='api_agentes_rendimiento'),

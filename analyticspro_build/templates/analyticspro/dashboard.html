@@ -144,6 +144,11 @@
       </a>
     </li>
     <li class="nav-item">
+      <a class="nav-link" data-toggle="tab" href="#tab-dialer" role="tab">
+        <i class="fas fa-robot mr-1"></i>{% trans 'Dialer' %}
+      </a>
+    </li>
+    <li class="nav-item">
       <a class="nav-link" data-toggle="tab" href="#tab-transferencias" role="tab">
         <i class="fas fa-random mr-1"></i>{% trans 'Transferencias' %}
       </a>
@@ -155,9 +160,9 @@
     <!-- ── TAB: KPIs ── -->
     <div class="tab-pane fade show active" id="tab-kpis" role="tabpanel">
 
-      <!-- Top cards: Entrantes + Salientes -->
+      <!-- Top cards: Entrantes + Salientes + Dialer -->
       <div class="row mb-3" id="kpi-tipo-cards">
-        <div class="col-md-6 mb-2">
+        <div class="col-md-4 mb-2">
           <div class="card border-success h-100">
             <div class="card-header py-2 bg-success text-white d-flex justify-content-between align-items-center">
               <span><i class="fas fa-phone-alt mr-1"></i>{% trans 'Llamadas Entrantes' %}</span>
@@ -187,7 +192,7 @@
             </div>
           </div>
         </div>
-        <div class="col-md-6 mb-2">
+        <div class="col-md-4 mb-2">
           <div class="card border-primary h-100">
             <div class="card-header py-2 bg-primary text-white d-flex justify-content-between align-items-center">
               <span><i class="fas fa-phone-volume mr-1"></i>{% trans 'Llamadas Salientes' %}</span>
@@ -213,6 +218,36 @@
               </div>
               <div class="small text-muted text-right">
                 {% trans 'Tasa No Contacto' %}: <span id="kpi-sal-tasa">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4 mb-2">
+          <div class="card border-secondary h-100">
+            <div class="card-header py-2 bg-secondary text-white d-flex justify-content-between align-items-center">
+              <span><i class="fas fa-robot mr-1"></i>{% trans 'Llamadas Dialer' %}</span>
+              <span class="h4 mb-0 font-weight-bold" id="kpi-dial-total">—</span>
+            </div>
+            <div class="card-body pb-2">
+              <div class="row text-center mb-2">
+                <div class="col border-right">
+                  <div class="h5 mb-0 text-secondary font-weight-bold" id="kpi-dial-conectadas">—</div>
+                  <div class="small text-muted">{% trans 'Conectadas a Agente' %}</div>
+                </div>
+                <div class="col">
+                  <div class="h5 mb-0 text-warning font-weight-bold" id="kpi-dial-no-contactadas">—</div>
+                  <div class="small text-muted">{% trans 'No Contactadas' %}</div>
+                </div>
+              </div>
+              <div class="d-flex justify-content-between small mb-1">
+                <span class="text-muted">{% trans 'Contactabilidad' %}</span>
+                <strong class="text-secondary" id="kpi-dial-nivel">—</strong>
+              </div>
+              <div class="progress mb-1" style="height:8px;">
+                <div class="progress-bar bg-secondary" id="kpi-dial-bar" role="progressbar" style="width:0%;"></div>
+              </div>
+              <div class="small text-muted text-right">
+                {% trans 'Tasa Conexión a Agente' %}: <span id="kpi-dial-tasa">—</span>
               </div>
             </div>
           </div>
@@ -719,6 +754,67 @@
           </div>
         </div>
       </div>
+
+      <div class="card mt-3">
+        <div class="card-header py-2 small font-weight-bold d-flex justify-content-between align-items-center">
+          <span>{% trans 'Detalle de llamadas salientes' %}</span>
+          <button class="btn btn-sm btn-outline-success py-0" id="btn-export-salientes-detalle">
+            <i class="fas fa-file-excel mr-1"></i>{% trans 'Exportar' %}
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover table-bordered mb-0" id="tbl-salientes-detalle">
+              <thead class="thead-light">
+                <tr>
+                  <th>{% trans 'Fecha/Hora' %}</th>
+                  <th>{% trans 'Campaña' %}</th>
+                  <th>{% trans 'Agente' %}</th>
+                  <th>{% trans 'Call ID' %}</th>
+                  <th>{% trans 'Resultado' %}</th>
+                  <th>{% trans 'Duración (s)' %}</th>
+                  <th>{% trans 'Número' %}</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-salientes-detalle"><tr><td colspan="7" class="text-center text-muted">Cargando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div id="pag-salientes-detalle" class="d-flex justify-content-between align-items-center mt-2 small"></div>
+    </div>
+
+    <!-- ── TAB: DIALER ── -->
+    <div class="tab-pane fade" id="tab-dialer" role="tabpanel">
+      <div class="row mb-3" id="dialer-kpis"></div>
+
+      <div class="card">
+        <div class="d-flex justify-content-between align-items-center card-header py-2 small font-weight-bold">
+          <span>{% trans 'Detalle de llamadas dialer' %}</span>
+          <button class="btn btn-sm btn-outline-success py-0" id="btn-export-dialer">
+            <i class="fas fa-file-excel mr-1"></i>{% trans 'Exportar' %}
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover table-bordered mb-0" id="tbl-dialer">
+              <thead class="thead-light">
+                <tr>
+                  <th>{% trans 'Fecha/Hora' %}</th>
+                  <th>{% trans 'Campaña' %}</th>
+                  <th>{% trans 'Agente' %}</th>
+                  <th>{% trans 'Call ID' %}</th>
+                  <th>{% trans 'Resultado' %}</th>
+                  <th>{% trans 'Duración (s)' %}</th>
+                  <th>{% trans 'Número' %}</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-dialer"><tr><td colspan="7" class="text-center text-muted">Cargando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div id="pag-dialer" class="d-flex justify-content-between align-items-center mt-2 small"></div>
     </div>
 
     <!-- ── TAB: TRANSFERENCIAS ── -->
@@ -856,6 +952,9 @@ var ANALYTICS_CONFIG = {
     horariaTabla: '{% url "analyticspro:api_tabla_distribucion_horaria" %}',
     salientes: '{% url "analyticspro:api_salientes_dashboard" %}',
     salientesAgente: '{% url "analyticspro:api_salientes_por_agente" %}',
+    salientesDetalle: '{% url "analyticspro:api_salientes_detalle" %}',
+    dialerDashboard: '{% url "analyticspro:api_dialer_dashboard" %}',
+    dialerDetalle: '{% url "analyticspro:api_dialer_detalle" %}',
     transferencias: '{% url "analyticspro:api_transferencias" %}',
     syncStatus: '{% url "analyticspro:api_sync_status" %}',
     campanas: '{% url "analyticspro:api_campanas" %}',

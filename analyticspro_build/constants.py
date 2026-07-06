@@ -74,6 +74,7 @@ EVENTOS_FINALES = (
 # ============================================================================
 
 TIPO_SALIENTE = 1      # Llamadas manuales salientes
+TIPO_DIALER = 2        # Llamadas automáticas del marcador predictivo (dialer)
 TIPO_ENTRANTE = 3      # Llamadas entrantes (inbound)
 
 # Tipos activos según modo (usado en queries de filtrado)

@@ -85,7 +85,7 @@ cd "$OML_HOME"
 "$VENV_PY" manage.py collectstatic --noinput -v 0 2>&1 | tail -3 || fail "collectstatic falló"
 ok "Collectstatic completado"
 
-if "$VENV_PY" manage.py check analyticspro --quiet 2>/dev/null; then
+if "$VENV_PY" manage.py check analyticspro -v 0 > /dev/null 2>&1; then
     ok "Django check analyticspro: OK"
 else
     fail "Django check reportó errores — revisar antes de continuar"

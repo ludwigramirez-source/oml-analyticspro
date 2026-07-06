@@ -349,7 +349,7 @@ echo ""
 banner "Verificación:"
 
 # Django check
-if "$VENV_PY" manage.py check analyticspro --quiet 2>/dev/null; then
+if "$VENV_PY" manage.py check analyticspro -v 0 > /dev/null 2>&1; then
     ok "Django check analyticspro: OK"
 else
     warn "Django check reportó advertencias — revisar manualmente"

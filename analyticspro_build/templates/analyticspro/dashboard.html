@@ -145,7 +145,7 @@
     </li>
     <li class="nav-item">
       <a class="nav-link" data-toggle="tab" href="#tab-dialer" role="tab">
-        <i class="fas fa-robot mr-1"></i>{% trans 'Dialer' %}
+        <i class="fas fa-microchip mr-1"></i>{% trans 'Dialer' %}
       </a>
     </li>
     <li class="nav-item">
@@ -225,7 +225,7 @@
         <div class="col-md-4 mb-2">
           <div class="card border-secondary h-100">
             <div class="card-header py-2 bg-secondary text-white d-flex justify-content-between align-items-center">
-              <span><i class="fas fa-robot mr-1"></i>{% trans 'Llamadas Dialer' %}</span>
+              <span><i class="fas fa-microchip mr-1"></i>{% trans 'Llamadas Dialer' %}</span>
               <span class="h4 mb-0 font-weight-bold" id="kpi-dial-total">—</span>
             </div>
             <div class="card-body pb-2">
@@ -772,11 +772,12 @@
                   <th>{% trans 'Agente' %}</th>
                   <th>{% trans 'Call ID' %}</th>
                   <th>{% trans 'Resultado' %}</th>
+                  <th>{% trans 'Espera (s)' %}</th>
                   <th>{% trans 'Duración (s)' %}</th>
                   <th>{% trans 'Número' %}</th>
                 </tr>
               </thead>
-              <tbody id="tbody-salientes-detalle"><tr><td colspan="7" class="text-center text-muted">Cargando...</td></tr></tbody>
+              <tbody id="tbody-salientes-detalle"><tr><td colspan="8" class="text-center text-muted">Cargando...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -805,11 +806,12 @@
                   <th>{% trans 'Agente' %}</th>
                   <th>{% trans 'Call ID' %}</th>
                   <th>{% trans 'Resultado' %}</th>
+                  <th>{% trans 'Espera (s)' %}</th>
                   <th>{% trans 'Duración (s)' %}</th>
                   <th>{% trans 'Número' %}</th>
                 </tr>
               </thead>
-              <tbody id="tbody-dialer"><tr><td colspan="7" class="text-center text-muted">Cargando...</td></tr></tbody>
+              <tbody id="tbody-dialer"><tr><td colspan="8" class="text-center text-muted">Cargando...</td></tr></tbody>
             </table>
           </div>
         </div>

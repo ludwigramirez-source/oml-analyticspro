@@ -924,7 +924,7 @@
         _salDetalleData = rows;
         var $tbody = $('#tbody-salientes-detalle').empty();
         if (!rows.length) {
-          $tbody.append('<tr><td colspan="7" class="text-center text-muted">Sin datos</td></tr>');
+          $tbody.append('<tr><td colspan="8" class="text-center text-muted">Sin datos</td></tr>');
         } else {
           $.each(rows, function (_, r) {
             $tbody.append('<tr>' +
@@ -933,6 +933,7 @@
               '<td>' + (r.agente_nombre || '—') + '</td>' +
               '<td class="text-monospace small">' + (r.callid || '—') + '</td>' +
               '<td><span class="badge badge-' + resultadoBadge(r.resultado) + '">' + (r.resultado || '—') + '</span></td>' +
+              '<td>' + fmtNum(r.bridge_wait_time) + '</td>' +
               '<td>' + fmtNum(r.duracion_llamada) + '</td>' +
               '<td>' + (r.numero_marcado || '—') + '</td>' +
             '</tr>');
@@ -988,7 +989,7 @@
         _dialerData = rows;
         var $tbody = $('#tbody-dialer').empty();
         if (!rows.length) {
-          $tbody.append('<tr><td colspan="7" class="text-center text-muted">Sin datos</td></tr>');
+          $tbody.append('<tr><td colspan="8" class="text-center text-muted">Sin datos</td></tr>');
         } else {
           $.each(rows, function (_, r) {
             $tbody.append('<tr>' +
@@ -997,6 +998,7 @@
               '<td>' + (r.agente_nombre || '—') + '</td>' +
               '<td class="text-monospace small">' + (r.callid || '—') + '</td>' +
               '<td><span class="badge badge-' + resultadoBadge(r.resultado) + '">' + (r.resultado || '—') + '</span></td>' +
+              '<td>' + fmtNum(r.bridge_wait_time) + '</td>' +
               '<td>' + fmtNum(r.duracion_llamada) + '</td>' +
               '<td>' + (r.numero_marcado || '—') + '</td>' +
             '</tr>');
@@ -1448,7 +1450,7 @@
     // Salientes-detalle y Dialer — misma forma de fila).
     function exportDetalleCsv(rows, filename) {
       if (!rows.length) return;
-      var lines = ['﻿Fecha/Hora,Campaña,Agente,Call ID,Resultado,Duración (s),Número'];
+      var lines = ['﻿Fecha/Hora,Campaña,Agente,Call ID,Resultado,Espera (s),Duración (s),Número'];
       rows.forEach(function (r) {
         lines.push([
           '"' + fmtDt(r.fecha || r.time) + '"',
@@ -1456,6 +1458,7 @@
           '"' + (r.agente_nombre || '') + '"',
           '"' + (r.callid || '') + '"',
           '"' + (r.resultado || '') + '"',
+          r.bridge_wait_time || 0,
           r.duracion_llamada || 0,
           '"' + (r.numero_marcado || '') + '"'
         ].join(','));

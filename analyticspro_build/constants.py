@@ -5,10 +5,12 @@ Fuente única de verdad para clasificación de eventos y tipos de llamada.
 
 # ============================================================================
 # MODO: SOLO ENTRANTES
-# Cuando True, TODAS las queries excluyen salientes (tipo_llamada=1).
-# Poner False para restaurar análisis entrantes+salientes.
+# Cuando True, TODAS las queries excluyen salientes (tipo_llamada=1) y
+# dialer (tipo_llamada=2). Este servidor usa marcador predictivo (dialer)
+# ademas de salientes manuales, asi que se desactiva para incluir los 3
+# tipos de llamada en todos los reportes.
 # ============================================================================
-INBOUND_ONLY_MODE = True
+INBOUND_ONLY_MODE = False
 
 # ============================================================================
 # EVENTOS DE LLAMADAS - Clasificación OmniLeads
@@ -80,7 +82,7 @@ TIPO_ENTRANTE = 3      # Llamadas entrantes (inbound)
 # Tipos activos según modo (usado en queries de filtrado)
 TIPOS_LLAMADA_ACTIVOS = (
     [TIPO_ENTRANTE] if INBOUND_ONLY_MODE
-    else [TIPO_ENTRANTE, TIPO_SALIENTE]
+    else [TIPO_ENTRANTE, TIPO_SALIENTE, TIPO_DIALER]
 )
 
 # ============================================================================

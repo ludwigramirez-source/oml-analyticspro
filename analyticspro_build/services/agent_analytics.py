@@ -217,17 +217,20 @@ class AgentAnalyticsService(AnalyticsBaseService):
 
         sesiones = []
         login_time = None
+        login_time_local = None
         for act in acts:
             if act['event'] == 'ADDMEMBER':
                 login_time = act['time']
+                login_time_local = act['time_local']
             elif act['event'] == 'REMOVEMEMBER' and login_time:
                 dur = (act['time'] - login_time).total_seconds()
                 sesiones.append({
-                    'inicio': str(login_time),
-                    'fin': str(act['time']),
+                    'inicio': str(login_time_local),
+                    'fin': str(act['time_local']),
                     'duracion_s': int(dur),
                 })
                 login_time = None
+                login_time_local = None
         return sesiones
 
     # ─────────────────────────────────────────────────────────────
@@ -251,7 +254,9 @@ class AgentAnalyticsService(AnalyticsBaseService):
 
         with self.cursor() as cur:
             cur.execute(f"""
-                SELECT a.event, a.time, a.pausa_id, p.nombre AS pausa_nombre, p.tipo AS pausa_tipo
+                SELECT a.event, a.time, a.pausa_id,
+                       (a.time AT TIME ZONE '{tz}') AS time_local,
+                       p.nombre AS pausa_nombre, p.tipo AS pausa_tipo
                 FROM reportes_app_actividadagentelog a
                 LEFT JOIN ominicontacto_app_pausa p ON p.id::TEXT = a.pausa_id
                 {where}
@@ -262,10 +267,12 @@ class AgentAnalyticsService(AnalyticsBaseService):
 
         pausas = []
         pausa_inicio = None
+        pausa_inicio_local = None
         pausa_meta = {}
         for act in acts:
             if act['event'] == 'PAUSEALL':
                 pausa_inicio = act['time']
+                pausa_inicio_local = act['time_local']
                 pausa_meta = {
                     'pausa_id': act['pausa_id'],
                     'nombre': act.get('pausa_nombre', 'Desconocida'),
@@ -274,12 +281,13 @@ class AgentAnalyticsService(AnalyticsBaseService):
             elif act['event'] == 'UNPAUSEALL' and pausa_inicio:
                 dur = (act['time'] - pausa_inicio).total_seconds()
                 pausas.append({
-                    'inicio': str(pausa_inicio),
-                    'fin': str(act['time']),
+                    'inicio': str(pausa_inicio_local),
+                    'fin': str(act['time_local']),
                     'duracion_s': int(dur),
                     **pausa_meta,
                 })
                 pausa_inicio = None
+                pausa_inicio_local = None
 
         return pausas
 
@@ -319,8 +327,10 @@ class AgentAnalyticsService(AnalyticsBaseService):
             rows = self.fetchall_dict(cur)
 
         for r in rows:
-            r['time'] = str(r['time'])
-            r['time_local'] = str(r.get('time_local', ''))
+            # 'time' expone la hora local (Bogota); se descarta el
+            # timestamptz crudo en UTC para no filtrarlo a la UI.
+            r['time'] = str(r['time_local'])
+            r['time_local'] = r['time']
         return rows
 
     # ─────────────────────────────────────────────────────────────
@@ -338,6 +348,7 @@ class AgentAnalyticsService(AnalyticsBaseService):
                 primer_login, ultimo_logout.
         """
         filters = filters or {}
+        tz = self.TZ_DB
 
         # ── 1. Call data ─────────────────────────────────────────────
         fin_ph, fin_params = self._events_placeholder(self.EVENTOS_FINALES)
@@ -403,6 +414,7 @@ class AgentAnalyticsService(AnalyticsBaseService):
                     u.first_name || ' ' || u.last_name AS nombre,
                     a.event,
                     a.time,
+                    (a.time AT TIME ZONE '{tz}') AS time_local,
                     p.tipo AS pausa_tipo
                 FROM reportes_app_actividadagentelog a
                 LEFT JOIN ominicontacto_app_agenteprofile ap
@@ -414,7 +426,7 @@ class AgentAnalyticsService(AnalyticsBaseService):
                     ('ADDMEMBER','REMOVEMEMBER','PAUSEALL','UNPAUSEALL')
                 {extra}
                 ORDER BY a.agente_id, a.time
-            """.format(extra=act_extra), act_params)
+            """.format(tz=tz, extra=act_extra), act_params)
             actividades = self.fetchall_dict(cur)
 
         # ── 3. State machine per agent ───────────────────────────────
@@ -444,12 +456,13 @@ class AgentAnalyticsService(AnalyticsBaseService):
             for act in data['actividades']:
                 ev = act['event']
                 t = act['time']
+                t_local = act['time_local']
                 if ev == 'ADDMEMBER':
                     login_t = t
                     if primer_login is None:
-                        primer_login = t
+                        primer_login = t_local
                 elif ev == 'REMOVEMEMBER':
-                    ultimo_logout = t
+                    ultimo_logout = t_local
                     if login_t is not None:
                         t_ses += (t - login_t).total_seconds()
                         num_ses += 1

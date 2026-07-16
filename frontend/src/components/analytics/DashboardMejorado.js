@@ -13,7 +13,6 @@ import DistribucionAvanzada from './reportes/DistribucionAvanzada';
 import CausasDetalladas from './reportes/CausasDetalladas';
 import AgentesAvanzado from './reportes/AgentesAvanzado';
 import TablaDistribucionHoraria from './reportes/TablaDistribucionHoraria';
-import Gestiones from './reportes/Gestiones';
 import SyncStatusBadge from './SyncStatusBadge';
 
 const DashboardMejorado = () => {
@@ -455,8 +454,7 @@ const DashboardMejorado = () => {
                 { id: 'atendidas',       label: '✅ Atendidas' },
                 { id: 'abandonadas',     label: '❌ No Atendidas' },
                 { id: 'agentes',         label: '👥 Agentes' },
-                { id: 'agentes-avanzado',label: '📊 Ag. Avanzado' },
-                { id: 'gestiones',       label: '📋 Gestiones' }
+                { id: 'agentes-avanzado',label: '📊 Ag. Avanzado' }
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -628,11 +626,6 @@ const DashboardMejorado = () => {
             {/* Tab: Agentes Avanzado */}
             {activeTab === 'agentes-avanzado' && (
               <AgentesAvanzado filters={filters} />
-            )}
-
-            {/* Tab: Gestiones */}
-            {activeTab === 'gestiones' && (
-              <Gestiones filters={filters} />
             )}
           </div>
         </div>

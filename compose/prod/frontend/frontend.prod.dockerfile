@@ -4,9 +4,15 @@
 # Build stage
 FROM node:20-alpine as builder
 
+# Vacio por defecto: nginx sirve frontend y backend bajo el mismo origen
+# (proxy_pass /api/ -> backend), asi que el bundle debe llamar a rutas
+# relativas. Solo pasar un valor si el backend vive en otro origen.
+ARG REACT_APP_BACKEND_URL=
+
 ENV NODE_ENV=production \
     NODE_PATH=/app/node_modules \
-    PATH=/app/node_modules/.bin:$PATH
+    PATH=/app/node_modules/.bin:$PATH \
+    REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
 
 WORKDIR /app
 

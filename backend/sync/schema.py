@@ -118,32 +118,6 @@ CREATE TABLE IF NOT EXISTS public.ominicontacto_app_pausa (
 );
 """
 
-CUSTOM_FORM_GESTION_DDL = """
-CREATE TABLE IF NOT EXISTS public.ominicontacto_app_customformgestion (
-    id             INTEGER PRIMARY KEY,
-    telefono       VARCHAR(128) NOT NULL DEFAULT '',
-    nombre         VARCHAR(255) NOT NULL DEFAULT '',
-    nis            VARCHAR(128) NOT NULL DEFAULT '',
-    incidencia_id  INTEGER NOT NULL DEFAULT 0,
-    fecha          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    agent_id       INTEGER NOT NULL DEFAULT 0,
-    call_id        VARCHAR(200) NOT NULL DEFAULT '',
-    campana_id     INTEGER NOT NULL DEFAULT 0,
-    rec_file       VARCHAR(255)
-);
-"""
-
-CUSTOM_FORM_INCIDENCIAS_DDL = """
-CREATE TABLE IF NOT EXISTS public.ominicontacto_app_customformincidencias (
-    id          INTEGER PRIMARY KEY,
-    codigo      INTEGER NOT NULL DEFAULT 0,
-    descripcion VARCHAR(255) NOT NULL DEFAULT '',
-    created_at  DATE NOT NULL DEFAULT CURRENT_DATE,
-    updated_at  DATE NOT NULL DEFAULT CURRENT_DATE,
-    is_active   BOOLEAN NOT NULL DEFAULT true
-);
-"""
-
 # ── Tabla de metadata de sincronizacion ──────────────────────────
 
 SYNC_METADATA_DDL = """
@@ -183,13 +157,6 @@ PERFORMANCE_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_actividadagente_agente_time ON public.reportes_app_actividadagentelog (agente_id, \"time\" DESC)",
     "CREATE INDEX IF NOT EXISTS idx_actividadagente_agente_event ON public.reportes_app_actividadagentelog (agente_id, event)",
     "CREATE INDEX IF NOT EXISTS idx_actividadagente_cover ON public.reportes_app_actividadagentelog (agente_id, \"time\", event) INCLUDE (pausa_id)",
-    # customformgestion
-    "CREATE INDEX IF NOT EXISTS idx_gestion_campana_id ON public.ominicontacto_app_customformgestion (campana_id)",
-    "CREATE INDEX IF NOT EXISTS idx_gestion_agent_id ON public.ominicontacto_app_customformgestion (agent_id)",
-    "CREATE INDEX IF NOT EXISTS idx_gestion_fecha ON public.ominicontacto_app_customformgestion (fecha)",
-    "CREATE INDEX IF NOT EXISTS idx_gestion_incidencia_id ON public.ominicontacto_app_customformgestion (incidencia_id)",
-    "CREATE INDEX IF NOT EXISTS idx_gestion_call_id ON public.ominicontacto_app_customformgestion (call_id)",
-    "CREATE INDEX IF NOT EXISTS idx_gestion_campana_fecha ON public.ominicontacto_app_customformgestion (campana_id, fecha)",
 ]
 
 
@@ -207,9 +174,6 @@ def initialize_schema(conn):
         ('ominicontacto_app_agenteprofile', AGENTE_PROFILE_DDL),
         ('ominicontacto_app_user', USER_DDL),
         ('ominicontacto_app_pausa', PAUSA_DDL),
-        ('ominicontacto_app_customformgestion', CUSTOM_FORM_GESTION_DDL),
-        ('ominicontacto_app_customformincidencias',
-         CUSTOM_FORM_INCIDENCIAS_DDL),
         ('sync_metadata', SYNC_METADATA_DDL),
     ]
 

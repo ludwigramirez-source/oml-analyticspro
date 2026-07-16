@@ -2,7 +2,12 @@
  * Servicio API para Analytics OmniLeads
  */
 
-const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:81';
+// Cadena vacia = rutas relativas (nginx sirve frontend+backend bajo el
+// mismo origen). Solo cae al default si la variable no se definio en
+// absoluto durante el build (!== undefined, no ||, para no pisar '').
+const API_URL = process.env.REACT_APP_BACKEND_URL !== undefined
+  ? process.env.REACT_APP_BACKEND_URL
+  : 'http://localhost:81';
 
 class AnalyticsAPI {
   /**

@@ -33,6 +33,11 @@ INCREMENTAL_TABLES = {
 # Tablas de referencia (full refresh — solo tablas pequenas/estaticas)
 REFERENCE_TABLES = {
     'ominicontacto_app_campana': [
+        # Este OmniLeads destino es una version mas antigua/distinta:
+        # no tiene campo_direccion, mostrar_did,
+        # mostrar_nombre_ruta_entrante, control_de_duplicados,
+        # prioridad ni campos_bd_obligatorios (verificado contra
+        # information_schema.columns en el servidor real).
         'id', 'estado', 'nombre', 'fecha_inicio', 'fecha_fin',
         'oculto', 'campaign_id_wombat', 'type', 'tipo_interaccion',
         'es_template', 'nombre_template', 'es_manual', 'objetivo',
@@ -41,9 +46,6 @@ REFERENCE_TABLES = {
         'sistema_externo_id', 'campo_desactivacion',
         'campos_bd_no_editables', 'campos_bd_ocultos', 'outcid',
         'outr_id', 'videocall_habilitada', 'speech',
-        'campo_direccion', 'mostrar_did',
-        'mostrar_nombre_ruta_entrante', 'control_de_duplicados',
-        'prioridad', 'campos_bd_obligatorios',
     ],
     'ominicontacto_app_agenteprofile': [
         'id', 'sip_extension', 'sip_password', 'estado',
